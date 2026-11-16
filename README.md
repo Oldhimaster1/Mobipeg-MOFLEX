@@ -86,6 +86,8 @@ The browser build requires **SharedArrayBuffer and cross-origin isolation**, inc
 
 ### Hosting the web version
 
+The [Pages deployment workflow](.github/workflows/pages.yml) publishes only the web assets and license, after checking controller tests and recorded source/engine hashes. To enable it, open **Settings → Pages → Build and deployment → Source → GitHub Actions**. Then run **Deploy web app to GitHub Pages** from the Actions tab. Subsequent app changes on master deploy automatically. The expected address is https://oldhimaster1.github.io/Mobipeg-MOFLEX/.
+
 The deployable web application is in [`dist/`](dist/). Serve WASM files as `application/wasm` and configure:
 
 ```text

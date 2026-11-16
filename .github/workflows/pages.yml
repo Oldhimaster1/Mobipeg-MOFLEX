@@ -1,0 +1,76 @@
+name: Deploy web app to GitHub Pages
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'dist/**'
+      - 'native/**'
+      - 'tests/core.test.mjs'
+      - 'LICENSE'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run controller and native filter parity tests
+        run: node --test tests/core.test.mjs
+      - name: Check source and engine hashes
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          import { createHash } from 'node:crypto';
+          import assert from 'node:assert/strict';
+          const manifest = JSON.parse(readFileSync('dist/engine/provenance.json'));
+          for (const [path, expected] of Object.entries(manifest.hashes)) {
+            const actual = createHash('sha256').update(readFileSync(path)).digest('hex');
+            assert.equal(actual, expected, 'Provenance mismatch: ' + path);
+          }
+          for (const path of ['dist/engine/mobipeg.wasm', 'dist/engine-simd/mobipeg.wasm']) {
+            assert.equal(readFileSync(path).subarray(0, 8).toString('hex'), '0061736d01000000');
+          }
+          console.log('Recorded source and engine hashes match.');
+          NODE
+      - name: Prepare static website
+        run: |
+          mkdir -p _site
+          cp -R dist/. _site/
+          cp LICENSE _site/LICENSE
+          touch _site/.nojekyll
+      - name: Upload website
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Deploy website
+        id: deployment
+        uses: actions/deploy-pages@v4
