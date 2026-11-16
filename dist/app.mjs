@@ -1,5 +1,5 @@
 import{validate,rate}from'./core.mjs';
-const $=id=>document.getElementById(id),form=$('settings');let file=null,worker=null,previewURL=null,outputURL=null,started=0,stageStarted=0,ticker=null,report=null,wake=null,busy=false,runToken=0;
+const $=id=>document.getElementById(id),form=$('settings');let file=null,worker=null,previewURL=null,outputURL=null,started=0,stageStarted=0,ticker=null,report=null,wake=null,busy=false,runToken=0,stallMonitor=null;
 const time=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
 function log(s){$('logs').textContent=($('logs').textContent+'\n'+s).slice(-16000);}
 function settings(){const d=new FormData(form);return validate({mode:d.get('mode'),engine:d.get('engine')||'auto',preset:d.get('preset'),resolution:d.get('resolution'),fps:d.get('fps'),filter:d.get('filter'),motion:d.get('motion'),q:d.get('q')===''?null:Number(d.get('q')),maxMB:d.get('maxMB')===''?null:Number(d.get('maxMB'))});}
@@ -7,11 +7,23 @@ function select(f){if(busy||!f)return;file=f;if(previewURL)URL.revokeObjectURL(p
 $('preview').onloadedmetadata=()=>{$('filemeta').textContent=`${$('preview').videoWidth} × ${$('preview').videoHeight} · ${time($('preview').duration)}`;};$('file').onchange=e=>select(e.target.files[0]);$('replace').onclick=()=>$('file').click();for(const type of ['dragenter','dragover'])$('drop').addEventListener(type,e=>{e.preventDefault();if(!busy)$('drop').classList.add('over');});for(const type of ['dragleave','drop'])$('drop').addEventListener(type,e=>{e.preventDefault();$('drop').classList.remove('over');if(type==='drop')select(e.dataTransfer.files[0]);});
 form.onchange=()=>{const stereo=new FormData(form).get('mode')!=='2d';$('modehint').textContent=stereo?`True 3D · layout 0 · ${ (rate($('fps').value)*2).toFixed(3).replace(/\.000$/,'')} coded eye frames/sec`:'Standard 2D · MOFLEX layout 6';};$('reset').onclick=()=>{if(!busy){form.reset();form.dispatchEvent(new Event('change'));}};
 function lock(v){busy=v;for(const el of form.elements)el.disabled=v;$('convert').disabled=v||!file;$('reset').disabled=v;$('replace').disabled=v;$('file').disabled=v;}
-function finish(){runToken++;worker?.terminate();worker=null;clearInterval(ticker);lock(false);$('cancel').hidden=true;wake?.release().catch(()=>{});wake=null;}
+function finish(){runToken++;worker?.terminate();worker=null;clearInterval(ticker);clearInterval(stallMonitor);stallMonitor=null;lock(false);$('cancel').hidden=true;wake?.release().catch(()=>{});wake=null;}
 function fail(message){$('stage').textContent='Conversion stopped';$('error').hidden=false;$('error').textContent=message;log(message);$('progress').value=0;finish();}
 $('cancel').onclick=()=>{fail('Cancelled. Your original file is untouched.');};
 form.onsubmit=async e=>{e.preventDefault();if(!file||busy)return;let s;try{s=settings();}catch(e){alert(e.message);return;}if(file.size>512*1024*1024&&!confirm('This is a large input. Browser memory may be insufficient, especially on mobile. Continue?'))return;lock(true);const token=++runToken;if(outputURL){URL.revokeObjectURL(outputURL);outputURL=null;}$('job').hidden=false;$('result').hidden=true;$('error').hidden=true;$('cancel').hidden=false;$('stage').textContent='Loading native WASM encoder…';$('joblabel').textContent='CONVERSION';$('logs').textContent='MobiPEG V15 · fixed layout-0 source\nNo media upload. WebAssembly · FFmpeg scheduler threads, single codec thread.';$('memory').textContent='';$('eta').textContent='Estimating time…';$('progress').removeAttribute('value');started=stageStarted=performance.now();ticker=setInterval(()=>$('elapsed').textContent=time((performance.now()-started)/1000)+' elapsed',1000);$('job').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'nearest'});try{const requestedWake=await navigator.wakeLock?.request('screen');if(token!==runToken){requestedWake?.release().catch(()=>{});return;}wake=requestedWake;}catch{}if(token!==runToken)return;
 let candidate=null;
+let currentWorkerType='convert',lastActivity=performance.now(),idleWarningShown=false;
+stallMonitor=setInterval(()=>{
+  if(token!==runToken||!worker)return;
+  const idle=performance.now()-lastActivity;
+  if(currentWorkerType==='verify'&&candidate&&idle>90000){
+    publishCandidate(false,'Verification worker stopped responding for over 90 seconds.');
+  }else if(currentWorkerType==='convert'&&idle>120000&&!idleWarningShown){
+    idleWarningShown=true;
+    $('eta').textContent='No encoder updates for 2 minutes. It may be stalled.';
+    log('Warning: encoder worker has been silent for 2 minutes; you may cancel if necessary.');
+  }
+},5000);
 const oom=message=>/out of memory|memory access out of bounds|allocation failed|cannot allocate|failed to grow memory/i.test(String(message));
 const publishCandidate=(verified,reason='')=>{
   if(!candidate)return fail('The encoded MOFLEX is no longer available.');
@@ -26,7 +38,7 @@ const publishCandidate=(verified,reason='')=>{
   $('progress').value=1;
   $('eta').textContent=verified?'All checks passed':'Verification not completed';
   $('error').hidden=verified;
-  if(!verified)$('error').textContent='The output was encoded, but verification could not finish because browser memory ran out. This download has NOT passed full decoding checks. Check it before trusting or sharing it.';
+  if(!verified)$('error').textContent=oom(reason)?'The output was encoded, but verification ran out of browser memory. This file has NOT passed full decoding checks.':'The output was encoded, but the verifier stopped responding. This file has NOT passed full decoding checks. Inspect it before trusting or sharing it.';
   $('result').hidden=false;
   $('resultmeta').textContent=`${(d.blob.size/1e6).toFixed(2)} MB · ${d.frames.toLocaleString()} coded frames · Q${d.q} · ${d.audio?'ADPCM audio':'No audio'} · ${time(d.seconds)}${verified?'':' · UNVERIFIED'}`;
   log(verified?'Complete video'+(d.audio?' + audio':'')+' decode passed. Physical 3DS playback is not certified by this check.':'Verification incomplete: '+reason+'; candidate offered as UNVERIFIED.');
@@ -35,7 +47,7 @@ const publishCandidate=(verified,reason='')=>{
 };
 const startWorker=(type,payload)=>{
   if(token!==runToken)return;
-  const w=new Worker('worker.js');worker=w;
+  currentWorkerType=type;lastActivity=performance.now();idleWarningShown=false;const w=new Worker('worker.js?v=20261116b');worker=w;
   w.onerror=e=>{
     if(token!==runToken||worker!==w)return;
     const message=`Encoder worker failed: ${e.message||'unknown error'}`;
@@ -43,6 +55,7 @@ const startWorker=(type,payload)=>{
   };
   w.onmessage=({data:d})=>{
     if(token!==runToken||worker!==w)return;
+    lastActivity=performance.now();
     if(d.type==='status'){
       $('stage').textContent=d.stage;stageStarted=performance.now();$('eta').textContent='Estimating stage time…';
       if(d.fraction===null)$('progress').removeAttribute('value');else $('progress').value=d.fraction;
