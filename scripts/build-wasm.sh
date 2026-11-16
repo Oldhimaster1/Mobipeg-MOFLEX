@@ -19,4 +19,5 @@ emmake make -j "${JOBS:-8}" ffmpeg_g
 cp ffmpeg_g "$ROOT/dist/engine/mobipeg.js"
 sed -i 's/ffmpeg_g.wasm/mobipeg.wasm/g' "$ROOT/dist/engine/mobipeg.js"
 cp ffmpeg_g.wasm "$ROOT/dist/engine/mobipeg.wasm"
-node "$ROOT/scripts/provenance.mjs"
+cd "$ROOT"
+node scripts/provenance.mjs

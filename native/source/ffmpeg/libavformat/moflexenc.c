@@ -885,7 +885,7 @@ static int moflex_write_trailer(AVFormatContext *s)
     if (!blob) { ret = AVERROR(ENOMEM); goto end; }
     AV_WL32(blob + 0, n);
     AV_WL32(blob + 4, m->total_frames);
-    AV_WL32(blob + 8, (uint32_t)dur_us);
+    AV_WL32(blob + 8, dur_us > UINT32_MAX ? UINT32_MAX : (uint32_t)dur_us);
     AV_WL32(blob + 12, 0);
 
     /* Measure front size by emitting the blob to a throwaway buffer. */

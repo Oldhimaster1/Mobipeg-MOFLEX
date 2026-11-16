@@ -80,6 +80,24 @@ test('movie clips use coded FPS including stereo eye doubling',()=>{
   assert.deepEqual(s,{num:48000,den:1001});
   const clip=nextMovieClip(48000,3600,s,180);
   assert.ok(clip.start>1000&&clip.start<1002);
-  assert.equal(clip.seconds,180);
+  assert.ok(clip.seconds<=180&&clip.seconds>170);
+  assert.equal(clip.seconds*48000%256,0);
   assert.equal(nextMovieClip(9000,300,{num:30,den:1}),null);
+});
+
+test('chapter boundaries align ADPCM samples and full stereo pairs at every rate',()=>{
+ for(const mode of ['2d','full-sbs','half-sbs'])for(const fps of ['24','25','30','24000/1001','30000/1001']){
+  const coded=getCodedRate({mode,fps}),clip=nextMovieClip(0,7200,coded);
+  const frames=Math.round(clip.seconds*coded.num/coded.den);
+  assert.ok(clip.seconds<=30&&clip.seconds>20);
+  assert.ok(Math.abs(clip.seconds*48000/256-Math.round(clip.seconds*48000/256))<1e-8);
+  if(mode!=='2d')assert.equal(frames%2,0);
+ }
+});
+test('long movie duration saturates without wrapping its 64-bit seek times',async()=>{
+ const joined=await assembleMovie({segments:Array.from({length:73},()=>({file:segment(60,1800),frames:1800})),work:{async getFileHandle(){return new MemoryFileHandle();}},outputName:'movie',audio:false},{mode:'2d',fps:'30'});
+ assert.equal(joined.durationFieldSaturated,true);
+ const parsed=await inspectMovieSegment(joined.file,131400);
+ assert.ok(parsed.entries.at(-1).time>0xffffffffn);
+ assert.equal(parsed.durationUs,0xffffffff);
 });

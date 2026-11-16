@@ -1,0 +1,50 @@
+[
+  {
+    "engine": "engine",
+    "mode": "2d",
+    "frames": 48,
+    "seconds": 2,
+    "bytes": 110592,
+    "completeDecode": true
+  },
+  {
+    "engine": "engine",
+    "mode": "full-sbs",
+    "frames": 96,
+    "seconds": 2,
+    "bytes": 266240,
+    "completeDecode": true
+  },
+  {
+    "engine": "engine",
+    "mode": "half-sbs",
+    "frames": 96,
+    "seconds": 2,
+    "bytes": 241664,
+    "completeDecode": true
+  },
+  {
+    "engine": "engine-simd",
+    "mode": "2d",
+    "frames": 48,
+    "seconds": 2,
+    "bytes": 110592,
+    "completeDecode": true
+  },
+  {
+    "engine": "engine-simd",
+    "mode": "full-sbs",
+    "frames": 96,
+    "seconds": 2,
+    "bytes": 266240,
+    "completeDecode": true
+  },
+  {
+    "engine": "engine-simd",
+    "mode": "half-sbs",
+    "frames": 96,
+    "seconds": 2,
+    "bytes": 241664,
+    "completeDecode": true
+  }
+]

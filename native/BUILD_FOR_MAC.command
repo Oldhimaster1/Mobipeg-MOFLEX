@@ -67,7 +67,7 @@ cd "$BUILDDIR/ffmpeg"
 CC="$(xcrun --find clang)" bash ./configure \
   --prefix="$PREFIX" --enable-gpl --enable-libx264 \
   --disable-debug --disable-doc --disable-ffplay \
-  --enable-static --disable-shared --disable-autodetect \
+  --enable-static --disable-shared --disable-autodetect --disable-x86asm \
   --extra-cflags="-I$PREFIX/include" \
   --extra-ldflags="-L$PREFIX/lib"
 # A rebuilt libx264.a is external to FFmpeg's dependency graph. Force relink.

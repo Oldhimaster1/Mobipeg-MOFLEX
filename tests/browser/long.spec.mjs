@@ -1,0 +1,36 @@
+import {test,expect} from '@playwright/test';
+import {execFileSync} from 'node:child_process';
+import {resolve} from 'node:path';
+import {readFileSync} from 'node:fs';
+const fixture=process.env.MOBIPEG_BROWSER_FIXTURE;
+for(const engine of ['scalar','simd'])test(`${engine}: real segmented OPFS movie, language selection and download`,async({page},testInfo)=>{
+ test.skip(!fixture,'Generate a 65-second red/blue stereo clip with two labeled audio tracks');
+ const pageErrors=[];page.on('pageerror',e=>pageErrors.push(e.message));
+ await page.goto('/');
+ await page.locator('#file').setInputFiles(fixture);
+ await page.locator('details').first().evaluate(el=>el.open=true);
+ await page.locator('#engine').selectOption(engine);
+ await page.locator('#inspectAudio').click();
+ await expect(page.locator('#audioTrack option')).toHaveCount(2,{timeout:30000});
+ await expect(page.locator('#audioTrack option').nth(1)).toContainText('jpn');
+ await page.locator('#audioTrack').selectOption('1');
+ await page.locator('input[name=mode][value=half-sbs]').check();
+ await page.locator('#longMovie').check();
+ await page.locator('#convert').click();
+ await expect(page.locator('#stage')).toHaveText('Your MOFLEX is ready.',{timeout:210000});
+ await expect(page.locator('#resultmeta')).toContainText('3,120 coded frames');
+ const downloaded=page.waitForEvent('download');await page.locator('#download').click();
+ const file=await downloaded,path=testInfo.outputPath('verified.moflex');await file.saveAs(path);
+ const ff=resolve('native/local/bin/ffmpeg');
+ const audio=execFileSync(ff,['-v','error','-xerror','-i',path,'-map','0:a:0','-ac','1','-ar','48000','-f','s16le','-'],{maxBuffer:10*1024*1024});
+ const energy=hz=>{let re=0,im=0;for(let p=4800;p<43200;p+=4){const v=audio.readInt16LE(p*2),phase=2*Math.PI*hz*p/48000;re+=v*Math.cos(phase);im+=v*Math.sin(phase);}return re*re+im*im;};
+ expect(energy(880)).toBeGreaterThan(energy(440)*100);
+ const download=page.waitForEvent('download');await page.locator('#report').click();
+ const report=await download;const reportPath=testInfo.outputPath('report.json');await report.saveAs(reportPath);
+ const result=JSON.parse(readFileSync(reportPath));expect(result.verified).toBe(true);expect(result.output.chapters).toBe(3);
+ // Cleanup must release the completed on-device movie too.
+ page.once('dialog',dialog=>dialog.accept());await page.locator('#clearMovieData').click();
+ await expect(page.locator('#clearMovieData')).toBeHidden();
+ const jobs=await page.evaluate(async()=>{const root=await navigator.storage.getDirectory();const d=await root.getDirectoryHandle('mobipeg-long-movies');return Array.fromAsync(d.keys());});
+ expect(jobs).toEqual([]);expect(pageErrors).toEqual([]);
+});

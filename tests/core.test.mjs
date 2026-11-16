@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from'node:assert/strict';import{execFileSync}from'node:child_process';import{PRESETS,FILTERS,RATES,RESOLUTIONS,validate,filters,codedRate,encodeArgs,audioArgs,environment,parseProbe,progressLine,convert,verifyCandidate,encodeClipArgs,audioClipArgs}from'../dist/core.mjs';
+import test from 'node:test';import assert from'node:assert/strict';import{execFileSync}from'node:child_process';import{PRESETS,FILTERS,RATES,RESOLUTIONS,validate,filters,codedRate,encodeArgs,audioArgs,environment,parseProbe,progressLine,convert,verifyCandidate,encodeClipArgs,audioClipArgs,audioTracks}from'../dist/core.mjs';
 const defaults={mode:'2d',preset:'quality',filter:'detail',fps:'24',resolution:'400x224',motion:'auto',q:null,maxMB:null};
 for(const mode of ['2d','full-sbs','half-sbs'])for(const fps of RATES)for(const resolution of RESOLUTIONS)for(const filter of Object.keys(FILTERS))test(`native filter parity ${mode} ${fps} ${resolution} ${filter}`,()=>{const s={...defaults,mode,fps,resolution,filter};const[w,h]=resolution.split('x');const native=JSON.parse(execFileSync('python3',['-c',`import sys,json;sys.path.insert(0,'native');import MobiPEG_Studio_V15 as m;print(json.dumps(m.video_filters('${mode}',${w},${h},'${fps}','${filter}')))`],{encoding:'utf8'}));assert.deepEqual(filters(s),native[0]);assert.equal(encodeArgs(s,30).at(-4),mode==='2d'?'6':'1');assert.equal(native[1],mode==='2d'?'6':'0');});
 for(const q of Array.from({length:48},(_,i)=>i+12))test(`quantizer ${q}`,()=>{const a=encodeArgs({...defaults,q},q);assert.equal(12+6*Number(a[a.indexOf('-mobi_qyx')+1])+Number(a[a.indexOf('-qp')+1])%6,q);});
@@ -13,7 +13,7 @@ test('impossible cap fails instead of oversized download',async()=>assert.reject
 test('stereo odd packet count rejected',async()=>{await assert.rejects(()=>convert({settings:{...defaults,mode:'full-sbs'},source:new Blob(),run:async(a,f,o)=>a.length===3?{log:'Duration: 00:00:01.00\nVideo: h264'}:{blob:new Blob(['x']),frames:47}}),/missing stereo eye/);});
 test('verification mismatch rejected',async()=>{await assert.rejects(()=>convert({settings:defaults,source:new Blob(),run:async(a,f,o)=>a.length===3?{log:'Duration: 00:00:01.00\nVideo: h264'}:o?{blob:new Blob(['x']),frames:24}:{frames:23}}),/Decoded frame count/);});
 
-test('half-SBS fitting uses display aspect ratio',()=>{assert.ok(filters({...defaults,mode:'half-sbs'})[1].includes('reset_sar=1'));assert.ok(!filters({...defaults,mode:'full-sbs'})[1].includes('reset_sar=1'));});
+test('half-SBS fitting uses display aspect ratio',()=>{assert.ok(filters({...defaults,mode:'half-sbs'})[1].includes('reset_sar=1'));assert.ok(filters({...defaults,mode:'full-sbs'})[1].includes('reset_sar=1'));});
 
 test('browser encoding can retain candidate without verification',async()=>{
   const stages=[];
@@ -41,8 +41,19 @@ test('movie clip seeks source but not the already encoded video',()=>{
   const a=audioClipArgs(defaults,180,180);
   assert.equal(v[v.indexOf('-ss')+1],'180.00000000');
   assert.ok(v.indexOf('-ss')<v.indexOf('-i'));
-  assert.equal(v[v.indexOf('-t')+1],'180.00000000');
+  assert.equal(v[v.indexOf('-frames:v')+1],'4320');
   assert.equal(a[a.lastIndexOf('-ss')+1],'180.00000000');
   assert.ok(a.indexOf('-ss')>a.indexOf('-i'));
   assert.ok(a.lastIndexOf('-ss')<a.lastIndexOf('-i'));
+});
+
+test('audio languages and explicit stream selection',()=>{
+ const tracks=audioTracks('  Stream #0:1[0x2](eng): Audio: aac, 48000 Hz\n  Stream #0:2(jpn): Audio: aac, 48000 Hz');
+ assert.equal(tracks.length,2);assert.match(tracks[1].label,/jpn/);
+ const args=audioArgs({...defaults,audioTrack:1,movieAudio:true},30);
+ assert.ok(args.includes('1:a:1'));assert.equal(args[args.indexOf('-ar')+1],'48000');
+ assert.throws(()=>validate({...defaults,audioTrack:-1}),/audio track/);
+});
+test('audio verification rejects accumulated chapter padding drift',async()=>{
+ await assert.rejects(()=>verifyCandidate({kind:'audio',blob:new Blob(['x']),frames:24,seconds:1,run:async()=>({seconds:1.2})}),/audio duration/);
 });

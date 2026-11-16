@@ -166,7 +166,7 @@ export async function inspectMovieSegment(file, expectedFrames) {
   const med = syncHeader(first);
   expect(bytesEqual(med.descriptors, meta.descriptors), 'media descriptor differs from front');
   expect(med.stamp === entries[0].time, 'media clock differs from seek table');
-  return { file, frontSize, mediaSize:file.size - frontSize, frames, entries, descriptors:meta.descriptors, dataStream:meta.dataStream };
+  return { durationUs:dv.getUint32(8,true), file, frontSize, mediaSize:file.size - frontSize, frames, entries, descriptors:meta.descriptors, dataStream:meta.dataStream };
 }
 export function getCodedRate(settings) {
   const parts = String(settings.fps).split('/');
@@ -174,11 +174,16 @@ export function getCodedRate(settings) {
   expect(num > 0 && den > 0, 'invalid frame rate');
   return { num: settings.mode === '2d' ? num : num * 2, den };
 }
-export function nextMovieClip(frameCount, seconds, fps, targetSeconds = 180) {
+export function nextMovieClip(frameCount, seconds, fps, targetSeconds = 30) {
   const duration = frameCount * fps.den / fps.num;
   const left = seconds - duration;
   if (left <= fps.den / (2 * fps.num)) return null;
-  return { start: duration, seconds:Math.min(targetSeconds, left) };
+  // Align chapter ends to both whole video pairs and 256-sample ADPCM blocks
+  // at 48 kHz. Otherwise per-chapter audio padding accumulates over a movie.
+  const gcd=(a,b)=>b?gcd(b,a%b):a;
+  const quantum=256*fps.num/gcd(48000*fps.den,256*fps.num);
+  const frames=Math.max(quantum,Math.floor(targetSeconds*fps.num/fps.den/quantum)*quantum);
+  return { start: duration, seconds:Math.min(frames*fps.den/fps.num, left) };
 }
 export async function createMovieJob() {
   expect(navigator.storage && typeof navigator.storage.getDirectory === 'function', 'on-device OPFS storage is unavailable in this browser');
@@ -190,6 +195,7 @@ export async function createMovieJob() {
 }
 export async function appendMovieSegment(job, blob, frameCount) {
   expect(blob && blob.size && frameCount > 0, 'empty movie segment');
+  expect(job.segments.reduce((n,p)=>n+p.file.size,0)+blob.size<4292870144, 'movie is approaching the FAT32 4 GiB limit; use a smaller quality setting');
   const name = 'part-' + String(job.segments.length).padStart(4, '0') + '.moflex';
   const handle = await job.work.getFileHandle(name, { create:true });
   const writable = await handle.createWritable();
@@ -234,6 +240,8 @@ export async function assembleMovie(job, settings, progress = () => {}, cancelle
   const front = createFront(desc, index, entries.map(e => ({...e, offset:e.offset + frontLength})), Number(frames), durationUs);
   expect(front.byteLength === placeholder.byteLength, 'seek front changed size');
   expect(frontLength + bytes < 4294967296n, 'final movie exceeds the FAT32 4 GiB file limit; choose a smaller quality setting or split the film');
+  const estimate=await globalThis.navigator?.storage?.estimate?.();
+  if(estimate?.quota&&Number.isFinite(estimate.usage))expect(estimate.quota-estimate.usage>Number(frontLength+bytes), 'not enough free browser storage to assemble the movie; free space and retry');
   const handle = await job.work.getFileHandle(job.outputName, { create:true });
   const writable = await handle.createWritable();
   try {

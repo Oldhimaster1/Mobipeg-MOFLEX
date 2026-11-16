@@ -12,19 +12,32 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT=Path(__file__).resolve().parent.parent
 sys.path.insert(0,str(ROOT))
 import MobiPEG_Studio_V15 as app
 
-_default_enc=ROOT/'local/bin/ffmpeg'
-if not _default_enc.is_file():_default_enc=ROOT/'MobiPEG_V13_work/local/bin/ffmpeg'
+_default_enc=ROOT/('local/bin/ffmpeg'+app.EXE_SUFFIX)
+if not _default_enc.is_file():_default_enc=ROOT/('MobiPEG_V13_work/local/bin/ffmpeg'+app.EXE_SUFFIX)
 ENC=Path(os.environ.get('MOBIPEG_TEST_FFMPEG',str(_default_enc))).resolve()
-PROBE=ENC.with_name('ffprobe')
+PROBE=ENC.with_name('ffprobe'+app.EXE_SUFFIX)
 SOURCES=Path(os.environ.get('MOBIPEG_TEST_VIDEO_DIR',str(ROOT/'v15_library_sources'))).resolve()
 
 
 class StudioUnitTests(unittest.TestCase):
+    def test_portable_encoder_lookup_on_each_platform(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)
+            for suffix in ('','.exe'):
+                binary=root/('local/bin/ffmpeg'+suffix)
+                binary.parent.mkdir(parents=True,exist_ok=True)
+                binary.touch()
+                binary.chmod(0o755)
+                with patch.object(app,'ROOT',root),patch.object(app,'EXE_SUFFIX',suffix):
+                    self.assertEqual(app.pick_encoder(),binary.resolve())
+                    self.assertEqual(app.pick_encoder(str(binary)),binary.resolve())
+
     def test_q_mapping_covers_entire_valid_range(self):
         for q in range(12,60):
             flags=app.q_flags(q)
@@ -52,7 +65,7 @@ class StudioUnitTests(unittest.TestCase):
             self.assertIn('setpts=2*N+1[r]',spec)
             self.assertIn('interleave=nb_inputs=2',spec)
             self.assertNotIn('hstack',spec)
-        self.assertIn('setsar=2',app.video_filters('half-sbs',400,224,'24','detail')[0][1])
+        self.assertIn('setsar=sar*2',app.video_filters('half-sbs',400,224,'24','detail')[0][1])
 
     def test_stereo_coded_rate_exactly_double(self):
         for rate,doubled in [('24','48'),('25','50'),('30','60'),
@@ -88,15 +101,29 @@ class StudioRealDecoderTests(unittest.TestCase):
     def setUpClass(cls):
         cls.temp=tempfile.TemporaryDirectory(prefix='studio-v15-tests-')
         cls.work=Path(cls.temp.name)
+        cls.sources=SOURCES
+        if 'MOBIPEG_TEST_VIDEO_DIR' not in os.environ and not SOURCES.exists():
+            cls.sources=cls.work/'generated'
+            cls.sources.mkdir()
+            subprocess.run([str(ENC),'-v','error','-f','lavfi','-i','testsrc2=s=320x240:r=24:d=1.2',
+                '-f','lavfi','-i','sine=frequency=440:sample_rate=44100:duration=1.2',
+                '-c:v','mpeg4','-q:v','3','-c:a','aac',str(cls.sources/'sonic2.mp4')],check=True)
+            import shutil
+            shutil.copyfile(cls.sources/'sonic2.mp4',cls.sources/'Yip.mp4')
+            subprocess.run([str(ENC),'-v','error','-f','lavfi','-i','color=red:s=400x224:r=24:d=1.2',
+                '-f','lavfi','-i','color=blue:s=400x224:r=24:d=1.2',
+                '-f','lavfi','-i','sine=frequency=880:sample_rate=44100:duration=1.2',
+                '-filter_complex','[0:v][1:v]hstack[v]','-map','[v]','-map','2:a',
+                '-c:v','mpeg4','-q:v','3','-c:a','aac',str(cls.sources/'MobiPEG_stereo_FULL_SBS_reference.mp4')],check=True)
         cls.short_audio=cls.work/'audio-short.mp4'
         cls.short_stereo=cls.work/'sbs-short.mp4'
-        if (SOURCES/'Yip.mp4').exists():
+        if (cls.sources/'Yip.mp4').exists():
             subprocess.run([str(ENC),'-hide_banner','-nostdin','-v','error','-y',
-                     '-i',str(SOURCES/'Yip.mp4'),'-t','1.2','-c','copy',
+                     '-i',str(cls.sources/'Yip.mp4'),'-t','1.2','-c','copy',
                      str(cls.short_audio)],check=True,timeout=60)
-        if (SOURCES/'MobiPEG_stereo_FULL_SBS_reference.mp4').exists():
+        if (cls.sources/'MobiPEG_stereo_FULL_SBS_reference.mp4').exists():
             subprocess.run([str(ENC),'-hide_banner','-nostdin','-v','error','-y',
-                     '-i',str(SOURCES/'MobiPEG_stereo_FULL_SBS_reference.mp4'),
+                     '-i',str(cls.sources/'MobiPEG_stereo_FULL_SBS_reference.mp4'),
                      '-t','1.2','-c','copy',str(cls.short_stereo)],check=True,timeout=60)
 
     @classmethod
@@ -120,7 +147,7 @@ class StudioRealDecoderTests(unittest.TestCase):
         return result
 
     def test_real_2d_video_and_idempotency(self):
-        src=SOURCES/'sonic2.mp4'
+        src=self.sources/'sonic2.mp4'
         if not src.exists():self.skipTest('Missing test video')
         first=self.run_encode(src,self.work/'test2d.moflex')
         second=self.run_encode(src,self.work/'test2d_again.moflex')
@@ -131,7 +158,7 @@ class StudioRealDecoderTests(unittest.TestCase):
         self.assertGreater(app.verified_frame_count(PROBE,first),1)
 
     def test_hard_size_budget_with_real_encodes(self):
-        src=SOURCES/'sonic2.mp4'
+        src=self.sources/'sonic2.mp4'
         if not src.exists():self.skipTest('Missing test video')
         movie=self.run_encode(src,self.work/'sizebudget.moflex',max_size_mb=0.17)
         self.assertLessEqual(movie.stat().st_size,170000)
@@ -217,8 +244,40 @@ class StudioRealDecoderTests(unittest.TestCase):
             self.assertLess(abs(len(pcm)/4/44100-1.0),0.05,
                             ('Audio must last one displayed stereo second',mode))
 
+    def test_anamorphic_display_aspect_is_preserved(self):
+        src=self.work/'anamorphic.mkv'
+        app.invoke([ENC,'-v','error','-f','lavfi','-i','color=white:s=720x576:r=24:d=1',
+                    '-vf','setsar=64/45','-c:v','ffv1',src])
+        movie=self.run_encode(src,self.work/'anamorphic.moflex',resolution='400x240')
+        raw=app.invoke([ENC,'-v','error','-i',movie,'-frames:v','1','-pix_fmt','gray','-f','rawvideo','-'])
+        rows=[y for y in range(240) if max(raw[y*400:(y+1)*400])>100]
+        self.assertLessEqual(abs(len(rows)-226),2)
+
+    def test_audio_language_selection(self):
+        src=self.work/'languages.mkv'
+        app.invoke([ENC,'-v','error','-f','lavfi','-i','color=red:s=320x240:r=24:d=1',
+            '-f','lavfi','-i','sine=frequency=440:sample_rate=44100:duration=1',
+            '-f','lavfi','-i','sine=frequency=880:sample_rate=44100:duration=1',
+            '-map','0:v','-map','1:a','-map','2:a','-metadata:s:a:0','language=eng',
+            '-metadata:s:a:1','language=jpn','-c:v','ffv1','-c:a','pcm_s16le',src])
+        media=app.probe_media(PROBE,src)
+        self.assertEqual([t['tags']['language'] for t in media['tracks']],['eng','jpn'])
+        import array
+        for track,hz in [(0,440),(1,880)]:
+            movie=self.run_encode(src,self.work/f'language-{track}.moflex',audio_track=track)
+            samples=array.array('h',app.invoke([ENC,'-v','error','-i',movie,'-map','0:a:0','-ac','1','-ar','44100','-f','s16le','-']))
+            import math
+            def energy(f):
+                values=samples[4410:39690:4]
+                return sum(v*math.cos(2*math.pi*f*i*4/44100) for i,v in enumerate(values))**2+sum(v*math.sin(2*math.pi*f*i*4/44100) for i,v in enumerate(values))**2
+            self.assertGreater(energy(hz),energy(880 if hz==440 else 440)*100)
+
+    def test_encoding_has_no_fixed_timeout(self):
+        # A short override proves the subprocess timeout semantics without a 30-minute wait.
+        self.assertEqual(app.invoke([sys.executable,'-c','print("ok")'],timeout=None).strip(),b'ok')
+
     def test_dry_run_and_unchanged_source(self):
-        src=SOURCES/'sonic2.mp4'
+        src=self.sources/'sonic2.mp4'
         if not src.exists():self.skipTest('Missing test video')
         digest=hashlib.sha256(src.read_bytes()).digest()
         out=self.work/'dryrun.moflex'

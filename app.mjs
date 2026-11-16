@@ -1,11 +1,11 @@
-import{validate,rate,PRESETS}from'./core.mjs?v=20261116c';
-import{createMovieJob,appendMovieSegment,assembleMovie,cleanupMovieJob,getCodedRate,nextMovieClip}from'./movie.mjs?v=20261116c';
+import{validate,rate,PRESETS}from'./core.mjs?v=20261116d';
+import{createMovieJob,appendMovieSegment,assembleMovie,cleanupMovieJob,getCodedRate,nextMovieClip}from'./movie.mjs?v=20261116d';
 const $=id=>document.getElementById(id),form=$('settings');let file=null,worker=null,previewURL=null,outputURL=null,started=0,stageStarted=0,ticker=null,report=null,wake=null,busy=false,runToken=0,stallMonitor=null,movieJob=null,completedMovieJob=null;
 const time=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
 function log(s){$('logs').textContent=($('logs').textContent+'\n'+s).slice(-16000);}
-function settings(){const d=new FormData(form);return validate({mode:d.get('mode'),engine:d.get('engine')||'auto',preset:d.get('preset'),resolution:d.get('resolution'),fps:d.get('fps'),filter:d.get('filter'),motion:d.get('motion'),q:d.get('q')===''?null:Number(d.get('q')),maxMB:d.get('maxMB')===''?null:Number(d.get('maxMB'))});}
-function select(f){if(busy||!f)return;file=f;if(previewURL)URL.revokeObjectURL(previewURL);previewURL=URL.createObjectURL(f);$('preview').src=previewURL;$('empty').hidden=true;$('selected').hidden=false;$('drop').classList.add('has-video');$('replace').hidden=false;$('filename').textContent=f.name;$('filesize').textContent=(f.size/1e6).toFixed(2)+' MB';$('filemeta').textContent='Preview unavailable? The encoder can still inspect this file.';$('convert').disabled=false;}
-$('preview').onloadedmetadata=()=>{$('filemeta').textContent=`${$('preview').videoWidth} × ${$('preview').videoHeight} · ${time($('preview').duration)}`;};$('file').onchange=e=>select(e.target.files[0]);$('replace').onclick=()=>$('file').click();for(const type of ['dragenter','dragover'])$('drop').addEventListener(type,e=>{e.preventDefault();if(!busy)$('drop').classList.add('over');});for(const type of ['dragleave','drop'])$('drop').addEventListener(type,e=>{e.preventDefault();$('drop').classList.remove('over');if(type==='drop')select(e.dataTransfer.files[0]);});
+function settings(){const d=new FormData(form);return validate({mode:d.get('mode'),engine:d.get('engine')||'auto',preset:d.get('preset'),resolution:d.get('resolution'),fps:d.get('fps'),filter:d.get('filter'),motion:d.get('motion'),q:d.get('q')===''?null:Number(d.get('q')),audioTrack:Number(d.get('audioTrack')||0),maxMB:d.get('maxMB')===''?null:Number(d.get('maxMB'))});}
+function select(f){if(busy||!f)return;file=f;if(previewURL)URL.revokeObjectURL(previewURL);previewURL=URL.createObjectURL(f);$('preview').src=previewURL;$('empty').hidden=true;$('selected').hidden=false;$('drop').classList.add('has-video');$('replace').hidden=false;$('filename').textContent=f.name;$('audioTrack').replaceChildren(new Option('0 — First audio track','0'));$('filesize').textContent=(f.size/1e6).toFixed(2)+' MB';$('filemeta').textContent='Preview unavailable? The encoder can still inspect this file.';$('convert').disabled=false;}
+$('preview').onloadedmetadata=()=>{if(navigator.storage?.getDirectory&&$('preview').duration>180)$('longMovie').checked=true;$('filemeta').textContent=`${$('preview').videoWidth} × ${$('preview').videoHeight} · ${time($('preview').duration)}`;};$('file').onchange=e=>select(e.target.files[0]);$('replace').onclick=()=>$('file').click();for(const type of ['dragenter','dragover'])$('drop').addEventListener(type,e=>{e.preventDefault();if(!busy)$('drop').classList.add('over');});for(const type of ['dragleave','drop'])$('drop').addEventListener(type,e=>{e.preventDefault();$('drop').classList.remove('over');if(type==='drop')select(e.dataTransfer.files[0]);});
 form.onchange=()=>{const stereo=new FormData(form).get('mode')!=='2d';$('modehint').textContent=stereo?`True 3D · layout 0 · ${ (rate($('fps').value)*2).toFixed(3).replace(/\.000$/,'')} coded eye frames/sec`:'Standard 2D · MOFLEX layout 6';};$('reset').onclick=()=>{if(!busy){form.reset();form.dispatchEvent(new Event('change'));}};
 function lock(v){busy=v;for(const el of form.elements)el.disabled=v;$('convert').disabled=v||!file;$('reset').disabled=v;$('replace').disabled=v;$('file').disabled=v;}
 function finish(){runToken++;worker?.terminate();worker=null;clearInterval(ticker);clearInterval(stallMonitor);stallMonitor=null;lock(false);$('cancel').hidden=true;wake?.release().catch(()=>{});wake=null;if(movieJob){const saved=movieJob;movieJob=null;const keep=!!outputURL;if(keep){completedMovieJob=saved;$('clearMovieData').hidden=false;}cleanupMovieJob(saved,keep).catch(e=>log('Local cleanup warning: '+e.message));}}
@@ -18,15 +18,15 @@ $('clearMovieData').onclick=async()=>{
   try{await cleanupMovieJob(saved,false);$('clearMovieData').hidden=true;log('Temporary movie storage removed.');}
   catch(e){log('Could not clear local storage: '+e.message);}
 };
-form.onsubmit=async e=>{e.preventDefault();if(!file||busy)return;let s;try{s=settings();}catch(e){alert(e.message);return;}const movieMode=$('longMovie').checked;if(movieMode&&s.maxMB!==null){alert('Movie mode currently requires No limit for maximum size. The short chapters are combined into one final MOFLEX.');return;}if(movieMode&&!navigator.storage?.getDirectory){alert('Long-movie mode requires on-device private file storage (OPFS), which is unavailable in this browser.');return;}if(file.size>512*1024*1024&&!confirm('This is a large input. Browser memory may be insufficient, especially on mobile. Continue?'))return;lock(true);const token=++runToken;if(outputURL){URL.revokeObjectURL(outputURL);outputURL=null;}if(completedMovieJob){const old=completedMovieJob;completedMovieJob=null;$('clearMovieData').hidden=true;cleanupMovieJob(old,false).catch(e=>log('Old movie cleanup warning: '+e.message));}$('job').hidden=false;$('result').hidden=true;$('error').hidden=true;$('cancel').hidden=false;$('stage').textContent='Loading native WASM encoder…';$('joblabel').textContent='CONVERSION';$('logs').textContent='MobiPEG V15 · fixed layout-0 source\nNo media upload. WebAssembly · FFmpeg scheduler threads, single codec thread.';$('memory').textContent='';$('eta').textContent='Estimating time…';$('progress').removeAttribute('value');started=stageStarted=performance.now();ticker=setInterval(()=>$('elapsed').textContent=time((performance.now()-started)/1000)+' elapsed',1000);$('job').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'nearest'});try{const requestedWake=await navigator.wakeLock?.request('screen');if(token!==runToken){requestedWake?.release().catch(()=>{});return;}wake=requestedWake;}catch{}if(token!==runToken)return;
+form.onsubmit=async e=>{e.preventDefault();if(!file||busy)return;let s;try{s=settings();}catch(e){alert(e.message);return;}const movieMode=$('longMovie').checked;s.movieAudio=movieMode;if(movieMode&&s.maxMB!==null){alert('Movie mode currently requires No limit for maximum size. The short chapters are combined into one final MOFLEX.');return;}if(movieMode&&!navigator.storage?.getDirectory){alert('Long-movie mode requires on-device private file storage (OPFS), which is unavailable in this browser.');return;}if(file.size>512*1024*1024&&!confirm('This is a large input. Browser memory may be insufficient, especially on mobile. Continue?'))return;lock(true);const token=++runToken;if(outputURL){URL.revokeObjectURL(outputURL);outputURL=null;}if(completedMovieJob){const old=completedMovieJob;completedMovieJob=null;$('clearMovieData').hidden=true;cleanupMovieJob(old,false).catch(e=>log('Old movie cleanup warning: '+e.message));}$('job').hidden=false;$('result').hidden=true;$('error').hidden=true;$('cancel').hidden=false;$('stage').textContent='Loading native WASM encoder…';$('joblabel').textContent='CONVERSION';$('logs').textContent='MobiPEG V15 · fixed layout-0 source\nNo media upload. WebAssembly · FFmpeg scheduler threads, single codec thread.';$('memory').textContent='';$('eta').textContent='Estimating time…';$('progress').removeAttribute('value');started=stageStarted=performance.now();ticker=setInterval(()=>$('elapsed').textContent=time((performance.now()-started)/1000)+' elapsed',1000);$('job').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'nearest'});try{const requestedWake=await navigator.wakeLock?.request('screen');if(token!==runToken){requestedWake?.release().catch(()=>{});return;}wake=requestedWake;}catch{}if(token!==runToken)return;
 let candidate=null;
 let movieDuration=0,movieAudio=false,movieFrames=0,movieParts=0;
 const movieFPS=getCodedRate(s);
 const beginMoviePart=async()=>{
   if(token!==runToken)return;
-  const clip=nextMovieClip(movieFrames,movieDuration,movieFPS,180);
+  const clip=nextMovieClip(movieFrames,movieDuration,movieFPS,30);
   if(clip){
-    if(movieParts>Math.ceil(movieDuration/180)+4)throw Error('Movie timeline did not advance; conversion stopped to avoid repeated chapters.');
+    if(movieParts>Math.ceil(movieDuration/20)+4)throw Error('Movie timeline did not advance; conversion stopped to avoid repeated chapters.');
     movieParts++;
     $('joblabel').textContent='LONG MOVIE · CHAPTER '+movieParts;
     log('Encoding chapter '+movieParts+' starting '+time(clip.start)+', length '+time(clip.seconds)+'.');
@@ -86,7 +86,7 @@ const publishCandidate=(verified,reason='')=>{
 };
 const startWorker=(type,payload)=>{
   if(token!==runToken)return;
-  currentWorkerType=type;lastActivity=performance.now();idleWarningShown=false;const w=new Worker('worker.js?v=20261116c');worker=w;
+  currentWorkerType=type;lastActivity=performance.now();idleWarningShown=false;const w=new Worker('worker.js?v=20261116d');worker=w;
   w.onerror=e=>{
     if(token!==runToken||worker!==w)return;
     const message=`Encoder worker failed: ${e.message||'unknown error'}`;
@@ -100,7 +100,7 @@ const startWorker=(type,payload)=>{
       if(d.fraction===null)$('progress').removeAttribute('value');else $('progress').value=d.fraction;
       log(d.stage);
     }else if(d.type==='progress'){
-      $('progress').value=d.fraction;
+      if(Number.isFinite(d.fraction))$('progress').value=d.fraction;
       const elapsed=(performance.now()-stageStarted)/1000;
       $('eta').textContent=d.fraction>.02&&elapsed>2?`~${time(elapsed*(1-d.fraction)/d.fraction)} left in stage`:'Estimating stage time…';
     }else if(d.type==='memory'){
@@ -148,3 +148,21 @@ if(movieMode){
 };
 $('report').onclick=()=>{if(!report)return;const url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='MobiPEG-conversion-report.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);};
 window.addEventListener('beforeunload',e=>{if(busy){e.preventDefault();e.returnValue='';}});document.addEventListener('visibilitychange',()=>{if(busy&&document.hidden)log('Tab backgrounded: this browser may pause or terminate conversion. Keep the tab visible.');});
+
+$('inspectAudio').onclick=()=>{
+  if(!file||busy)return;
+  const selected=file,w=new Worker('worker.js?v=20261116d');
+  $('inspectAudio').disabled=true;
+  const end=()=>{w.terminate();$('inspectAudio').disabled=false;};
+  w.onerror=e=>{log('Audio inspection failed: '+e.message);end();};
+  w.onmessage=({data:d})=>{
+    if(d.type==='error'){log(d.message);end();}
+    if(d.type==='inspected'){
+      if(file===selected){
+        $('audioTrack').replaceChildren(...(d.tracks.length?d.tracks.map(t=>new Option(t.label,String(t.index))):[new Option('No audio','0')]));
+      }
+      end();
+    }
+  };
+  w.postMessage({type:'inspect',file:selected,settings:settings()});
+};

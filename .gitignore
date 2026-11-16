@@ -1,5 +1,7 @@
 .build/
 native/.build-linux/
+native/.build-windows/
+native/.build/
 native/local/
 reference-videos/
 node_modules/
@@ -8,3 +10,6 @@ reports/outputs/
 tests/*.bak
 test-results/
 playwright-report/
+
+__pycache__/
+tests/browser/node_modules

@@ -23,6 +23,7 @@ from typing import Callable
 
 
 ROOT = Path(__file__).resolve().parent
+EXE_SUFFIX = '.exe' if os.name == 'nt' else ''
 MODES = ('2d','full-sbs','half-sbs')
 PRESETS = {
     'best': {'q':27,'search':9,'me':'umh'},
@@ -70,9 +71,9 @@ def scale_filter(width: int, height: int, sar: int=1,
                  clean: str | None=None) -> str:
     if min(width,height)<=0 or width%2 or height%2:
         raise ValueError('YUV420 dimensions must be positive even numbers')
-    stages=[f'setsar={sar}',
+    stages=(['setsar=sar*2'] if sar==2 else [])+[
             f'scale={width}:{height}:force_original_aspect_ratio=decrease:'
-            f'force_divisible_by=2:{"reset_sar=1:" if sar==2 else ""}in_range=auto:out_range=tv:flags=lanczos',
+            f'force_divisible_by=2:reset_sar=1:in_range=auto:out_range=tv:flags=lanczos',
             f'pad={width}:{height}:(ow-iw)/2:(oh-ih)/2', 'setsar=1']
     if clean:stages.append(clean)
     stages.append('format=yuv420p')
@@ -106,14 +107,14 @@ def video_filters(mode: str, width: int, height: int, fps: str,
 
 
 def pick_encoder(explicit: str | None=None) -> Path:
-    choices=([Path(explicit)] if explicit else [ROOT/'local/bin/ffmpeg',
-             ROOT/'MobiPEG_V13_work/local/bin/ffmpeg'])
+    choices=([Path(explicit)] if explicit else [ROOT/('local/bin/ffmpeg'+EXE_SUFFIX),
+             ROOT/('MobiPEG_V13_work/local/bin/ffmpeg'+EXE_SUFFIX)])
     for path in choices:
         if path.is_file() and os.access(path,os.X_OK):return path.resolve()
     raise FileNotFoundError('Custom MobiPEG ffmpeg not found. Build it with BUILD_FOR_LINUX.sh / BUILD_FOR_MAC.command or pass --ffmpeg PATH.')
 
 
-def invoke(args, env=None, timeout=1800):
+def invoke(args, env=None, timeout=None):
     result=subprocess.run([str(a) for a in args],capture_output=True,
                           env=env,timeout=timeout)
     if result.returncode:
@@ -124,7 +125,7 @@ def invoke(args, env=None, timeout=1800):
 
 def probe_media(probe: Path, inp: Path) -> dict:
     raw=invoke([probe,'-v','error','-show_entries',
-                'stream=index,codec_type:format=duration',
+                'stream=index,codec_type:stream_tags=language,title:format=duration',
                 '-of','json',inp])
     info=json.loads(raw)
     if not any(x.get('codec_type')=='video' for x in info.get('streams',[])):
@@ -132,7 +133,8 @@ def probe_media(probe: Path, inp: Path) -> dict:
     duration=float(info.get('format',{}).get('duration','nan'))
     if not math.isfinite(duration) or duration<=0:
         raise ValueError('Input duration must be known and positive')
-    return {'duration':duration,'audio':any(x.get('codec_type')=='audio'
+    tracks=[x for x in info['streams'] if x.get('codec_type')=='audio']
+    return {'tracks':tracks,'duration':duration,'audio':any(x.get('codec_type')=='audio'
                    for x in info['streams'])}
 
 
@@ -162,7 +164,7 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print) -> Pa
     inp=Path(args.input).expanduser().resolve()
     if not inp.is_file():raise FileNotFoundError(inp)
     encoder=pick_encoder(args.ffmpeg)
-    probe=encoder.with_name('ffprobe')
+    probe=encoder.with_name('ffprobe'+EXE_SUFFIX)
     if not probe.is_file():raise FileNotFoundError(f'Custom ffprobe missing: {probe}')
     # These checks prevent accidental use of standard H.264 output or a
     # stock FFmpeg lacking the custom MOFLEX muxer.
@@ -173,6 +175,8 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print) -> Pa
                 b'mo_interleave_input_double_rate' not in mux_help)):
         raise RuntimeError('Wrong FFmpeg build: custom Mobiclip/MOFLEX required')
     media=probe_media(probe,inp)
+    if media['audio'] and not 0 <= args.audio_track < len(media['tracks']):
+        raise ValueError('Selected audio track does not exist')
     width,height=map(int,args.resolution.split('x'))
     fps=rate_value(args.fps)
     if args.q is not None and not 12<=args.q<=59:
@@ -237,7 +241,7 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print) -> Pa
                 if improve_motion:
                     env['MOBI_V11_MV_REFINE']='1'
                     env['MOBI_V11_MV_PENALTY']='0'
-                invoke(command,env=env)
+                invoke(command,env=env,timeout=None)
                 frames=verified_frame_count(probe,video)
                 if stereo and frames%2:
                     raise RuntimeError('Stereo encode lost an eye: odd number of coded frames')
@@ -259,11 +263,11 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print) -> Pa
                         remux_output=['-r',coded_fps_label]
                     invoke([encoder,'-hide_banner','-nostdin','-v','error','-y',
                             *remux_input,
-                            '-i',video,'-i',inp,'-map','0:v:0','-map','1:a:0',
+                            '-i',video,'-i',inp,'-map','0:v:0','-map',f'1:a:{args.audio_track}',
                             '-c:v','copy','-c:a','pcm_s16le','-ar','44100',
                             '-ac','2','-af','apad','-mo_audio','adpcm',
                             *remux_output,*layout_options,'-t',f'{seconds:.8f}',
-                            '-f','moflex',final])
+                            '-f','moflex',final],timeout=None)
                 else:shutil.copyfile(video,final)
                 seen[q]={'bytes':final.stat().st_size,'frames':frames,'file':final}
             info=seen[q]
@@ -282,11 +286,11 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print) -> Pa
         final=selected['file']
         callback('Verifying complete video decode...')
         invoke([encoder,'-hide_banner','-nostdin','-v','error','-xerror',
-                '-i',final,'-map','0:v:0','-f','null','-'],timeout=3600)
+                '-i',final,'-map','0:v:0','-f','null','-'],timeout=None)
         if media['audio']:
             callback('Verifying complete audio decode...')
             invoke([encoder,'-hide_banner','-nostdin','-v','error','-xerror',
-                    '-i',final,'-map','0:a:0','-f','null','-'],timeout=3600)
+                    '-i',final,'-map','0:a:0','-f','null','-'],timeout=None)
         if verified_frame_count(probe,final)!=selected['frames']:
             raise RuntimeError('Frame count mismatch after audio remux')
         if target_bytes is not None and final.stat().st_size>target_bytes:
@@ -315,6 +319,7 @@ def gui():
              'motion_refinement':tk.StringVar(value='auto'),
              'resolution':tk.StringVar(value='400x240'),
              'fps':tk.StringVar(value='24'),
+             'audio_track':tk.StringVar(value='0 — First audio track'),
              'max_size_mb':tk.StringVar(value='')}
     def add_row(num,label,var,kind='text',values=(),action=None):
         ttk.Label(app,text=label).grid(row=num,column=0,sticky='w',padx=12,pady=6)
@@ -322,8 +327,18 @@ def gui():
         else:widget=ttk.Entry(app,textvariable=var)
         widget.grid(row=num,column=1,sticky='ew',padx=6)
         if action:ttk.Button(app,text='Browse…',command=action).grid(row=num,column=2,padx=9)
-    add_row(0,'Input video',paths['input'],action=lambda:paths['input'].set(
-        filedialog.askopenfilename(filetypes=[('Videos','*.mp4 *.mkv *.mov *.avi'),('All files','*.*')]) or paths['input'].get()))
+    def browse_input():
+        selected=filedialog.askopenfilename(filetypes=[('Videos','*.mp4 *.mkv *.mov *.avi'),('All files','*.*')])
+        if not selected:return
+        paths['input'].set(selected)
+        try:
+            encoder=pick_encoder()
+            tracks=probe_media(encoder.with_name('ffprobe'+EXE_SUFFIX),Path(selected))['tracks']
+            labels=[f"{i} — {t.get('tags',{}).get('language','Unknown language')} {t.get('tags',{}).get('title','')}" for i,t in enumerate(tracks)] or ['0 — No audio']
+            audio_box.configure(values=labels)
+            choices['audio_track'].set(labels[0])
+        except Exception as error:messagebox.showerror('Cannot inspect audio',str(error))
+    add_row(0,'Input video',paths['input'],action=browse_input)
     add_row(1,'Output MOFLEX',paths['output'],action=lambda:paths['output'].set(
         filedialog.asksaveasfilename(defaultextension='.moflex',filetypes=[('MOFLEX','*.moflex')]) or paths['output'].get()))
     add_row(2,'3DS video mode',choices['mode'],'select',MODES)
@@ -333,11 +348,14 @@ def gui():
     add_row(6,'Frames per second',choices['fps'],'select',RATES)
     add_row(7,'Max file size in MB (optional)',choices['max_size_mb'])
     add_row(8,'Motion refinement (V15)',choices['motion_refinement'],'select',MOTION_MODES)
+    audio_box=ttk.Combobox(app,textvariable=choices['audio_track'],values=['0 — First audio track'],state='readonly')
+    ttk.Label(app,text='Audio language / track').grid(row=9,column=0,sticky='w',padx=12)
+    audio_box.grid(row=9,column=1,sticky='ew',padx=6)
     status=tk.StringVar(value='Ready. Your source file is never modified.')
-    ttk.Label(app,textvariable=status).grid(row=10,column=0,columnspan=3,sticky='w',padx=12,pady=4)
+    ttk.Label(app,textvariable=status).grid(row=11,column=0,columnspan=3,sticky='w',padx=12,pady=4)
     log=tk.Text(app,height=12,state='disabled',wrap='word')
-    log.grid(row=11,column=0,columnspan=3,sticky='nsew',padx=12,pady=8)
-    app.rowconfigure(11,weight=1)
+    log.grid(row=12,column=0,columnspan=3,sticky='nsew',padx=12,pady=8)
+    app.rowconfigure(12,weight=1)
     def write(message):
         def update():
             log.configure(state='normal')
@@ -354,6 +372,7 @@ def gui():
         # Tk variables are read only on Tk's own thread. Worker threads only
         # run the encoder and return UI updates via app.after(...).
         arguments=['--input',paths['input'].get(),
+                   '--audio-track',choices['audio_track'].get().split()[0],
                    '--mode',choices['mode'].get(),
                    '--preset',choices['preset'].get(),
                    '--filter',choices['filter'].get(),
@@ -372,7 +391,7 @@ def gui():
             finally:app.after(0,lambda:start.configure(state='normal'))
         threading.Thread(target=worker,daemon=True).start()
     start=ttk.Button(app,text='Convert and verify MOFLEX',command=convert)
-    start.grid(row=9,column=1,pady=10)
+    start.grid(row=10,column=1,pady=10)
     app.mainloop()
 
 
@@ -391,6 +410,8 @@ def parser():
     p.add_argument('--q',type=int,default=None,help='Override actual 12..59 quantizer')
     p.add_argument('--max-size-mb',type=float,default=None,
                    help='Hard decimal-MB final file-size limit; trials may be slow')
+    p.add_argument('--audio-track',type=int,default=0,help='Audio track number, starting at 0; use --list-audio-tracks to inspect languages')
+    p.add_argument('--list-audio-tracks',action='store_true',help='List audio languages/titles for --input and exit')
     p.add_argument('--ffmpeg',help='Path to the patched MobiPEG ffmpeg')
     p.add_argument('--overwrite',action='store_true',help='Replace existing exact output path')
     p.add_argument('--dry-run',action='store_true',help='Validate settings without writing a file')
@@ -399,6 +420,11 @@ def parser():
 
 def main():
     args=parser().parse_args()
+    if args.list_audio_tracks and args.input:
+        encoder=pick_encoder(args.ffmpeg)
+        media=probe_media(encoder.with_name('ffprobe'+EXE_SUFFIX),Path(args.input))
+        print(json.dumps([{'track':i,**t.get('tags',{})} for i,t in enumerate(media['tracks'])],indent=2))
+        return 0
     if args.gui or not args.input:
         gui()
     else:
