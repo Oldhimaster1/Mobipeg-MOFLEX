@@ -102,9 +102,11 @@ The included `_headers` file works on hosts that support that format. GitHub Pag
 
 ## Compatibility and limitations
 
-This version is a development preview. The included reports document Linux native tests, native/WASM comparisons, and Chrome conversion tests. Physical iPhone Safari, Firefox/WebKit, and Old/New Nintendo 3DS playback remain unverified for this version. Successful software decoding alone does not establish console compatibility.
+This version is a development preview. Native/WASM comparison reports and Chrome conversion tests are included. On November 16, 2026, a user completed browser conversions in iPhone Safari, including a decode-verified five-minute 2D video; one shorter 2D output was confirmed playing on a physical Nintendo 3DS. Long-movie joining, stereo playback, and extended-duration seeking on 3DS hardware remain unverified. Successful software decoding does not by itself establish console compatibility.
 
-Long or complex videos may exceed available memory, especially on mobile devices. The browser's muxer buffers output in memory, and its 2 GiB WASM linear-memory limit is not a measure of total tab memory. Keep the page visible during conversion; pause/resume and recovery after closing the tab are not supported. Browser previews may support fewer input formats than the encoder.
+For long videos, the browser offers an **experimental Long movie mode**. It encodes three-minute chapters separately, stores them on-device using the browser's origin-private file system (OPFS), rebuilds a single MOFLEX with a front seek index, and checks the complete video/audio decode. This avoids keeping the entire encoded movie in WebAssembly memory, but a full-length movie is **not yet tested on a physical 3DS**; seeking beyond 71 minutes is particularly uncertain because the historical seek-table duration field is 32-bit. This mode requires plenty of free local storage, may take hours, and does not support the maximum-size target. Clear the temporary movie copy using the Web Studio button once it has been downloaded. Your source video is never uploaded.
+
+Ordinary browser conversions still buffer each output in memory. The WASM engine's configured 2 GiB limit does not mean that much total tab memory is available. Keep the page open and visible; pause/resume and recovery after closing it are not supported. Browser previews may recognize fewer input formats than the encoder.
 
 Read the [validation report](reports/VALIDATION.md) for test coverage, measured results, and outstanding checks. Additional native experiments and research tools are included under [`native/`](native/); they are separate from the standard Studio workflow.
 

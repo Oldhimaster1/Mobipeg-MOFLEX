@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from'node:assert/strict';import{execFileSync}from'node:child_process';import{PRESETS,FILTERS,RATES,RESOLUTIONS,validate,filters,codedRate,encodeArgs,audioArgs,environment,parseProbe,progressLine,convert,verifyCandidate}from'../dist/core.mjs';
+import test from 'node:test';import assert from'node:assert/strict';import{execFileSync}from'node:child_process';import{PRESETS,FILTERS,RATES,RESOLUTIONS,validate,filters,codedRate,encodeArgs,audioArgs,environment,parseProbe,progressLine,convert,verifyCandidate,encodeClipArgs,audioClipArgs}from'../dist/core.mjs';
 const defaults={mode:'2d',preset:'quality',filter:'detail',fps:'24',resolution:'400x224',motion:'auto',q:null,maxMB:null};
 for(const mode of ['2d','full-sbs','half-sbs'])for(const fps of RATES)for(const resolution of RESOLUTIONS)for(const filter of Object.keys(FILTERS))test(`native filter parity ${mode} ${fps} ${resolution} ${filter}`,()=>{const s={...defaults,mode,fps,resolution,filter};const[w,h]=resolution.split('x');const native=JSON.parse(execFileSync('python3',['-c',`import sys,json;sys.path.insert(0,'native');import MobiPEG_Studio_V15 as m;print(json.dumps(m.video_filters('${mode}',${w},${h},'${fps}','${filter}')))`],{encoding:'utf8'}));assert.deepEqual(filters(s),native[0]);assert.equal(encodeArgs(s,30).at(-4),mode==='2d'?'6':'1');assert.equal(native[1],mode==='2d'?'6':'0');});
 for(const q of Array.from({length:48},(_,i)=>i+12))test(`quantizer ${q}`,()=>{const a=encodeArgs({...defaults,q},q);assert.equal(12+6*Number(a[a.indexOf('-mobi_qyx')+1])+Number(a[a.indexOf('-qp')+1])%6,q);});
@@ -34,4 +34,15 @@ test('split verification preserves strict video frame checks and audio decoding'
   assert.deepEqual(seen,['0:v:0','0:a:0']);
   await assert.rejects(()=>verifyCandidate({kind:'video',blob,frames:24,seconds:1,run:async()=>({frames:23})}),/frame count/);
   await assert.rejects(()=>verifyCandidate({kind:'audio',blob,frames:24,seconds:1,run:async()=>{throw Error('Out of memory');}}),/Out of memory/);
+});
+
+test('movie clip seeks source but not the already encoded video',()=>{
+  const v=encodeClipArgs(defaults,30,180,180);
+  const a=audioClipArgs(defaults,180,180);
+  assert.equal(v[v.indexOf('-ss')+1],'180.00000000');
+  assert.ok(v.indexOf('-ss')<v.indexOf('-i'));
+  assert.equal(v[v.indexOf('-t')+1],'180.00000000');
+  assert.equal(a[a.lastIndexOf('-ss')+1],'180.00000000');
+  assert.ok(a.indexOf('-ss')>a.indexOf('-i'));
+  assert.ok(a.lastIndexOf('-ss')<a.lastIndexOf('-i'));
 });

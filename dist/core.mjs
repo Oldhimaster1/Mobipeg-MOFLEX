@@ -12,6 +12,20 @@ export function layout(s){return s.mode==='2d'?['-mo_layout','6']:['-mo_layout',
 export function environment(s){const p=PRESETS[s.preset],ref=s.motion==='on'||s.motion==='auto'&&['best','quality'].includes(s.preset);return {MOBI_SUBME:String(p.search),MOBI_SKIP:'0',MOBI_V11_MV_REFINE:ref?'1':'0',MOBI_V11_MV_PENALTY:'0'};}
 export const base=['-hide_banner','-nostdin','-v','warning','-y','-stats_period','0.25','-progress','pipe:1','-threads','1','-filter_threads','1','-filter_complex_threads','1'];
 export function encodeArgs(s,q,input='/input/source',out='/video.moflex'){validate(s);const p=PRESETS[s.preset];return [...base,'-i',input,...filters(s),'-an','-c:v','mobiclip','-mobiclip','1','-qp',String(12+(q-12)%6),'-mobi_qyx',String(Math.floor((q-12)/6)),'-preset','medium','-me_method',p.me,'-threads','1','-filter_complex_threads','1','-g',String(Math.ceil(rate(s.fps)*2)),...(s.mode==='2d'?[]:['-r',codedRate(s)]),...layout(s),'-f','moflex',out];}
+export function encodeClipArgs(s,q,start,seconds){
+  if(!Number.isFinite(start)||start<0||!Number.isFinite(seconds)||seconds<=0)throw Error('Invalid movie segment');
+  const args=encodeArgs(s,q);
+  args.splice(args.indexOf('-i'),0,'-ss',start.toFixed(8));
+  args.splice(args.length-1,0,'-t',seconds.toFixed(8));
+  return args;
+}
+export function audioClipArgs(s,start,seconds){
+  if(!Number.isFinite(start)||start<0||!Number.isFinite(seconds)||seconds<=0)throw Error('Invalid movie audio segment');
+  const args=audioArgs(s,seconds);
+  const secondInput=args.indexOf('-i',args.indexOf('-i')+1);
+  args.splice(secondInput,0,'-ss',start.toFixed(8));
+  return args;
+}
 export function audioArgs(s,seconds){return [...base,'-i','/input/video.moflex','-i','/input/source','-map','0:v:0','-map','1:a:0','-c:v','copy','-c:a','pcm_s16le','-ar','44100','-ac','2','-af','apad', '-mo_audio','adpcm',...(s.mode==='2d'?[]:['-r',codedRate(s)]),...layout(s),'-t',seconds.toFixed(8),'-f','moflex','/final.moflex'];}
 export function parseProbe(log){const d=/Duration:\s*(\d+):(\d+):([\d.]+)/.exec(log);if(!/Video:/.test(log)||!d)throw Error('Cannot read video or duration. This format may not be supported.');const duration=Number(d[1])*3600+Number(d[2])*60+Number(d[3]);if(!Number.isFinite(duration)||duration<=0)throw Error('Video must have a known, positive duration');return {duration,audio:/Audio:/.test(log)};}
 export function progressLine(line){const m=/^(frame|out_time_us|total_size|speed|progress)=(.*)$/.exec(line.trim());return m?{key:m[1],value:m[2].trim()}:null;}
@@ -25,8 +39,8 @@ export async function verifyCandidate({kind,blob,frames,seconds,run,notify=()=>{
   const check=await run([...base,'-xerror','-i','/input/final.moflex','-map',kind==='video'?'0:v:0':'0:a:0','-f','null','-'],{'final.moflex':blob});
   if(kind==='video'&&check.frames!==frames)throw Error('Decoded frame count does not match encoded video');
 }
-export async function convert({settings:s,source,run,notify=()=>{},verify=true}){validate(s);notify({stage:'Inspecting video',fraction:null});const probe=await run(['-hide_banner','-i','/input/source'],{source},null,{},true);const media=parseProbe(probe.log);let q=s.q??PRESETS[s.preset].q,low=12,high=59,best=null,attempt=0;const cap=s.maxMB===null?null:Math.floor(s.maxMB*1e6),seen=new Set();
-while(attempt<(cap===null?1:9)&&low<=high&&!seen.has(q)){seen.add(q);attempt++;notify({stage:`Encoding${cap===null?'':` · size trial ${attempt}/9`} · Q${q}`,fraction:0,attempt,q,duration:media.duration});const enc=await run(encodeArgs(s,q),{source},'/video.moflex',environment(s));if(!enc.frames||s.mode!=='2d'&&enc.frames%2)throw Error('Incomplete video or missing stereo eye');const seconds=enc.frames/(rate(s.fps)*(s.mode==='2d'?1:2));let blob=enc.blob;
-if(media.audio){notify({stage:'Encoding ADPCM audio',fraction:0,duration:seconds});const mux=await run(audioArgs(s,seconds),{source,'video.moflex':blob},'/final.moflex',{});blob=mux.blob;if(mux.frames!==enc.frames)throw Error('Frame count changed during audio mux');}
+export async function convert({settings:s,source,run,notify=()=>{},verify=true,clip=null}){validate(s);if(clip&&(!Number.isFinite(clip.start)||clip.start<0||!Number.isFinite(clip.seconds)||clip.seconds<=0))throw Error('Invalid movie clip');notify({stage:'Inspecting video',fraction:null});const probe=await run(['-hide_banner','-i','/input/source'],{source},null,{},true);const media=parseProbe(probe.log);let q=s.q??PRESETS[s.preset].q,low=12,high=59,best=null,attempt=0;const cap=s.maxMB===null?null:Math.floor(s.maxMB*1e6),seen=new Set();
+while(attempt<(cap===null?1:9)&&low<=high&&!seen.has(q)){seen.add(q);attempt++;notify({stage:`Encoding${cap===null?'':` · size trial ${attempt}/9`} · Q${q}`,fraction:0,attempt,q,duration:clip?.seconds??media.duration});const enc=await run(clip?encodeClipArgs(s,q,clip.start,clip.seconds):encodeArgs(s,q),{source},'/video.moflex',environment(s));if(!enc.frames||s.mode!=='2d'&&enc.frames%2)throw Error('Incomplete video or missing stereo eye');const seconds=enc.frames/(rate(s.fps)*(s.mode==='2d'?1:2));let blob=enc.blob;
+if(media.audio){notify({stage:'Encoding ADPCM audio',fraction:0,duration:seconds});const mux=await run(clip?audioClipArgs(s,clip.start,seconds):audioArgs(s,seconds),{source,'video.moflex':blob},'/final.moflex',{});blob=mux.blob;if(mux.frames!==enc.frames)throw Error('Frame count changed during audio mux');}
 notify({stage:`Candidate Q${q}: ${(blob.size/1e6).toFixed(2)} MB`,fraction:null});if(cap===null||blob.size<=cap){if(!best||q<best.q)best={q,blob,frames:enc.frames,seconds};high=q-1;}else low=q+1;if(cap===null)break;q=Math.floor((low+high)/2);}
 if(!best)throw Error('Cannot meet this size limit at the coarsest V15 quantizer. Increase the limit.');if(verify){await verifyCandidate({kind:'video',blob:best.blob,frames:best.frames,seconds:best.seconds,run,notify});if(media.audio)await verifyCandidate({kind:'audio',blob:best.blob,frames:best.frames,seconds:best.seconds,run,notify});}if(cap!==null&&best.blob.size>cap)throw Error('Final size exceeds the limit');return {...best,audio:media.audio,settings:s,attempts:attempt};}
