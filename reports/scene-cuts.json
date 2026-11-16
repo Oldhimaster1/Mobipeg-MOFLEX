@@ -1,0 +1,602 @@
+[
+  {
+    "name": "anime-full",
+    "threshold": 0.35,
+    "sceneCuts": [
+      {
+        "time": 3.291667,
+        "codedFrame": 80,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 3.791667,
+        "codedFrame": 92,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 6.416667,
+        "codedFrame": 155,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 6.833333,
+        "codedFrame": 165,
+        "minWasmMinusNativePSNR": -0.03999999999999915,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 7.25,
+        "codedFrame": 175,
+        "minWasmMinusNativePSNR": -0.10000000000000142,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 8.416667,
+        "codedFrame": 203,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 8.916667,
+        "codedFrame": 215,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 9.75,
+        "codedFrame": 235,
+        "minWasmMinusNativePSNR": -0.010000000000005116,
+        "maxWasmMinusNativePSNR": 0.00999999999999801
+      },
+      {
+        "time": 10.208333,
+        "codedFrame": 246,
+        "minWasmMinusNativePSNR": -0.030000000000001137,
+        "maxWasmMinusNativePSNR": 0.03999999999999915
+      },
+      {
+        "time": 11.416667,
+        "codedFrame": 275,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 12.333333,
+        "codedFrame": 297,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 12.416667,
+        "codedFrame": 299,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 12.625,
+        "codedFrame": 304,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 16.833333,
+        "codedFrame": 405,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 17.833333,
+        "codedFrame": 429,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 18.791667,
+        "codedFrame": 452,
+        "minWasmMinusNativePSNR": -0.03999999999999915,
+        "maxWasmMinusNativePSNR": 0.010000000000005116
+      },
+      {
+        "time": 19.666667,
+        "codedFrame": 473,
+        "minWasmMinusNativePSNR": -0.00999999999999801,
+        "maxWasmMinusNativePSNR": 0.060000000000002274
+      },
+      {
+        "time": 20.583333,
+        "codedFrame": 495,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 20.916667,
+        "codedFrame": 503,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 21.416667,
+        "codedFrame": 515,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 22.708333,
+        "codedFrame": 546,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 23.083333,
+        "codedFrame": 555,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 23.208333,
+        "codedFrame": 558,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 23.625,
+        "codedFrame": 568,
+        "minWasmMinusNativePSNR": -0.02999999999999403,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 24.416667,
+        "codedFrame": 587,
+        "minWasmMinusNativePSNR": -0.03999999999999915,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 25.208333,
+        "codedFrame": 606,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 25.625,
+        "codedFrame": 616,
+        "minWasmMinusNativePSNR": -0.01999999999999602,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 26.916667,
+        "codedFrame": 647,
+        "minWasmMinusNativePSNR": -0.05999999999999517,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 27.291667,
+        "codedFrame": 656,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 28.583333,
+        "codedFrame": 687,
+        "minWasmMinusNativePSNR": -0.01999999999999602,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 29.083333,
+        "codedFrame": 699,
+        "minWasmMinusNativePSNR": -0.020000000000003126,
+        "maxWasmMinusNativePSNR": 0.01999999999999602
+      },
+      {
+        "time": 29.541667,
+        "codedFrame": 710,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 29.916667,
+        "codedFrame": 719,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.020000000000003126
+      },
+      {
+        "time": 30.333333,
+        "codedFrame": 729,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 30.75,
+        "codedFrame": 739,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 30.916667,
+        "codedFrame": 743,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.00999999999999801
+      },
+      {
+        "time": 31.291667,
+        "codedFrame": 752,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 31.75,
+        "codedFrame": 763,
+        "minWasmMinusNativePSNR": -0.07000000000000028,
+        "maxWasmMinusNativePSNR": 0.060000000000002274
+      },
+      {
+        "time": 32.083333,
+        "codedFrame": 771,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.060000000000002274
+      },
+      {
+        "time": 32.541667,
+        "codedFrame": 782,
+        "minWasmMinusNativePSNR": -0.04000000000000625,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 33.25,
+        "codedFrame": 799,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.010000000000005116
+      },
+      {
+        "time": 33.75,
+        "codedFrame": 811,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 34.166667,
+        "codedFrame": 821,
+        "minWasmMinusNativePSNR": -0.00999999999999801,
+        "maxWasmMinusNativePSNR": 0.010000000000005116
+      },
+      {
+        "time": 34.583333,
+        "codedFrame": 831,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.030000000000001137
+      },
+      {
+        "time": 34.833333,
+        "codedFrame": 837,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 35.125,
+        "codedFrame": 844,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 37.25,
+        "codedFrame": 895,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 38.083333,
+        "codedFrame": 915,
+        "minWasmMinusNativePSNR": -0.020000000000003126,
+        "maxWasmMinusNativePSNR": 0.030000000000001137
+      },
+      {
+        "time": 40.208333,
+        "codedFrame": 966,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.010000000000005116
+      },
+      {
+        "time": 41.583333,
+        "codedFrame": 999,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.04999999999999716
+      },
+      {
+        "time": 42.083333,
+        "codedFrame": 1011,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 42.125,
+        "codedFrame": 1012,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 42.25,
+        "codedFrame": 1015,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 43.708333,
+        "codedFrame": 1050,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.020000000000003126
+      },
+      {
+        "time": 44.083333,
+        "codedFrame": 1059,
+        "minWasmMinusNativePSNR": -0.030000000000001137,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 44.5,
+        "codedFrame": 1069,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.030000000000001137
+      },
+      {
+        "time": 44.916667,
+        "codedFrame": 1079,
+        "minWasmMinusNativePSNR": -0.04999999999999716,
+        "maxWasmMinusNativePSNR": 0.00999999999999801
+      },
+      {
+        "time": 45.416667,
+        "codedFrame": 1091,
+        "minWasmMinusNativePSNR": -0.030000000000001137,
+        "maxWasmMinusNativePSNR": 0.00999999999999801
+      },
+      {
+        "time": 47.75,
+        "codedFrame": 1147,
+        "minWasmMinusNativePSNR": -0.030000000000001137,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 48.416667,
+        "codedFrame": 1163,
+        "minWasmMinusNativePSNR": -0.00999999999999801,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 49.25,
+        "codedFrame": 1183,
+        "minWasmMinusNativePSNR": -0.010000000000005116,
+        "maxWasmMinusNativePSNR": 0.010000000000005116
+      },
+      {
+        "time": 52.375,
+        "codedFrame": 1258,
+        "minWasmMinusNativePSNR": -0.04000000000000625,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 54.5,
+        "codedFrame": 1309,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 54.666667,
+        "codedFrame": 1313,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 54.75,
+        "codedFrame": 1315,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 55.583333,
+        "codedFrame": 1335,
+        "minWasmMinusNativePSNR": -0.010000000000005116,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 56.458333,
+        "codedFrame": 1356,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.010000000000005116
+      },
+      {
+        "time": 56.625,
+        "codedFrame": 1360,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 57.5,
+        "codedFrame": 1381,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.00999999999999801
+      },
+      {
+        "time": 57.916667,
+        "codedFrame": 1391,
+        "minWasmMinusNativePSNR": -0.00999999999999801,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 59.625,
+        "codedFrame": 1432,
+        "minWasmMinusNativePSNR": -0.020000000000003126,
+        "maxWasmMinusNativePSNR": 0.00999999999999801
+      },
+      {
+        "time": 60.083333,
+        "codedFrame": 1443,
+        "minWasmMinusNativePSNR": -0.020000000000003126,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 60.125,
+        "codedFrame": 1444,
+        "minWasmMinusNativePSNR": -0.010000000000005116,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 60.916667,
+        "codedFrame": 1463,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.010000000000005116
+      }
+    ]
+  },
+  {
+    "name": "avatar-full-3d",
+    "threshold": 0.35,
+    "sceneCuts": [
+      {
+        "time": 25.083333,
+        "codedFrame": 1205,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 26.916667,
+        "codedFrame": 1293,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 31.583333,
+        "codedFrame": 1517,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 33.75,
+        "codedFrame": 1621,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 38.125,
+        "codedFrame": 1831,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 42.458333,
+        "codedFrame": 2039,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 47.833333,
+        "codedFrame": 2297,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 50.583333,
+        "codedFrame": 2429,
+        "minWasmMinusNativePSNR": -0.03999999999999915,
+        "maxWasmMinusNativePSNR": 0.020000000000003126
+      },
+      {
+        "time": 51.166667,
+        "codedFrame": 2457,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 57.583333,
+        "codedFrame": 2765,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 59.833333,
+        "codedFrame": 2873,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 62.0,
+        "codedFrame": 2977,
+        "minWasmMinusNativePSNR": -0.019999999999999574,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 64.25,
+        "codedFrame": 3085,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 65.416667,
+        "codedFrame": 3141,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 68.583333,
+        "codedFrame": 3293,
+        "minWasmMinusNativePSNR": -0.030000000000001137,
+        "maxWasmMinusNativePSNR": 0.010000000000005116
+      },
+      {
+        "time": 69.75,
+        "codedFrame": 3349,
+        "minWasmMinusNativePSNR": -0.010000000000001563,
+        "maxWasmMinusNativePSNR": 0.010000000000001563
+      },
+      {
+        "time": 70.916667,
+        "codedFrame": 3405,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 75.458333,
+        "codedFrame": 3623,
+        "minWasmMinusNativePSNR": -0.0799999999999983,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 76.583333,
+        "codedFrame": 3677,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 79.416667,
+        "codedFrame": 3813,
+        "minWasmMinusNativePSNR": -0.020000000000003126,
+        "maxWasmMinusNativePSNR": 0.060000000000002274
+      },
+      {
+        "time": 81.666667,
+        "codedFrame": 3921,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 82.916667,
+        "codedFrame": 3981,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      },
+      {
+        "time": 83.833333,
+        "codedFrame": 4025,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.020000000000003126
+      },
+      {
+        "time": 86.166667,
+        "codedFrame": 4137,
+        "minWasmMinusNativePSNR": 0.0,
+        "maxWasmMinusNativePSNR": 0.0
+      }
+    ]
+  }
+]

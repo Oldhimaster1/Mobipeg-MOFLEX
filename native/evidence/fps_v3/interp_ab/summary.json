@@ -1,0 +1,39 @@
+{
+  "runs": 18,
+  "scenes": 3,
+  "frames": 120,
+  "outputs_byte_identical": true,
+  "by_scene": {
+    "gottalove": {
+      "baseline": {
+        "fps_wall": 96.586,
+        "fps_cpu": 98.196
+      },
+      "candidate": {
+        "fps_wall": 103.563,
+        "fps_cpu": 104.775
+      }
+    },
+    "mariee": {
+      "baseline": {
+        "fps_wall": 109.327,
+        "fps_cpu": 108.726
+      },
+      "candidate": {
+        "fps_wall": 104.746,
+        "fps_cpu": 103.491
+      }
+    },
+    "yu": {
+      "baseline": {
+        "fps_wall": 26.978,
+        "fps_cpu": 27.273
+      },
+      "candidate": {
+        "fps_wall": 27.009,
+        "fps_cpu": 27.48
+      }
+    }
+  },
+  "median_cpu_speedup_pct": 0.759
+}

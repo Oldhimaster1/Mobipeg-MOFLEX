@@ -1,0 +1,20 @@
+[
+  {
+    "name": "simd-eyes-full-24",
+    "input": "/workspace/scratch/0abd15633552/test-clips/eyes.mp4",
+    "settings": {
+      "mode": "full-sbs"
+    }
+  },
+  {
+    "name": "simd-anime-quality-24",
+    "input": "/workspace/scratch/0abd15633552/test-clips/anime-short.mp4"
+  },
+  {
+    "name": "simd-avatar-half-24",
+    "input": "/workspace/scratch/0abd15633552/test-clips/avatar-short.mp4",
+    "settings": {
+      "mode": "half-sbs"
+    }
+  }
+]

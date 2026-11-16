@@ -1,0 +1,50 @@
+{
+  "source": "speed_work/yu.y4m",
+  "output": "speed_work/yu_120_fixed60.moflex",
+  "bytes": 3207168,
+  "frames": 120,
+  "width": 400,
+  "height": 240,
+  "fps_total": 35.93,
+  "elapsed_seconds": 3.34,
+  "jobs": 2,
+  "segments": 2,
+  "stereo_sbs": false,
+  "sbs_type": null,
+  "mo_layout": 6,
+  "verified_header": {
+    "width": 400,
+    "height": 240,
+    "layout": 6
+  },
+  "copied_video_sha256": "34f7baf615a8d1b609d4bd7ec8accf2186e3995ef539ff223eb3395990592675",
+  "decoded_video_md5": "MD5=dd83cb93122918837fb174443760fe0a",
+  "audio_trimmed_to_video_duration": false,
+  "seam_mode": "fixed",
+  "seams": [
+    60
+  ],
+  "nominal_seams": [
+    60
+  ],
+  "source_change_at_seams": [
+    8.372
+  ],
+  "video_qp": 12,
+  "subme": 9,
+  "skip": 0,
+  "gop": 60,
+  "bit_exact_to_sequential": false,
+  "hardware_validated": false,
+  "stage_seconds": {
+    "normalize_seconds": 0.053,
+    "analysis_split_seconds": 0.029,
+    "parallel_encode_seconds": 2.656,
+    "concat_validate_seconds": 0.187,
+    "audio_validate_seconds": 0.415
+  },
+  "chunk_encode_seconds": [
+    2.354,
+    2.649
+  ]
+}

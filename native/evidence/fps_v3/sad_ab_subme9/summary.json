@@ -1,0 +1,27 @@
+{
+  "switch": "MOBI_FAST_SAD",
+  "source_count": 3,
+  "runs": 18,
+  "all_outputs_byte_identical": true,
+  "qp": 12,
+  "subme": 9,
+  "skip": 0,
+  "frames": 120,
+  "median_fps_original": 114.875,
+  "median_fps_fast": 112.573,
+  "median_speedup_percent": -2.004,
+  "by_source_fps": {
+    "gottalove": {
+      "0": 114.875,
+      "1": 113.807
+    },
+    "mariee": {
+      "0": 125.175,
+      "1": 118.735
+    },
+    "yu": {
+      "0": 27.682,
+      "1": 26.068
+    }
+  }
+}

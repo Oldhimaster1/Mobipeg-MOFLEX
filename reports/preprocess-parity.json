@@ -1,0 +1,9 @@
+{
+  "bytes": 9676800,
+  "byteExact": true,
+  "differingBytes": 0,
+  "maxDifference": 0,
+  "firstDifferentFrame": 0,
+  "nativeSHA256": "188ce9c271958d5662ca5d99cd39679d2441ef7631a80629964cfce87b3a66f1",
+  "wasmSHA256": "188ce9c271958d5662ca5d99cd39679d2441ef7631a80629964cfce87b3a66f1"
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "source": "gottalove",
+    "subme": 9,
+    "skip": 128,
+    "median_fps": 117.732,
+    "mean_psnr": 46.8094,
+    "size_bytes": 466944
+  },
+  {
+    "source": "mariee",
+    "subme": 9,
+    "skip": 128,
+    "median_fps": 123.288,
+    "mean_psnr": 50.2285,
+    "size_bytes": 245760
+  },
+  {
+    "source": "yu",
+    "subme": 9,
+    "skip": 128,
+    "median_fps": 28.702,
+    "mean_psnr": 42.2425,
+    "size_bytes": 3207168
+  }
+]

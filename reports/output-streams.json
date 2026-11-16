@@ -1,0 +1,26 @@
+{
+    "programs": [
+
+    ],
+    "stream_groups": [
+
+    ],
+    "streams": [
+        {
+            "codec_name": "mobiclip",
+            "codec_type": "video",
+            "width": 400,
+            "height": 224,
+            "r_frame_rate": "48/1"
+        },
+        {
+            "codec_type": "data",
+            "r_frame_rate": "0/0"
+        },
+        {
+            "codec_name": "adpcm_ima_moflex",
+            "codec_type": "audio",
+            "r_frame_rate": "0/0"
+        }
+    ]
+}

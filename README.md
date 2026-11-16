@@ -1,77 +1,89 @@
-# FFmpeg README
+> Read **HANDOFF.md first** for the completed final half-SBS tests and remaining browser/hardware limits. Nothing has been published.
 
-FFmpeg is a collection of libraries and tools to process multimedia content
-such as audio, video, subtitles and related metadata.
+# MobiPEG Web Studio — V15 layout-0 port
 
-## Libraries
+This project compiles the user's actual patched FFmpeg/x264 MobiClip encoder to WebAssembly. It is not H.264 conversion renamed to MOFLEX. `native/` contains the supplied fixed V15 package, including its source and licenses. `dist/engine/provenance.json` records hashes of the codec, muxer, corrected demuxer and compiled WASM.
 
-* `libavcodec` provides implementation of a wider range of codecs.
-* `libavformat` implements streaming protocols, container formats and basic I/O access.
-* `libavutil` includes hashers, decompressors and miscellaneous utility functions.
-* `libavfilter` provides means to alter decoded audio and video through a directed graph of connected filters.
-* `libavdevice` provides an abstraction to access capture and playback devices.
-* `libswresample` implements audio mixing and resampling routines.
-* `libswscale` implements color conversion and scaling routines.
+## Run the included website
 
-| Format | Container | Platform | Encode | Decode |
-|--------|-----------|----------|--------|--------|
-| MOFLEX 2D | `.moflex` | Nintendo 3DS | ✅ | ✅ |
-| MOFLEX 3D | `.moflex` | Nintendo 3DS | ✅ | ✅ |
-| MODS | `.mods` | Nintendo DS | ✅ | ✅ |
-| MO | `.mo` | Nintendo Wii | ✅ | ✅ |
-| VX | `.vx` | Nintendo DS | ✅ | ✅ |
-| THP | `.thp` | GameCube / Wii | ✅ | ✅ |
-| RVID | `.rvid` | RocketVideo (DS) | ✅ | ✅ |
-| HVQM4 | `.h4m` | GameCube / Wii (Hudson Soft) | ➖ | ✅ |
-| TiVo TyStream | `.ty` / `.ty+` / `.tmf` | TiVo (Series 1–3) | ✅ | ✅ |
+Install Node.js 22 or newer. In this folder:
 
-Decode-only inputs (HVQM4) can be transcoded into any of the encodable
-formats above, or previewed with `encode.py decode <file>`. Series-3 TiVo
-TyStreams (and MFS VideoClip resources) are handled through the bundled
-[`s3tots`](tools/s3tots) tool, which losslessly rewraps them to MPEG-2 TS
-before FFmpeg reads them.
+```
+node scripts/dev-server.mjs
+```
 
-TiVo `.ty` encoding (the `ty` muxer, `mpeg2video` + `mp2`/`ac3`) is ported
-from the ["tyffmpeg"](https://repo.mariocube.com/TiVo%20Restore%20Images/_Tools/tyffmpeg.zip)
-encoding library and targets the common Series 2 (Stand-Alone) container
-layout; it requires `--enable-gpl` and does not write `.ty+`'s trailing XML
-metadata block or Series 1/3-specific PES framing.
+Open http://localhost:4173 in a modern browser. Do not open index.html using file://. The local HTTP server only serves application assets; it does not receive media. All conversion occurs in the browser worker. To test a phone, serve the site over HTTPS from a host with COOP/COEP headers; plain HTTP on a LAN is not a secure context.
 
-## Tools
+The initial engine download can be large. Keep the page visible and the screen awake. Physical iPhone Safari and Nintendo hardware are separate validation targets; see `reports/VALIDATION.md` for the actual coverage.
 
-* [ffmpeg](https://ffmpeg.org/ffmpeg.html) is a command line toolbox to
-  manipulate, convert and stream multimedia content.
-* [ffplay](https://ffmpeg.org/ffplay.html) is a minimalistic multimedia player.
-* [ffprobe](https://ffmpeg.org/ffprobe.html) is a simple analysis tool to inspect
-  multimedia content.
-* Additional small tools such as `aviocat`, `ismindex` and `qt-faststart`.
+## Rebuild the real encoder
 
-| Audio Codec | MOFLEX (3DS) | MODS (DS) | MO (Wii) |
-|-------------|:------------:|:---------:|:--------:|
-| ADPCM | ✅ | ✅ | ✅ |
-| FastAudio | ✅ | ✅ | ✅ |
-| PCM | ✅ | ✅ | ✅ |
-| Vorbis | ➖ | ➖ | ✅ |
-| Codebook (SX) | ➖ | ✅ | ➖ |
+Prerequisites: Linux build tools, make, pkg-config, Python 3, Node.js, Git, and Emscripten SDK 4.0.10. Obtain emsdk from the official emscripten-core/emsdk repository, then:
 
-## Documentation
+```
+./emsdk install 4.0.10
+./emsdk activate 4.0.10
+export EMSDK=/absolute/path/to/emsdk
+bash scripts/build-wasm.sh
+bash scripts/build-simd.sh
+```
 
-For full technical documentation of the MobiClip formats (video/audio codecs,
-container layouts, and platform requirements across the DS/3DS/Wii), see
-[The Mobiclip Formats](https://gist.github.com/quatric/3e2f0caa5c22a9a8b24d9cf1ffdfe860).
+The script builds the supplied modified x264 first, then the supplied FFmpeg, links x264 into the WASM core, and creates the source provenance file. The second script builds an optional SIMD codec variant; run `node scripts/provenance.mjs` afterward to hash both. It does not use a stock ffmpeg.wasm core. Automatic mode selects the SIMD codec when supported; Compatibility selects the scalar build. Both preserve the same MobiClip syntax. The codec is configured for one encode thread; FFmpeg 8's scheduler still needs pthreads and SharedArrayBuffer. Its worker pool is created before calling main. Each command uses a fresh instance because the original FFmpeg CLI and V15 motion refinement contain process-global state.
 
-The offline documentation is available in the **doc/** directory.
+Rebuild native for comparison:
 
-The online documentation is available in the main [website](https://ffmpeg.org)
-and in the [wiki](https://trac.ffmpeg.org).
+```
+bash native/BUILD_FOR_LINUX.sh
+```
 
-### Examples
+The original project includes macOS instructions in native/. Windows compilation has not been verified here.
 
-Coding examples are available in the **doc/examples** directory.
+## Tests
 
-## License
+```
+node --test tests/core.test.mjs
+node tests/benchmark.mjs tests/cases.json
+```
 
-FFmpeg codebase is mainly LGPL-licensed with optional components licensed under
-GPL. Please refer to the LICENSE file for detailed information.
+`tests/core.test.mjs` checks settings, all supported filter combinations against Python V15, quantizer mapping, motion settings, candidate-size enforcement, stereo pairing, and failed-verification rejection. Some controller error-path tests use deliberately controlled fake engine responses; these are not presented as real encodes.
 
-Copyright (c) 2026 quatric
+`tests/benchmark.mjs` uses the *real* built native and WASM cores, applies the shared conversion workflow, verifies full decode, saves actual files, and compares native/WASM results. It requires private source videos supplied by the user. Edit fixture paths in tests/cases.json for your machine. Original source videos are intentionally not distributed with the website. The benchmark executes browser WASM under Node; this is not equivalent to a Safari or Firefox run.
+
+## Application structure
+
+- `dist/core.mjs`: port of V15 Studio settings, filters, quantizers, stereo timing, candidate search, audio and verification.
+- `dist/worker.js`: native WASM loader and command adapter. Files are mounted read-only with WORKERFS rather than copying the original input into the WASM filesystem.
+- `dist/app.mjs`: local previews, drag/drop, configuration, progress, stage ETA, cancellation, downloads, reports and optional wake lock.
+- `scripts/build-wasm.sh`: reproducible custom native-source build.
+- `tests/`: controller parity and real encode regression tools.
+- `native/`: complete original fixed V15 package and offline research scripts.
+
+## Stereo correctness
+
+2D uses layout 6. Full-/half-SBS are cropped into isolated eyes, filtered/scaled separately, then temporally interleaved LEFT,RIGHT. Stereo's coded rate is twice the displayed rate, including rational rates. Both encode and audio remux pass `-mo_layout 0 -mo_interleave_input_double_rate 1`. The corrected bundled demuxer exposes doubled coded FPS, so the browser does not apply legacy timestamp compensation. Audio length is computed from actual coded frames divided by coded FPS. Odd stereo frame counts and remux/verification frame mismatches fail the job.
+
+## Limits and honest release status
+
+This is a functional release preview, not a certification that arbitrary movies work on all devices. It preserves the normal Studio pipeline, not every sample-specific offline optimization/research script as a browser UI. Those scripts remain included in native/.
+
+The normal supplied MOFLEX muxer buffers packets and its media payload in memory to produce the front seek table. WORKERFS avoids copying large original inputs but does not remove those internal buffers, decoder buffers, final output copies or per-command heaps. Large/long conversions can fail. This version does not implement a disk-backed muxer or crash recovery. The current WASM linear-memory limit is 2 GiB, while practical mobile limits may be much lower; process memory also includes workers, blobs and JS data. Reported WASM heap is not total tab memory.
+
+Size caps may require up to nine encodes. V15's quantizer search assumes broadly monotonic output size; it chooses the lowest *tested* feasible quantizer, not a mathematical proof of the globally best quantizer when codec/container size behaves non-monotonically. Source-native V15 uses the same search strategy.
+
+ETA is for the current stage. Cancellation terminates the worker and its execution; no pause/resume exists. Browser preview codecs can differ from FFmpeg's accepted formats. No subtitles, depth generation, new streaming backend, or remote video retrieval is added. FFmpeg network protocols are disabled in the browser build.
+
+## Hosting
+
+Serve dist/ over HTTPS, with application/wasm for WASM files and:
+
+```
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+Cross-Origin-Resource-Policy: same-origin
+```
+
+The package includes `_headers` for hosts supporting that format. On static hosts that ignore `_headers`, `isolation-sw.js` attempts same-origin header injection and reloads once; browser support must be tested and the app reports missing isolation instead of faking conversion. The included Node server sends headers directly. Open the site as a top-level page; an embedded preview may not support isolation. No third-party fonts, analytics, APIs or media uploads are used.
+
+## Licenses
+
+The supplied modified x264 and GPL-enabled FFmpeg retain their respective source notices and license texts in native/source/. Distribute corresponding modified source with the binary under the applicable GPL terms. Web application additions are GPL-2.0-or-later; see LICENSE. This independent project is not affiliated with Nintendo or MobiClip.

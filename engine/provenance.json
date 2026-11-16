@@ -1,0 +1,17 @@
+{
+  "encoder": "MobiPEG V15 layout-0 fixed",
+  "toolchain": "Emscripten 4.0.10",
+  "threading": "pthreads (FFmpeg scheduler), codec thread count 1",
+  "hashes": {
+    "native/MobiPEG_Studio_V15.py": "3c458dae0f5c8158ef9df148d667b0c02ab5632b3104c40db23d3e5eda20ffc4",
+    "dist/core.mjs": "408b76e4998db0e1a67c8aa80dde3dc6b4dd1f001a1cda909d55364bff2085f5",
+    "dist/worker.js": "a5ab4f3780e6c306ac34cd34ab1eb3bb6004fe4c4f2ee038a4686433452f6b4e",
+    "native/source/x264/encoder/macroblock.c": "ec8d3fa826cd4a662e1fa236b30a1af2a4402382e3d96a82aa0479fddd92aba5",
+    "native/source/x264/encoder/encoder.c": "fa0269214e468bcde007bcaf351ca92f4bc56ec2f2480153130d8202280b9389",
+    "native/source/ffmpeg/libavcodec/libx264.c": "2c48a488ecf602aaac55bbac91d86568a3909581dfed5a0836342392fc7385cf",
+    "native/source/ffmpeg/libavformat/moflex.c": "7c99401f21b83897c624c42b37827c052048623d955bf7f659bcacb9c131f127",
+    "native/source/ffmpeg/libavformat/moflexenc.c": "e33c1d16c911bd026b498770e5fa09faa601797b5f9410fc8a8f98e613c05f0e",
+    "dist/engine/mobipeg.wasm": "7dca7de5e57ea02c07e48e67ff4b51decc7f27649137dffa93ae04377b1cd4d3",
+    "dist/engine-simd/mobipeg.wasm": "46392f6274905f73b7e88ecaaf6676ce9519172a990ff4a8a0a90a145b3fa8bd"
+  }
+}

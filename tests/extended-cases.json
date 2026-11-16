@@ -1,0 +1,104 @@
+[
+  {
+    "name": "eyes-full-24",
+    "input": "/workspace/scratch/0abd15633552/test-clips/eyes.mp4",
+    "settings": {
+      "mode": "full-sbs"
+    }
+  },
+  {
+    "name": "anime-quality-24",
+    "input": "/workspace/scratch/0abd15633552/test-clips/anime-short.mp4"
+  },
+  {
+    "name": "avatar-half-24",
+    "input": "/workspace/scratch/0abd15633552/test-clips/avatar-short.mp4",
+    "settings": {
+      "mode": "half-sbs"
+    }
+  },
+  {
+    "name": "anime-best-0",
+    "input": "/workspace/scratch/0abd15633552/test-clips/anime-short.mp4",
+    "settings": {
+      "preset": "best",
+      "fps": "25",
+      "resolution": "400x240",
+      "filter": "detail",
+      "motion": "on"
+    }
+  },
+  {
+    "name": "anime-quality-1",
+    "input": "/workspace/scratch/0abd15633552/test-clips/anime-short.mp4",
+    "settings": {
+      "preset": "quality",
+      "fps": "30",
+      "resolution": "320x240",
+      "filter": "clean",
+      "motion": "off"
+    }
+  },
+  {
+    "name": "anime-balanced-2",
+    "input": "/workspace/scratch/0abd15633552/test-clips/anime-short.mp4",
+    "settings": {
+      "preset": "balanced",
+      "fps": "24000/1001",
+      "resolution": "400x224",
+      "filter": "smooth",
+      "motion": "auto"
+    }
+  },
+  {
+    "name": "anime-small-3",
+    "input": "/workspace/scratch/0abd15633552/test-clips/anime-short.mp4",
+    "settings": {
+      "preset": "small",
+      "fps": "30000/1001",
+      "resolution": "400x240",
+      "filter": "bilateral",
+      "motion": "on"
+    }
+  },
+  {
+    "name": "eyes-half-2997",
+    "input": "/workspace/scratch/0abd15633552/test-clips/eyes.mp4",
+    "settings": {
+      "mode": "half-sbs",
+      "fps": "30000/1001",
+      "resolution": "320x240"
+    }
+  },
+  {
+    "name": "eyes-full-23976-clean",
+    "input": "/workspace/scratch/0abd15633552/test-clips/eyes.mp4",
+    "settings": {
+      "mode": "full-sbs",
+      "fps": "24000/1001",
+      "filter": "clean"
+    }
+  },
+  {
+    "name": "anime-size-cap",
+    "input": "/workspace/scratch/0abd15633552/test-clips/anime-short.mp4",
+    "settings": {
+      "maxMB": 0.19
+    }
+  },
+  {
+    "name": "yip-full",
+    "input": "/workspace/scratch/0abd15633552/reference-videos/Yip.mp4"
+  },
+  {
+    "name": "anime-full",
+    "input": "/workspace/scratch/0abd15633552/reference-videos/anime.mp4"
+  },
+  {
+    "name": "avatar-full-3d",
+    "input": "/workspace/scratch/0abd15633552/reference-videos/Avatar 2 Way of Water 4K 3D H-SBS teaser trailer.mp4",
+    "settings": {
+      "mode": "half-sbs"
+    }
+  }
+]

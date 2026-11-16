@@ -1,0 +1,10 @@
+{
+  "name": "mobipeg-web-studio",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/core.test.mjs",
+    "build:wasm": "bash scripts/build-wasm.sh",
+    "dev": "node scripts/dev-server.mjs"
+  }
+}

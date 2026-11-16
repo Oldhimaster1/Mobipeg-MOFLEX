@@ -1,0 +1,3 @@
+// Static hosts can use a same-origin service worker to add isolation headers.
+// The included local server sends these headers directly and needs no worker.
+(async()=>{if(self.crossOriginIsolated)return;if(!('serviceWorker'in navigator))return;try{await navigator.serviceWorker.register('isolation-sw.js');await navigator.serviceWorker.ready;if(!sessionStorage.getItem('mobipeg-isolation-reload')){sessionStorage.setItem('mobipeg-isolation-reload','1');if(navigator.serviceWorker.controller)location.reload();else navigator.serviceWorker.addEventListener('controllerchange',()=>location.reload(),{once:true});}}catch(e){console.warn('Cross-origin isolation setup unavailable:',e.message);}})();

@@ -1,0 +1,10 @@
+[
+  {
+    "name": "ten-minute-low-complexity",
+    "input": "/workspace/scratch/0abd15633552/test-clips/ten-minutes.mp4",
+    "settings": {
+      "preset": "small",
+      "resolution": "320x240"
+    }
+  }
+]

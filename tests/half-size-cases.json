@@ -1,0 +1,10 @@
+[
+  {
+    "name": "eyes-half-size-cap",
+    "input": "/workspace/scratch/0abd15633552/test-clips/half-eyes.mp4",
+    "settings": {
+      "mode": "half-sbs",
+      "maxMB": 0.18
+    }
+  }
+]

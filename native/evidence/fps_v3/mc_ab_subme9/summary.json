@@ -1,0 +1,26 @@
+{
+  "source_count": 3,
+  "runs": 18,
+  "all_outputs_byte_identical": true,
+  "qp": 12,
+  "subme": 9,
+  "skip": 0,
+  "frames": 120,
+  "median_fps_original": 69.763,
+  "median_fps_fast": 68.024,
+  "median_speedup_percent": -2.494,
+  "by_source_fps": {
+    "gottalove": {
+      "0": 69.763,
+      "1": 78.085
+    },
+    "mariee": {
+      "0": 81.049,
+      "1": 71.643
+    },
+    "yu": {
+      "0": 19.788,
+      "1": 20.438
+    }
+  }
+}

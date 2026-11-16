@@ -1,0 +1,66 @@
+{
+  "source": "speed_work/mixed_360.y4m",
+  "output": "speed_work/mixed_360_fixed60.moflex",
+  "bytes": 3911680,
+  "frames": 360,
+  "width": 400,
+  "height": 240,
+  "fps_total": 71.34,
+  "elapsed_seconds": 5.046,
+  "jobs": 3,
+  "segments": 6,
+  "stereo_sbs": false,
+  "sbs_type": null,
+  "mo_layout": 6,
+  "verified_header": {
+    "width": 400,
+    "height": 240,
+    "layout": 6
+  },
+  "copied_video_sha256": "92f41f7d7da9fe1477b7355c5a65594516f7e50afdee088d1fe7866ab79491b1",
+  "decoded_video_md5": "MD5=7007fc9bc88156260a6592ee88f26637",
+  "audio_trimmed_to_video_duration": false,
+  "seam_mode": "fixed",
+  "seams": [
+    60,
+    120,
+    180,
+    240,
+    300
+  ],
+  "nominal_seams": [
+    60,
+    120,
+    180,
+    240,
+    300
+  ],
+  "source_change_at_seams": [
+    2.169,
+    21.875,
+    0.433,
+    85.148,
+    8.372
+  ],
+  "video_qp": 12,
+  "subme": 9,
+  "skip": 0,
+  "gop": 60,
+  "bit_exact_to_sequential": false,
+  "hardware_validated": false,
+  "stage_seconds": {
+    "normalize_seconds": 0.113,
+    "analysis_split_seconds": 0.161,
+    "parallel_encode_seconds": 3.963,
+    "concat_validate_seconds": 0.244,
+    "audio_validate_seconds": 0.565
+  },
+  "chunk_encode_seconds": [
+    0.602,
+    0.639,
+    0.66,
+    0.533,
+    3.291,
+    3.315
+  ]
+}

@@ -1,0 +1,137 @@
+[
+  {
+    "source": "gottalove",
+    "cap": 0,
+    "median_fps": 89.162,
+    "psnr": 46.80939,
+    "psnr_delta_db": 0.0,
+    "bytes": 466944,
+    "byte_identical_to_cap0": true
+  },
+  {
+    "source": "gottalove",
+    "cap": 2,
+    "median_fps": 98.346,
+    "psnr": 46.56585,
+    "psnr_delta_db": -0.24354,
+    "bytes": 503808,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "gottalove",
+    "cap": 3,
+    "median_fps": 111.07,
+    "psnr": 46.63815,
+    "psnr_delta_db": -0.17124,
+    "bytes": 487424,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "gottalove",
+    "cap": 4,
+    "median_fps": 104.034,
+    "psnr": 46.67305,
+    "psnr_delta_db": -0.13634,
+    "bytes": 483328,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "gottalove",
+    "cap": 6,
+    "median_fps": 86.53,
+    "psnr": 46.73423,
+    "psnr_delta_db": -0.07516,
+    "bytes": 479232,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "mariee",
+    "cap": 0,
+    "median_fps": 102.438,
+    "psnr": 50.22559,
+    "psnr_delta_db": 0.0,
+    "bytes": 245760,
+    "byte_identical_to_cap0": true
+  },
+  {
+    "source": "mariee",
+    "cap": 2,
+    "median_fps": 111.264,
+    "psnr": 50.1518,
+    "psnr_delta_db": -0.07379,
+    "bytes": 245760,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "mariee",
+    "cap": 3,
+    "median_fps": 106.959,
+    "psnr": 50.18319,
+    "psnr_delta_db": -0.0424,
+    "bytes": 249856,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "mariee",
+    "cap": 4,
+    "median_fps": 110.447,
+    "psnr": 50.2014,
+    "psnr_delta_db": -0.02419,
+    "bytes": 253952,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "mariee",
+    "cap": 6,
+    "median_fps": 103.173,
+    "psnr": 50.21229,
+    "psnr_delta_db": -0.0133,
+    "bytes": 245760,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "yu",
+    "cap": 0,
+    "median_fps": 24.367,
+    "psnr": 42.24249,
+    "psnr_delta_db": 0.0,
+    "bytes": 3207168,
+    "byte_identical_to_cap0": true
+  },
+  {
+    "source": "yu",
+    "cap": 2,
+    "median_fps": 31.331,
+    "psnr": 41.98053,
+    "psnr_delta_db": -0.26196,
+    "bytes": 3129344,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "yu",
+    "cap": 3,
+    "median_fps": 30.355,
+    "psnr": 42.0365,
+    "psnr_delta_db": -0.20599,
+    "bytes": 3137536,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "yu",
+    "cap": 4,
+    "median_fps": 30.175,
+    "psnr": 42.07535,
+    "psnr_delta_db": -0.16714,
+    "bytes": 3145728,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "yu",
+    "cap": 6,
+    "median_fps": 26.637,
+    "psnr": 42.16797,
+    "psnr_delta_db": -0.07452,
+    "bytes": 3178496,
+    "byte_identical_to_cap0": false
+  }
+]

@@ -1,0 +1,191 @@
+[
+  {
+    "source": "gottalove",
+    "cap": 0,
+    "median_fps": 93.214,
+    "psnr": 46.80939,
+    "psnr_delta_db": 0.0,
+    "bytes": 466944,
+    "byte_identical_to_cap0": true
+  },
+  {
+    "source": "gottalove",
+    "cap": 1,
+    "median_fps": 116.703,
+    "psnr": 46.33293,
+    "psnr_delta_db": -0.47646,
+    "bytes": 622592,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "gottalove",
+    "cap": 2,
+    "median_fps": 114.373,
+    "psnr": 46.45047,
+    "psnr_delta_db": -0.35892,
+    "bytes": 581632,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "gottalove",
+    "cap": 3,
+    "median_fps": 114.395,
+    "psnr": 46.50316,
+    "psnr_delta_db": -0.30623,
+    "bytes": 565248,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "gottalove",
+    "cap": 4,
+    "median_fps": 104.733,
+    "psnr": 46.52058,
+    "psnr_delta_db": -0.28881,
+    "bytes": 548864,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "gottalove",
+    "cap": 6,
+    "median_fps": 108.563,
+    "psnr": 46.67407,
+    "psnr_delta_db": -0.13532,
+    "bytes": 499712,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "gottalove",
+    "cap": 9,
+    "median_fps": 90.65,
+    "psnr": 46.80947,
+    "psnr_delta_db": 8e-05,
+    "bytes": 466944,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "mariee",
+    "cap": 0,
+    "median_fps": 103.137,
+    "psnr": 50.22559,
+    "psnr_delta_db": 0.0,
+    "bytes": 245760,
+    "byte_identical_to_cap0": true
+  },
+  {
+    "source": "mariee",
+    "cap": 1,
+    "median_fps": 123.656,
+    "psnr": 49.78307,
+    "psnr_delta_db": -0.44252,
+    "bytes": 311296,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "mariee",
+    "cap": 2,
+    "median_fps": 120.602,
+    "psnr": 49.98893,
+    "psnr_delta_db": -0.23666,
+    "bytes": 299008,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "mariee",
+    "cap": 3,
+    "median_fps": 120.708,
+    "psnr": 50.05452,
+    "psnr_delta_db": -0.17107,
+    "bytes": 303104,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "mariee",
+    "cap": 4,
+    "median_fps": 110.644,
+    "psnr": 50.07774,
+    "psnr_delta_db": -0.14785,
+    "bytes": 303104,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "mariee",
+    "cap": 6,
+    "median_fps": 105.646,
+    "psnr": 50.1371,
+    "psnr_delta_db": -0.08849,
+    "bytes": 274432,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "mariee",
+    "cap": 9,
+    "median_fps": 103.113,
+    "psnr": 50.22644,
+    "psnr_delta_db": 0.00085,
+    "bytes": 245760,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "yu",
+    "cap": 0,
+    "median_fps": 24.378,
+    "psnr": 42.24249,
+    "psnr_delta_db": 0.0,
+    "bytes": 3207168,
+    "byte_identical_to_cap0": true
+  },
+  {
+    "source": "yu",
+    "cap": 1,
+    "median_fps": 40.74,
+    "psnr": 41.70798,
+    "psnr_delta_db": -0.53451,
+    "bytes": 3440640,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "yu",
+    "cap": 2,
+    "median_fps": 38.972,
+    "psnr": 41.86777,
+    "psnr_delta_db": -0.37472,
+    "bytes": 3354624,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "yu",
+    "cap": 3,
+    "median_fps": 37.091,
+    "psnr": 41.93641,
+    "psnr_delta_db": -0.30608,
+    "bytes": 3362816,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "yu",
+    "cap": 4,
+    "median_fps": 34.352,
+    "psnr": 41.96108,
+    "psnr_delta_db": -0.28141,
+    "bytes": 3325952,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "yu",
+    "cap": 6,
+    "median_fps": 27.251,
+    "psnr": 42.09946,
+    "psnr_delta_db": -0.14303,
+    "bytes": 3301376,
+    "byte_identical_to_cap0": false
+  },
+  {
+    "source": "yu",
+    "cap": 9,
+    "median_fps": 24.758,
+    "psnr": 42.24282,
+    "psnr_delta_db": 0.00033,
+    "bytes": 3207168,
+    "byte_identical_to_cap0": false
+  }
+]
