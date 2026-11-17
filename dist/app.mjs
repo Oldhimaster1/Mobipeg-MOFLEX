@@ -1,10 +1,10 @@
 import{initLanguage,translateText}from'./i18n.mjs?v=20261117f';
 import{createUsage}from'./usage.mjs?v=20261117a';
-import{validate,rate,PRESETS,ADVANCED_NUMBERS,ADVANCED_ENUMS,encodeArgs,encodeClipArgs,audioArgs,environment}from'./core.mjs?v=20261117l';
-import{createMovieJob,appendMovieSegment,assembleMovie,cleanupMovieJob,getCodedRate,nextMovieClip,planMovieClips,loadMovieSegment}from'./movie.mjs?v=20261117l';
-import{openCheckpoint,setCheckpointMedia,restoreCheckpoints,persistRange,closeCheckpoint}from'./checkpoints.mjs?v=20261117l';
-import{estimateConversion,totalEstimate,formatBytes,FAT32_LIMIT,FAT32_MESSAGE,fitsFat32,fat32Estimate}from'./queue.mjs?v=20261117l';
-import{runParallelMovie,planBalancedMovieClips}from'./parallel.mjs?v=20261117l';
+import{validate,rate,PRESETS,ADVANCED_NUMBERS,ADVANCED_ENUMS,encodeArgs,encodeClipArgs,audioArgs,environment}from'./core.mjs?v=20261117m';
+import{createMovieJob,appendMovieSegment,assembleMovie,cleanupMovieJob,getCodedRate,nextMovieClip,planMovieClips,loadMovieSegment}from'./movie.mjs?v=20261117m';
+import{openCheckpoint,setCheckpointMedia,restoreCheckpoints,persistRange,closeCheckpoint}from'./checkpoints.mjs?v=20261117m';
+import{estimateConversion,totalEstimate,formatBytes,FAT32_LIMIT,FAT32_MESSAGE,fitsFat32,fat32Estimate}from'./queue.mjs?v=20261117m';
+import{runParallelMovie,planBalancedMovieClips}from'./parallel.mjs?v=20261117m';
 const $=id=>document.getElementById(id),form=$('settings');let file=null,worker=null,previewURL=null,outputURL=null,started=0,stageStarted=0,ticker=null,report=null,wake=null,busy=false,runToken=0,stallMonitor=null,movieJob=null,completedMovieJob=null,sampleWorker=null,sampleToken=0,sampleData=null,audioInspector=null,parallelAbort=null;
 let queue=[],activeQueueId=null,queueRunning=false,queueCurrent=null,queueDownloaded=false,originStorage=null,nextQueueId=1,restoringSettings=false;
 // Hardware concurrency is a *logical* upper bound, not a RAM guarantee.
@@ -20,9 +20,9 @@ $('longMovie').closest('.field').after(workerField);
 const audioCodecField=document.createElement('div');audioCodecField.className='field';audioCodecField.innerHTML='<label for="audioCodec">MOFLEX audio codec</label><select id="audioCodec" name="audioCodec"><option value="adpcm">ADPCM — verified compatibility</option><option value="fastaudio">FastAudio — smaller, experimental on 3DS</option></select><p class="hint">FastAudio takes less space. Use ADPCM for the tested 3DS audio format.</p>';$('audioTrack').closest('.field').after(audioCodecField);
 const timeline=document.createElement('div');timeline.id='parallelTimeline';timeline.className='parallel-timeline';timeline.hidden=true;timeline.setAttribute('aria-label','Parallel encoder timelines');
 $('progress').after(timeline);
-const playerLink=document.createElement('a');playerLink.href='player.html?v=20261117l';playerLink.className='secondary';playerLink.textContent='Open MOFLEX player ↗';playerLink.style.marginTop='1rem';
+const playerLink=document.createElement('a');playerLink.href='player.html?v=20261117m';playerLink.className='secondary';playerLink.textContent='Open MOFLEX player ↗';playerLink.style.marginTop='1rem';
 $('result').append(playerLink);
-const navPlayer=document.createElement('a');navPlayer.href='player.html?v=20261117l';navPlayer.textContent='MOFLEX Player ↗';
+const navPlayer=document.createElement('a');navPlayer.href='player.html?v=20261117m';navPlayer.textContent='MOFLEX Player ↗';
 document.querySelector('.header-right')?.append(navPlayer);
 const renderWorkerCount=()=>{workerField.querySelector('#workerValue').textContent=workerSlider.value+' / '+coreMax+' logical cores';};
 workerSlider.addEventListener('input',renderWorkerCount);
@@ -154,7 +154,7 @@ $('queueNext').onclick=async()=>{
   if(completedMovieJob){const saved=completedMovieJob;completedMovieJob=null;$('clearMovieData').hidden=true;try{await cleanupMovieJob(saved,false);}catch(e){log('Queue cleanup warning: '+e.message);}}
   if(queueCurrent.status==='ready')queueCurrent.status='done';queueCurrent=null;$('queueNext').hidden=true;$('queueNext').disabled=true;beginNextQueuedItem();
 };
-function lock(v){busy=v;if(v&&audioInspector){audioInspector.terminate();audioInspector=null;}for(const el of form.elements)el.disabled=v;$('convert').disabled=v||!file;$('reset').disabled=v;$('replace').disabled=v;$('file').disabled=v;$('makeSample').disabled=v||!file;$('samplePosition').disabled=v||!file;$('sampleStart').disabled=v;advancedPreview();renderQueue();}
+function lock(v){busy=v;if(v)pauseSample();$('sampleMotion').disabled=v;$('samplePlay').disabled=v;$('sampleSeek').disabled=v;if(v&&audioInspector){audioInspector.terminate();audioInspector=null;}for(const el of form.elements)el.disabled=v;$('convert').disabled=v||!file;$('reset').disabled=v;$('replace').disabled=v;$('file').disabled=v;$('makeSample').disabled=v||!file;$('samplePosition').disabled=v||!file;$('sampleStart').disabled=v;advancedPreview();renderQueue();}
 function finish(verified=false){
   runToken++;
   parallelAbort?.abort();parallelAbort=null;
@@ -265,7 +265,7 @@ const publishCandidate=(verified,reason='')=>{
 };
 const startWorker=(type,payload)=>{
   if(token!==runToken)return;
-  currentWorkerType=type;lastActivity=performance.now();idleWarningShown=false;const w=new Worker('worker.js?v=20261117l');worker=w;
+  currentWorkerType=type;lastActivity=performance.now();idleWarningShown=false;const w=new Worker('worker.js?v=20261117m');worker=w;
   w.onerror=e=>{
     if(token!==runToken||worker!==w)return;
     const message=`Encoder worker failed: ${e.message||'unknown error'}`;
@@ -396,7 +396,7 @@ window.addEventListener('beforeunload',e=>{if(busy||queueRunning){e.preventDefau
 $('inspectAudio').onclick=()=>{
   if(!file||busy)return;
   let s;try{s=settings();}catch(e){log(e.message);return;}
-  const selected=file,w=new Worker('worker.js?v=20261117l');audioInspector=w;
+  const selected=file,w=new Worker('worker.js?v=20261117m');audioInspector=w;
   $('inspectAudio').disabled=true;
   const end=()=>{w.terminate();if(audioInspector===w)audioInspector=null;$('inspectAudio').disabled=busy;};
   w.onerror=e=>{log('Audio inspection failed: '+e.message);end();};
@@ -414,15 +414,54 @@ $('inspectAudio').onclick=()=>{
 
 advancedPreview();
 
-function invalidateSample(){sampleData=null;for(const id of ['originalFrame','decodedFrame']){$(id).width=0;$(id).height=0;}$('sampleResult').hidden=true;$('sampleStatus').textContent=file?'Settings changed. Generate a preview to see the result.':'Choose a video to preview your settings.';}
+const sampleMode=document.createElement('label');
+document.querySelector('.output-preview > .hint').textContent=
+  'Compare the framed source with the MobiClip result at your chosen timestamp. Motion previews are silent. A size limit may change the final quantizer.';
+sampleMode.className='hint';
+sampleMode.innerHTML='<input id="sampleMotion" type="checkbox"> Motion preview (up to 2.5 seconds)';
+$('makeSample').before(sampleMode);
+const playback=document.createElement('div');
+playback.className='sample-controls';
+playback.hidden=true;
+playback.innerHTML='<button id="samplePlay" class="text-button" type="button">Play preview</button><input id="sampleSeek" type="range" min="0" value="0" step="1" aria-label="Preview position">';
+$('sampleResult').prepend(playback);
+let sampleAnimation=0,sampleFrame=0;
+function pauseSample(){
+  cancelAnimationFrame(sampleAnimation);
+  sampleAnimation=0;
+  $('samplePlay').textContent='Play preview';
+}
+function invalidateSample(){pauseSample();sampleFrame=0;sampleData=null;playback.hidden=true;for(const id of ['originalFrame','decodedFrame']){$(id).width=0;$(id).height=0;}$('sampleResult').hidden=true;$('sampleStatus').textContent=file?'Settings changed. Generate a preview to see the result.':'Choose a video to preview your settings.';}
 function endSample(){sampleWorker?.terminate();sampleWorker=null;$('cancelSample').hidden=true;lock(false);}
 function drawSample(){
   if(!sampleData)return;const d=sampleData,bytes=d.width*d.height*4,eye=d.eyes===1?0:Number($('sampleEye').value);
+  const offset=(sampleFrame*d.eyes+eye)*bytes;
   for(const [id,data]of [['originalFrame',d.original],['decodedFrame',d.decoded]]){
-    const canvas=$(id);canvas.width=d.width;canvas.height=d.height;
-    canvas.getContext('2d').putImageData(new ImageData(data.subarray(eye*bytes,(eye+1)*bytes),d.width,d.height),0,0);
+    const canvas=$(id);
+    if(canvas.width!==d.width)canvas.width=d.width;
+    if(canvas.height!==d.height)canvas.height=d.height;
+    canvas.getContext('2d').putImageData(new ImageData(data.subarray(offset,offset+bytes),d.width,d.height),0,0);
   }
 }
+$('sampleMotion').onchange=invalidateSample;
+$('sampleSeek').oninput=()=>{
+  pauseSample();
+  sampleFrame=Number($('sampleSeek').value);
+  drawSample();
+};
+$('samplePlay').onclick=()=>{
+  if(busy)return;
+  if(sampleAnimation){pauseSample();return;}
+  if(!(sampleData?.frames>1))return;
+  const offset=sampleFrame,startedAt=performance.now();
+  $('samplePlay').textContent='Pause preview';
+  const tick=now=>{
+    const frame=(offset+Math.floor((now-startedAt)*sampleData.previewFPS/1000))%sampleData.frames;
+    if(frame!==sampleFrame){sampleFrame=frame;$('sampleSeek').value=String(frame);drawSample();}
+    sampleAnimation=requestAnimationFrame(tick);
+  };
+  sampleAnimation=requestAnimationFrame(tick);
+};
 $('sampleEye').onchange=drawSample;
 $('sampleStart').oninput=invalidateSample;
 $('samplePosition').onclick=()=>{if(!busy){$('sampleStart').value=Number.isFinite($('preview').currentTime)?$('preview').currentTime.toFixed(3):'0';invalidateSample();}};
@@ -432,8 +471,9 @@ $('makeSample').onclick=()=>{
   if(!file||busy)return;let s,start;
   try{s=settings();start=Number($('sampleStart').value);if(!Number.isFinite(start)||start<0||Number.isFinite($('preview').duration)&&start>=$('preview').duration)throw Error('Choose a preview position within the video.');}
   catch(e){$('sampleStatus').textContent=e.message;return;}
+  const motion=$('sampleMotion').checked;
   invalidateSample();lock(true);const token=++sampleToken;let w;
-  try{w=new Worker('worker.js?v=20261117l');sampleWorker=w;}catch(e){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();return;}
+  try{w=new Worker('worker.js?v=20261117m');sampleWorker=w;}catch(e){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();return;}
   $('cancelSample').hidden=false;$('sampleStatus').textContent='Loading preview encoder…';
   w.onerror=e=>{if(token===sampleToken){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();}};
   w.onmessage=async({data:d})=>{
@@ -445,13 +485,18 @@ $('makeSample').onclick=()=>{
         const [original,decoded]=await Promise.all([d.original.arrayBuffer(),d.decoded.arrayBuffer()]);
         if(token!==sampleToken||sampleWorker!==w)return;
         sampleData={...d,original:new Uint8ClampedArray(original),decoded:new Uint8ClampedArray(decoded)};
+        playback.hidden=!(d.frames>1);
+        $('sampleSeek').max=String(Math.max(0,(d.frames??1)-1));
+        $('sampleSeek').value='0';
         $('sampleEye').value='0';$('sampleEyeLabel').hidden=d.eyes===1;$('sampleResult').hidden=false;drawSample();
-        $('sampleStatus').textContent=`${d.width} × ${d.height} per eye · Q${d.q} · ${start.toFixed(3)} s · real MobiClip frame. Not a complete-file or hardware verification.`;
+        $('sampleStatus').textContent=motion
+          ? `${d.frames} preview frames · Q${d.q} · ${start.toFixed(3)} s · Silent motion comparison`
+          : `${d.width} × ${d.height} per eye · Q${d.q} · ${start.toFixed(3)} s · real MobiClip frame. Not a complete-file or hardware verification.`;
       }catch(e){$('sampleStatus').textContent='Preview failed: '+e.message;}
       finally{if(token===sampleToken)endSample();}
     }
   };
-  w.postMessage({type:'preview',file,settings:s,start});
+  w.postMessage({type:'preview',file,settings:s,start,motion});
 };
 
 initLanguage();

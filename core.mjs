@@ -108,3 +108,33 @@ export async function previewFrame({settings:s,source,start,run,notify=()=>{}}){
   if(original.blob.size!==bytes||decoded.blob.size!==bytes||decoded.frames!==eyes)throw Error('Preview frame size does not match the selected resolution');
   return {original:original.blob,decoded:decoded.blob,width,height,eyes,q,encodedBytes:encoded.blob.size};
 }
+
+export async function previewMotion({settings:s,source,start,run,notify=()=>{}}){
+  validate(s);
+  const eyes=s.mode==='2d'?1:2,fps=rate(s.fps),q=s.q??PRESETS[s.preset].q;
+  const [w,h]=s.resolution.split('x').map(Number);
+  const factor=Math.min(1,256/w,156/h);
+  const width=Math.max(2,Math.floor(w*factor/2)*2),height=Math.max(2,Math.floor(h*factor/2)*2);
+  const stride=Math.ceil(fps/12);
+  notify({stage:'Encoding motion preview',fraction:null});
+  const encoded=await run(encodeClipArgs(s,q,start,2.5),{source},'/video.moflex',environment(s));
+  const paired=Math.floor(encoded.frames/eyes);
+  if(!paired)throw Error('Preview is unavailable at this timestamp. Choose an earlier position.');
+  const frames=Math.ceil(paired/stride);
+  const sample=`select='lt(n,${paired*eyes})*not(mod(floor(n/${eyes}),${stride}))',scale=${width}:${height}:flags=bicubic`;
+  const raw=['-an','-frames:v',String(frames*eyes),'-fps_mode','passthrough',
+    '-pix_fmt','rgba','-c:v','rawvideo','-threads','1','-f','rawvideo'];
+  const framing=filters(s);
+  framing[1]=eyes===1?framing[1]+','+sample:framing[1].replace(/\[vid\]$/,','+sample+'[vid]');
+  notify({stage:'Rendering framed source',fraction:null});
+  const original=await run([...base,'-ss',start.toFixed(8),'-i','/input/source',...framing,...raw,'/source.rgba'],
+    {source},'/source.rgba');
+  notify({stage:'Decoding motion preview',fraction:null});
+  const decoded=await run([...base,'-i','/input/preview.moflex','-vf',sample,...raw,'/decoded.rgba'],
+    {'preview.moflex':encoded.blob},'/decoded.rgba');
+  const bytes=width*height*4*eyes*frames;
+  if(original.blob.size!==bytes||decoded.blob.size!==bytes)
+    throw Error('Motion preview frame counts differ. Try another position or the still preview.');
+  return {original:original.blob,decoded:decoded.blob,width,height,eyes,q,frames,
+    previewFPS:fps/stride,encodedBytes:encoded.blob.size};
+}

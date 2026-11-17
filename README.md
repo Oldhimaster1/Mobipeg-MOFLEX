@@ -244,13 +244,13 @@ submission, overrides, validation, cancel and reset with a mocked conversion wor
 
 ### Output preview, framing, and additional presets
 
-The browser's **Output preview** generates a framed source image and a genuine
-encoded-and-decoded MobiClip I-frame at the chosen timestamp. Stereo previews
-provide separate Left and Right views. It processes one displayed frame, uses the
-current profile/quantizer and never counts as a successful conversion. It does
-not preview audio, interframe motion behavior, whole-file verification or physical
-3DS playback. The final size search can select a different quantizer. Cancel
-terminates its worker; settings changes invalidate and release preview buffers.
+The browser's **Output preview** compares the framed source with genuine decoded
+MobiClip at the chosen timestamp. Choose a still image or enable **Motion preview**
+for up to 2.5 seconds of silent footage. Both views share a playhead and offer
+left- and right-eye selection for stereo sources. Motion previews encode at the
+selected settings, then downsample the display to limit memory use. The final
+size search can select a different quantizer. Cancel terminates the preview
+worker, and settings changes release the preview buffers.
 
 **Framing & crop** adds Fit, Fill, Stretch, and four even-pixel margins. Margins
 apply separately to each SBS eye before SAR correction and scaling. The existing
