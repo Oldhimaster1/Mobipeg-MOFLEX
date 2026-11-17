@@ -62,7 +62,9 @@ def main():
             for name in ['LICENSE', 'README.md', 'native/MobiPEG_Studio_V15.py',
                          'native/BUILD_FOR_LINUX.sh', 'native/BUILD_FOR_MAC.command',
                          'native/BUILD_FOR_WINDOWS.sh', 'native/PORTABLE_BUILDS.md',
-                         'scripts/package-native.py', 'scripts/smoke-native-package.py']:
+                         'scripts/package-native.py', 'scripts/smoke-native-package.py',
+                         'scripts/build-cross.sh', 'scripts/package-cross.py',
+                         'scripts/portable-launcher.c', 'scripts/check-macho.py', 'scripts/smoke-cross-windows.py']:
                 archive.write(ROOT / name, name)
         if system == 'windows':
             archive_path = Path(shutil.make_archive(str(output / label), 'zip', bundle.parent, bundle.name))

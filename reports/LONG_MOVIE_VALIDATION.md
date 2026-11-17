@@ -34,10 +34,11 @@ users can inspect `--list-audio-tracks -i FILE` and choose `--audio-track N`.
   `npx playwright test --config tests/browser/long.config.mjs`.
 
 The long-timeline test uses a genuinely encoded synthetic audiovisual chapter,
-repeated to create 5-, 10-, 30-, 60-, 90-, and 120-minute timelines. Every result
+repeated to create 5-, 10-, 30-, 60-, 90-, 120-, and 180-minute timelines. Every result
 passed complete video and audio decoding, exact frame count, audio duration within
 6 ms of video, and a late seek hash comparison against the corresponding chapter
-frame. The 120-minute case contains 172,800 frames and is 413,052,928 bytes.
+frame. The 120-minute case contains 172,800 frames and is 413,052,928 bytes. An additional
+180-minute case passed the same checks with 259,200 frames and 619,577,344 bytes.
 Machine-readable results are in `long-movie-validation-20261116.json`.
 These are container/timeline stress tests, not full-length diverse movie encodes.
 Both rebuilt scalar and SIMD binaries also passed real two-second 2D, full-SBS,
@@ -63,3 +64,20 @@ Physical 3DS playback/seeking beyond 71 minutes, long stereo playback, iPhone
 Safari memory limits, tab suspension, and recovery after closing a tab remain
 unverified. Closing the tab does not resume a conversion. No physical-device
 compatibility claim is added by these software checks.
+
+## Local desktop builds
+
+GitHub Actions is not used. Linux was built and its portable executable passed
+real conversion/decode and file-protection smoke tests. Windows was cross-built
+locally with Zig and tested under Wine using the bundled Python/Tk runtime and
+native launcher: 2D, full-SBS, half-SBS, selected-language audio, complete decode
+and existing-output protection. Paths with spaces are covered. The full native
+suite's generated-input step requires lavfi, which is intentionally absent from
+the cross-build device profile; Windows package tests use a generated Linux
+fixture instead. The full 19-test native suite passes on Linux without skips.
+
+Intel and Apple Silicon Mac executables were cross-built locally. Architecture
+and system-only dynamic imports were checked. ARM64 ad-hoc signature page hashes
+were verified; Intel binaries are unsigned. The matching standalone Python/Tk
+runtimes were checksum-verified against official release metadata. Mac execution
+and GUI interaction have not been tested. See native/PORTABLE_BUILDS.md.

@@ -76,5 +76,18 @@
     "audioDriftUnderMilliseconds": 6,
     "lateSeekHashMatches": true,
     "elapsedSeconds": 32.796041407
+  },
+  {
+    "requestedMinutes": 180,
+    "seconds": 10800,
+    "frames": 259200,
+    "chapters": 360,
+    "bytes": 619577344,
+    "durationFieldSaturated": true,
+    "completeVideoDecode": true,
+    "completeAudioDecode": true,
+    "audioDriftUnderMilliseconds": 6,
+    "lateSeekHashMatches": true,
+    "elapsedSeconds": 83.363560117
   }
 ]
