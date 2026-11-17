@@ -97,13 +97,23 @@ def scale_filter(width: int, height: int, sar: int=1,
     return ','.join(stages)
 
 
+def hdr_filter(transfer, mode='auto'):
+    if transfer not in ('smpte2084','arib-std-b67') or mode=='off':
+        return ''
+    operator='mobius' if mode=='auto' else mode
+    if operator not in ('mobius','hable','reinhard'):
+        raise ValueError('Invalid HDR tone mapping mode')
+    return ('scale=out_transfer=linear,format=gbrpf32le,tonemap='+operator+
+            ':desat=2,scale=out_transfer=bt709:out_primaries=bt709:out_color_matrix=bt709:out_range=tv,format=yuv420p,')
+
+
 def video_filters(mode: str, width: int, height: int, fps: str,
-                  quality_filter: str) -> tuple[list[str], str]:
+                  quality_filter: str, hdr='') -> tuple[list[str], str]:
     if mode not in MODES:raise ValueError('Unknown stereoscopic mode')
     if quality_filter not in FILTERS:raise ValueError('Unknown cleanup filter')
     clean=FILTERS[quality_filter]
     if mode=='2d':
-        return ['-vf',f'fps={fps},'+scale_filter(width,height,clean=clean)],'6'
+        return ['-vf',hdr+f'fps={fps},'+scale_filter(width,height,clean=clean)],'6'
     # Apply spatial-only cleanup separately to each eye; never average
     # left and right or let the filter see the inter-eye seam.
     sar=2 if mode=='half-sbs' else 1
@@ -114,7 +124,7 @@ def video_filters(mode: str, width: int, height: int, fps: str,
     # FFmpeg's temporal interleave merges them in L,R,L,R order. No frame
     # can leak between eyes because each branch is spatially filtered alone.
     eye_tb=f'1/(2*({fps}))'
-    spec=(f'[0:v:0]fps={fps},split=2[left][right];'
+    spec=(f'[0:v:0]{hdr}fps={fps},split=2[left][right];'
           f'[left]crop=iw/2:ih:0:0,{eye},'
           f'settb=expr={eye_tb},setpts=2*N[l];'
           f'[right]crop=iw/2:ih:iw/2:0,{eye},'
@@ -142,7 +152,7 @@ def invoke(args, env=None, timeout=None):
 
 def probe_media(probe: Path, inp: Path) -> dict:
     raw=invoke([probe,'-v','error','-show_entries',
-                'stream=index,codec_type:stream_tags=language,title:format=duration',
+                'stream=index,codec_type,color_transfer:stream_tags=language,title:format=duration',
                 '-of','json',inp])
     info=json.loads(raw)
     if not any(x.get('codec_type')=='video' for x in info.get('streams',[])):
@@ -151,8 +161,11 @@ def probe_media(probe: Path, inp: Path) -> dict:
     if not math.isfinite(duration) or duration<=0:
         raise ValueError('Input duration must be known and positive')
     tracks=[x for x in info['streams'] if x.get('codec_type')=='audio']
-    return {'tracks':tracks,'duration':duration,'audio':any(x.get('codec_type')=='audio'
-                   for x in info['streams'])}
+    data={'tracks':tracks,'duration':duration,'audio':bool(tracks)}
+    first_video=next(x for x in info['streams'] if x.get('codec_type')=='video')
+    if first_video.get('color_transfer') in ('smpte2084','arib-std-b67'):
+        data['hdr_transfer']=first_video['color_transfer']
+    return data
 
 
 def verified_frame_count(probe:Path, movie:Path) -> int:
@@ -229,7 +242,10 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print,
     available_cores=os.cpu_count() or 1
     if not 1<=args.workers<=available_cores:
         raise ValueError(f'Worker count must be 1–{available_cores} on this device')
-    filters,layout=video_filters(args.mode,width,height,args.fps,args.filter)
+    tone_map=hdr_filter(media.get('hdr_transfer'),getattr(args,'hdr_mode','auto'))
+    filters,layout=video_filters(args.mode,width,height,args.fps,args.filter,tone_map)
+    if tone_map:
+        callback(f"Converting {media['hdr_transfer']} HDR to BT.709 SDR.")
     stereo=args.mode!='2d'
     coded_fps_label=coded_rate_label(args.fps,args.mode)
     coded_fps=rate_value(args.fps)*(2 if stereo else 1)
@@ -422,6 +438,7 @@ def gui():
              'max_size_mb':tk.StringVar(value=''),
              'audio_offset_ms':tk.StringVar(value='0'),
              'normalize_audio':tk.BooleanVar(value=False),
+             'hdr_mode':tk.StringVar(value='auto'),
              'audio_codec':tk.StringVar(value='adpcm')}
     cpu_count=os.cpu_count() or 1
     cpu_workers=tk.IntVar(value=min(2,cpu_count))
@@ -466,6 +483,7 @@ def gui():
     timeline.grid(row=12,column=0,columnspan=3,sticky='ew',padx=12,pady=5)
     add_row(13,'Audio offset (ms, + delays audio)',choices['audio_offset_ms'])
     ttk.Checkbutton(app,text='Normalize audio peak',variable=choices['normalize_audio']).grid(row=13,column=2,padx=9)
+    add_row(14,'HDR to SDR',choices['hdr_mode'],'select',('auto','off','mobius','hable','reinhard'))
     lane_state={}
     def update_timeline(lane,fraction):
         if lane<0:return
@@ -478,10 +496,10 @@ def gui():
                 timeline.create_rectangle(left,0,left+(right-left)*lane_state.get(i,0),18,fill='#44745b',outline='')
         app.after(0,render)
     status=tk.StringVar(value='Ready. Your source file is never modified.')
-    ttk.Label(app,textvariable=status).grid(row=15,column=0,columnspan=3,sticky='w',padx=12,pady=4)
+    ttk.Label(app,textvariable=status).grid(row=16,column=0,columnspan=3,sticky='w',padx=12,pady=4)
     log=tk.Text(app,height=12,state='disabled',wrap='word')
-    log.grid(row=16,column=0,columnspan=3,sticky='nsew',padx=12,pady=8)
-    app.rowconfigure(16,weight=1)
+    log.grid(row=17,column=0,columnspan=3,sticky='nsew',padx=12,pady=8)
+    app.rowconfigure(17,weight=1)
     def write(message):
         def update():
             log.configure(state='normal')
@@ -507,6 +525,7 @@ def gui():
         arguments=['--input',paths['input'].get(),
                    '--audio-track',choices['audio_track'].get().split()[0],
                    '--audio-offset-ms',str(offset),
+                   '--hdr-mode',choices['hdr_mode'].get(),
                    '--audio-codec',choices['audio_codec'].get(),
                    '--mode',choices['mode'].get(),
                    '--preset',choices['preset'].get(),
@@ -528,7 +547,7 @@ def gui():
             finally:app.after(0,lambda:start.configure(state='normal'))
         threading.Thread(target=worker,daemon=True).start()
     start=ttk.Button(app,text='Convert and verify MOFLEX',command=convert)
-    start.grid(row=14,column=1,pady=10)
+    start.grid(row=15,column=1,pady=10)
     app.mainloop()
 
 
@@ -550,6 +569,8 @@ def parser():
     p.add_argument('--audio-track',type=int,default=0,help='Audio track number, starting at 0; use --list-audio-tracks to inspect languages')
     p.add_argument('--audio-offset-ms',type=int,default=0,help='Shift audio by up to 30 seconds; positive delays audio')
     p.add_argument('--normalize-audio',action='store_true',help='Measure the selected track and apply one peak-normalizing gain to the entire movie')
+    p.add_argument('--hdr-mode',choices=('auto','off','mobius','hable','reinhard'),default='auto',
+                   help='Tone map tagged PQ and HLG input to BT.709; auto uses Mobius')
     p.add_argument('--audio-codec',choices=('adpcm','fastaudio'),default='adpcm',help='ADPCM is the hardware-tested default; FastAudio is smaller but 3DS-unverified')
     p.add_argument('--workers',type=int,default=1,
                    help='Parallel encoders for movie-sized inputs, 1 up to logical CPU count')

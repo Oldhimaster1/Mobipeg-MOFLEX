@@ -1,10 +1,11 @@
 import{initLanguage,translateText}from'./i18n.mjs?v=20261117f';
 import{createUsage}from'./usage.mjs?v=20261117a';
-import{validate,rate,PRESETS,ADVANCED_NUMBERS,ADVANCED_ENUMS,encodeArgs,encodeClipArgs,audioArgs,environment}from'./core.mjs?v=20261117q';
-import{allocateMovieBudget,createMovieJob,appendMovieSegment,assembleMovie,cleanupMovieJob,getCodedRate,nextMovieClip,planMovieClips,loadMovieSegment}from'./movie.mjs?v=20261117q';
-import{openCheckpoint,setCheckpointMedia,restoreCheckpoints,persistRange,closeCheckpoint}from'./checkpoints.mjs?v=20261117q';
-import{estimateConversion,totalEstimate,formatBytes,FAT32_LIMIT,FAT32_MESSAGE,fitsFat32,fat32Estimate}from'./queue.mjs?v=20261117q';
-import{runParallelMovie,planBalancedMovieClips}from'./parallel.mjs?v=20261117q';
+import{validate,rate,PRESETS,ADVANCED_NUMBERS,ADVANCED_ENUMS,encodeArgs,encodeClipArgs,audioArgs,environment}from'./core.mjs?v=20261117s';
+import{allocateMovieBudget,createMovieJob,appendMovieSegment,assembleMovie,cleanupMovieJob,getCodedRate,nextMovieClip,planMovieClips,loadMovieSegment}from'./movie.mjs?v=20261117s';
+import{openCheckpoint,setCheckpointMedia,restoreCheckpoints,persistRange,closeCheckpoint}from'./checkpoints.mjs?v=20261117s';
+import{estimateConversion,totalEstimate,formatBytes,FAT32_LIMIT,FAT32_MESSAGE,fitsFat32,fat32Estimate}from'./queue.mjs?v=20261117s';
+import{runParallelMovie,planBalancedMovieClips}from'./parallel.mjs?v=20261117s';
+import{batchStorage,saveBatchFile}from'./batch-output.mjs?v=20261117s';
 const $=id=>document.getElementById(id),form=$('settings');let file=null,worker=null,previewURL=null,outputURL=null,started=0,stageStarted=0,ticker=null,report=null,wake=null,busy=false,runToken=0,stallMonitor=null,movieJob=null,completedMovieJob=null,sampleWorker=null,sampleToken=0,sampleData=null,audioInspector=null,parallelAbort=null;
 let queue=[],activeQueueId=null,queueRunning=false,queueCurrent=null,queueDownloaded=false,originStorage=null,nextQueueId=1,restoringSettings=false;
 // Hardware concurrency is a *logical* upper bound, not a RAM guarantee.
@@ -28,9 +29,9 @@ normalizationField.innerHTML='<input id="normalizeAudio" name="normalizeAudio" t
 audioOffsetField.after(normalizationField);
 const timeline=document.createElement('div');timeline.id='parallelTimeline';timeline.className='parallel-timeline';timeline.hidden=true;timeline.setAttribute('aria-label','Parallel encoder timelines');
 $('progress').after(timeline);
-const playerLink=document.createElement('a');playerLink.href='player.html?v=20261117q';playerLink.className='secondary';playerLink.textContent='Open MOFLEX player ↗';playerLink.style.marginTop='1rem';
+const playerLink=document.createElement('a');playerLink.href='player.html?v=20261117s';playerLink.className='secondary';playerLink.textContent='Open MOFLEX player ↗';playerLink.style.marginTop='1rem';
 $('result').append(playerLink);
-const navPlayer=document.createElement('a');navPlayer.href='player.html?v=20261117q';navPlayer.textContent='MOFLEX Player ↗';
+const navPlayer=document.createElement('a');navPlayer.href='player.html?v=20261117s';navPlayer.textContent='MOFLEX Player ↗';
 document.querySelector('.header-right')?.append(navPlayer);
 const renderWorkerCount=()=>{workerField.querySelector('#workerValue').textContent=workerSlider.value+' / '+coreMax+' logical cores';};
 workerSlider.addEventListener('input',renderWorkerCount);
@@ -116,6 +117,74 @@ function addFiles(files){
   }
   if(!added.length)return;$('queuePanel').hidden=false;select(added[0].file,added[0]);refreshStorage();renderQueue();
 }
+let batchDestination=null,batchSaving=false;
+const folderInput=document.createElement('input');
+folderInput.type='file';folderInput.webkitdirectory=true;folderInput.multiple=true;folderInput.hidden=true;
+folderInput.onchange=()=>{
+  addFiles(Array.from(folderInput.files).filter(file=>file.type.startsWith('video/')||
+    /\.(mp4|mkv|mov|webm|avi|m4v|moflex|mpeg|mpg|mts|m2ts)$/i.test(file.name)));
+  folderInput.value='';
+};
+const folderButton=document.createElement('button');
+folderButton.type='button';folderButton.className='text-button';folderButton.textContent='Add a folder';
+folderButton.onclick=()=>{if(!busy&&!queueRunning)folderInput.click();};
+$('replace').before(folderButton,folderInput);
+const batchControls=document.createElement('div');
+batchControls.innerHTML='<div class="queue-actions"><button id="batchFolder" type="button" class="text-button">Save to a folder</button><button id="batchPrivate" type="button" class="text-button">Save in this browser</button><button id="batchManual" type="button" class="text-button" hidden>Use manual downloads</button></div><p id="batchSaveStatus" class="hint" role="status"></p>';
+$('startQueue').parentElement.before(batchControls);
+$('batchFolder').hidden=typeof window.showDirectoryPicker!=='function';
+$('batchPrivate').hidden=!navigator.storage?.getDirectory;
+const savedPanel=document.createElement('section');
+savedPanel.className='card';savedPanel.hidden=true;
+savedPanel.innerHTML='<h2>Saved queue files</h2><p class="hint">Download or delete files saved in this browser. Keep any copies you want before clearing site storage.</p><ul id="savedBatchFiles"></ul>';
+$('queuePanel').after(savedPanel);
+
+async function refreshSavedBatch(){
+  if(!navigator.storage?.getDirectory)return;
+  try{
+    const directory=await batchStorage();
+    const list=$('savedBatchFiles');
+    list.replaceChildren();
+    for await(const [name,file] of directory.entries()){
+      if(file.kind!=='file'||!name.endsWith('.moflex'))continue;
+      const row=document.createElement('li');
+      const download=rowButton('Download',async()=>{
+        try{
+          const url=URL.createObjectURL(await file.getFile()),link=document.createElement('a');
+          link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
+        }catch(error){showAlert(error.message);}
+      });
+      const remove=rowButton('Delete',async()=>{
+        if(askConfirm('Delete the saved copy of '+name+'?')){
+          try{await directory.removeEntry(name);await refreshSavedBatch();}
+          catch(error){showAlert(error.message);}
+        }
+      });
+      row.append(name,' ',download,' ',remove);
+      list.append(row);
+    }
+    savedPanel.hidden=!list.children.length;
+  }catch(error){if(error.name!=='NotFoundError')console.warn(error.message);}
+}
+function chooseBatchDestination(destination){
+  batchDestination=destination;
+  $('batchManual').hidden=!destination;
+  $('batchSaveStatus').textContent=destination
+    ? 'Verified outputs will save automatically to '+(destination.private?'this browser':destination.directory.name)+'.'
+    : '';
+}
+$('batchFolder').onclick=async()=>{
+  if(busy||queueRunning)return;
+  try{chooseBatchDestination({directory:await window.showDirectoryPicker({mode:'readwrite'}),private:false});}
+  catch(error){if(error.name!=='AbortError')$('batchSaveStatus').textContent=error.message;}
+};
+$('batchPrivate').onclick=async()=>{
+  if(busy||queueRunning)return;
+  try{chooseBatchDestination({directory:await batchStorage(true),private:true});await refreshSavedBatch();}
+  catch(error){$('batchSaveStatus').textContent=error.message;}
+};
+$('batchManual').onclick=()=>{if(!busy&&!queueRunning)chooseBatchDestination(null);};
+refreshSavedBatch();
 function probeBrowserMetadata(item){
   const video=document.createElement('video'),url=URL.createObjectURL(item.file);video.preload='metadata';video.muted=true;
   const done=duration=>{URL.revokeObjectURL(url);video.removeAttribute('src');if(Number.isFinite(duration)&&duration>0)item.duration=duration;refreshEstimates();};
@@ -132,6 +201,8 @@ function renderQueue(){
     row.append(selectButton,actions);list.append(row);
   });
   $('startQueue').disabled=busy||queueRunning||!queue.some(item=>item.status==='pending');$('clearQueue').disabled=busy||queueRunning;
+  for(const id of ['batchFolder','batchPrivate','batchManual'])$(id).disabled=busy||queueRunning;
+  folderButton.disabled=busy||queueRunning;
 }
 function moveQueue(index,offset){const target=index+offset;if(target<0||target>=queue.length)return;[queue[index],queue[target]]=[queue[target],queue[index]];renderQueue();}
 function removeQueue(item){
@@ -156,9 +227,9 @@ function beginNextQueuedItem(){
 }
 function stopQueueBeforeEncoding(){if(!queueRunning||!queueCurrent)return;if(queueCurrent.status==='encoding')queueCurrent.status='pending';queueCurrent=null;queueRunning=false;$('startQueue').hidden=false;$('queueNext').hidden=true;renderQueue();}
 $('startQueue').onclick=()=>{if(busy||queueRunning)return;saveActiveSettings();queueRunning=true;$('startQueue').hidden=true;beginNextQueuedItem();};
-$('download').addEventListener('click',()=>{if(queueRunning&&queueCurrent?.status==='ready'){queueDownloaded=true;$('queueNext').disabled=false;$('queueNext').textContent='Release storage & continue';}});
+$('download').addEventListener('click',()=>{if(queueRunning&&!batchSaving&&queueCurrent?.status==='ready'){queueDownloaded=true;$('queueNext').disabled=false;$('queueNext').textContent='Release storage & continue';}});
 $('queueNext').onclick=async()=>{
-  if(!queueRunning||!queueCurrent||queueCurrent.status==='ready'&&!queueDownloaded)return;
+  if(!queueRunning||!queueCurrent||batchSaving||queueCurrent.status==='ready'&&!queueDownloaded)return;
   if(outputURL){URL.revokeObjectURL(outputURL);outputURL=null;}$('result').hidden=true;
   if(completedMovieJob){const saved=completedMovieJob;completedMovieJob=null;$('clearMovieData').hidden=true;try{await cleanupMovieJob(saved,false);}catch(e){log('Queue cleanup warning: '+e.message);}}
   if(queueCurrent.status==='ready')queueCurrent.status='done';queueCurrent=null;$('queueNext').hidden=true;$('queueNext').disabled=true;beginNextQueuedItem();
@@ -271,10 +342,26 @@ const publishCandidate=(verified,reason='')=>{
   candidate=null;
   finish(verified);
   if(queueRunning&&queueCurrent){queueCurrent.status='ready';$('clearMovieData').hidden=true;$('queueNext').hidden=false;$('queueNext').disabled=true;$('queueNext').textContent='Download the result to continue';renderQueue();}
+  if(verified&&queueRunning&&queueCurrent&&batchDestination){
+    const destination=batchDestination;
+    batchSaving=true;
+    $('stage').textContent='Saving verified output…';
+    saveBatchFile(destination.directory,$('download').download,d.blob).then(async name=>{
+      $('batchSaveStatus').textContent='Saved '+name;
+      batchSaving=false;
+      queueDownloaded=true;
+      if(destination.private)refreshSavedBatch();
+      await $('queueNext').onclick();
+    }).catch(error=>{
+      batchSaving=false;
+      $('stage').textContent='Your MOFLEX is ready.';
+      $('batchSaveStatus').textContent='Automatic save failed. Download this result to continue. '+error.message;
+    });
+  }
 };
 const startWorker=(type,payload)=>{
   if(token!==runToken)return;
-  currentWorkerType=type;lastActivity=performance.now();idleWarningShown=false;const w=new Worker('worker.js?v=20261117q');worker=w;
+  currentWorkerType=type;lastActivity=performance.now();idleWarningShown=false;const w=new Worker('worker.js?v=20261117s');worker=w;
   w.onerror=e=>{
     if(token!==runToken||worker!==w)return;
     const message=`Encoder worker failed: ${e.message||'unknown error'}`;
@@ -411,7 +498,7 @@ window.addEventListener('beforeunload',e=>{if(busy||queueRunning){e.preventDefau
 $('inspectAudio').onclick=()=>{
   if(!file||busy)return;
   let s;try{s=settings();}catch(e){log(e.message);return;}
-  const selected=file,w=new Worker('worker.js?v=20261117q');audioInspector=w;
+  const selected=file,w=new Worker('worker.js?v=20261117s');audioInspector=w;
   $('inspectAudio').disabled=true;
   const end=()=>{w.terminate();if(audioInspector===w)audioInspector=null;$('inspectAudio').disabled=busy;};
   w.onerror=e=>{log('Audio inspection failed: '+e.message);end();};
@@ -488,7 +575,7 @@ $('makeSample').onclick=()=>{
   catch(e){$('sampleStatus').textContent=e.message;return;}
   const motion=$('sampleMotion').checked;
   invalidateSample();lock(true);const token=++sampleToken;let w;
-  try{w=new Worker('worker.js?v=20261117q');sampleWorker=w;}catch(e){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();return;}
+  try{w=new Worker('worker.js?v=20261117s');sampleWorker=w;}catch(e){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();return;}
   $('cancelSample').hidden=false;$('sampleStatus').textContent='Loading preview encoder…';
   w.onerror=e=>{if(token===sampleToken){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();}};
   w.onmessage=async({data:d})=>{

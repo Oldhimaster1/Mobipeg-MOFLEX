@@ -1,0 +1,93 @@
+import {expect,test} from '@playwright/test';
+import {execFileSync} from 'node:child_process';
+import {mkdtempSync,readFileSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join,resolve} from 'node:path';
+
+let work,source,movie,ffmpeg;
+test.beforeAll(()=>{
+  work=mkdtempSync(join(tmpdir(),'mobipeg-upgrade-'));
+  source=join(work,'source.mkv');movie=join(work,'source.moflex');
+  ffmpeg=resolve('native/local/bin/ffmpeg');
+  execFileSync(ffmpeg,['-v','error','-f','lavfi','-i','color=c=red:s=320x240:r=24:d=2',
+    '-f','lavfi','-i','sine=f=880:r=48000:d=2','-c:v','ffv1','-c:a','pcm_s16le',source]);
+  execFileSync('python3',['native/MobiPEG_Studio_V15.py','-i',source,'-o',movie,'--preset','small','--resolution','320x240']);
+});
+test.afterAll(()=>{if(work)rmSync(work,{recursive:true,force:true});});
+
+test('browser edits SUPER MOFLEX, plays subtitles and exports tracks to MKV',async({page},testInfo)=>{
+  await page.goto('/player.html');
+  await page.locator('#movieFile').setInputFiles(movie);
+  await expect(page.locator('#play')).toBeEnabled();
+  await page.locator('#trailerEditor > summary').click();
+  await page.getByLabel('Movie or series title').fill('Browser trailer test');
+  const subs=Buffer.from('1\n00:00:00,000 --> 00:00:01,700\nHello from SUPER MOFLEX\n');
+  await page.locator('#newSubtitles').setInputFiles({name:'episode.eng.srt',mimeType:'text/plain',buffer:subs});
+  await page.locator('#newAltAudio').setInputFiles(source);
+  await page.getByLabel('Alternate audio language').fill('JPN');
+  const pending=page.waitForEvent('download');
+  await page.locator('#writeTrailer').click();
+  await expect(page.locator('#trailerStatus')).toContainText('Edited file ready',{timeout:30000});
+  const changed=testInfo.outputPath('edited.moflex');
+  await (await pending).saveAs(changed);
+  const plain=readFileSync(movie);
+  expect(readFileSync(changed).subarray(0,plain.length)).toEqual(plain);
+  await page.locator('#movieFile').setInputFiles(changed);
+  await expect(page.locator('#playerInfo')).toContainText('Browser trailer test');
+  await page.locator('#subtitleSelect').selectOption('0');
+  await expect(page.locator('#subtitle')).toHaveText('Hello from SUPER MOFLEX');
+  await page.locator('#audioSelect').selectOption('alternate');
+  await page.locator('#play').click();
+  await expect(page.locator('#playerStatus')).toContainText('Playing locally',{timeout:30000});
+  await page.locator('#exportFormat').selectOption('mkv');
+  await page.locator('#exportAudio').selectOption('all');
+  const exporting=page.waitForEvent('download');
+  await page.locator('#exportVideo').click();
+  await expect(page.locator('#playerStatus')).toHaveText('Converted video downloaded.',{timeout:30000});
+  const out=testInfo.outputPath('tracks.mkv');
+  await (await exporting).saveAs(out);
+  const streams=JSON.parse(execFileSync(resolve('native/local/bin/ffprobe'),['-v','error','-show_entries',
+    'stream=codec_type','-of','json',out])).streams;
+  expect(streams.map(track=>track.codec_type)).toEqual(['video','audio','audio','subtitle']);
+});
+
+test('offline cache runs a real conversion and opens the player',async({page,context},testInfo)=>{
+  await page.goto('/');
+  await page.locator('#offlineSetup').click();
+  await expect(page.locator('#offlineStatus')).toContainText('Ready offline',{timeout:90000});
+  await context.setOffline(true);
+  try{
+    await page.reload();
+    expect(await page.evaluate(()=>crossOriginIsolated)).toBe(true);
+    await page.locator('#file').setInputFiles(source);
+    await page.locator('#workers').fill('1');
+    await page.locator('#resolution').selectOption('256x144');
+    await page.locator('#speed').selectOption('fast');
+    await page.locator('#convert').click();
+    await expect(page.locator('#stage')).toHaveText('Your MOFLEX is ready.',{timeout:90000});
+    await page.goto('/player.html');
+    await page.locator('#movieFile').setInputFiles(movie);
+    await expect(page.locator('#play')).toBeEnabled();
+    await page.locator('#play').click();
+    await expect(page.locator('#playerStatus')).toContainText('Playing locally',{timeout:30000});
+  }finally{await context.setOffline(false);}
+});
+
+test('queue saves and continues automatically, with downloads still available after reload',async({page})=>{
+  await page.goto('/');
+  await page.locator('#workers').fill('1');
+  await page.locator('#resolution').selectOption('256x144');
+  await page.locator('#speed').selectOption('fast');
+  const buffer=readFileSync(source);
+  await page.locator('#file').setInputFiles(['a','b'].map(name=>({name:name+'.mkv',mimeType:'video/x-matroska',buffer})));
+  await page.locator('#batchPrivate').click();
+  await expect(page.locator('#batchSaveStatus')).toContainText('automatically');
+  await page.locator('#startQueue').click();
+  await expect(page.locator('#stage')).toHaveText('Queue complete',{timeout:120000});
+  await expect(page.locator('#savedBatchFiles > li')).toHaveCount(2);
+  await page.reload();
+  await expect(page.locator('#savedBatchFiles > li')).toHaveCount(2);
+  const download=page.waitForEvent('download');
+  await page.locator('#savedBatchFiles button').first().click();
+  expect((await download).suggestedFilename()).toMatch(/\.moflex$/);
+});

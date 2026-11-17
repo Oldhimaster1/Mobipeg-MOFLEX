@@ -1,5 +1,5 @@
-import {allocateMovieBudget, appendMovieSegment, getCodedRate} from './movie.mjs?v=20261117q';
-import {persistRange} from './checkpoints.mjs?v=20261117q';
+import {allocateMovieBudget, appendMovieSegment, getCodedRate} from './movie.mjs?v=20261117s';
+import {persistRange} from './checkpoints.mjs?v=20261117s';
 
 // Balanced, frame-aligned timeline parts require no source chapters.
 // A bounded worker pool reuses compiled WASM and recycles memory every four parts.
@@ -26,7 +26,7 @@ export function planBalancedMovieClips(seconds, settings, wanted=1) {
   return clips;
 }
 export async function runParallelMovie({file, settings, media, job, workers, onUpdate=()=>{},
-  signal, createWorker=()=>new Worker('worker.js?v=20261117q'), save=appendMovieSegment}) {
+  signal, createWorker=()=>new Worker('worker.js?v=20261117s'), save=appendMovieSegment}) {
   const clips=planBalancedMovieClips(media.duration,settings,workers);
   const budgets=settings.maxMB==null?null:allocateMovieBudget(clips,Math.floor(settings.maxMB*1e6));
   const count=Math.min(Math.max(1,Math.floor(workers)),clips.length);

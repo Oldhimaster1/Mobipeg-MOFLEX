@@ -97,6 +97,11 @@ track and apply one gain to the entire movie. It aims for a PCM peak of −1 dBF
 before compression, with up to 24 dB of amplification. This setting adds an
 audio analysis pass. It adjusts peak level rather than perceived loudness.
 
+Desktop Studio's **HDR to SDR** setting converts tagged PQ and HLG to BT.709
+SDR. Automatic mode uses Mobius tone mapping. Use `--hdr-mode` in the CLI to
+select a different operator or disable tone mapping. Browser HDR conversion
+is still under development.
+
 For all options:
 
 ```sh
@@ -140,6 +145,50 @@ node scripts/dev-server.mjs
 Open **http://localhost:4173** in a modern browser. Use the HTTP server rather than opening `index.html` directly. Automatic engine selection uses SIMD when supported; Compatibility selects the scalar engine.
 
 Open **http://localhost:4173/player.html** for the separate **MOFLEX Player**. Pick a local `.moflex` file to display video with the actual MobiClip decoder; ADPCM and FastAudio are decoded to short PCM buffers and played through WebAudio when available. Descriptor layouts 0–6 support 2D, alternating-eye, top/bottom, and side-by-side material. The player can export 2D, SBS, left-eye, or right-eye video to MP4/MKV. Browser export currently uses standard MPEG-4 video plus AAC and buffers the completed output in WASM memory, so use the desktop converter for large movies. The player itself only keeps short decoded frame batches in RAM, so a long movie does not have to be expanded into full uncompressed video. Seeking, playback rate and audio synchronization depend on browser performance and should be tested on the target device.
+
+The player includes a **SUPER MOFLEX** editor for metadata, poster art,
+subtitle files, and one alternate audio track. Save an edited copy without
+re-encoding the original movie, or choose the embedded tracks during playback.
+SRT, ASS, and SSA show as plain text in the browser. MKV can carry embedded
+subtitles from the browser; desktop export can also put text subtitles in MP4.
+Nintendo's original player uses the primary movie streams. Trailer-aware
+software can read the appended extras.
+
+Desktop examples:
+
+```sh
+python3 native/super_moflex.py input.moflex
+python3 native/super_moflex.py input.moflex -o edited.moflex \
+  --metadata movie.json --subtitle ENG captions.srt --alternate-audio JPN dub.wav
+python3 native/moflex_convert.py edited.moflex -o export.mkv --audio all --subtitles all
+```
+
+To package one or more existing movies on desktop, provide a local
+VidInjector9002-CLI build. MobiPEG creates the ordered project, packages the
+movie streams, and verifies the CIA title ID, content hashes, and exact size.
+Choose an unused title ID from C0000 through EFFFF. If you maintain a list of
+installed IDs, put them in `reserved_title_ids` in the project JSON.
+
+```sh
+python3 native/cia_builder.py new series.json episode1.moflex episode2.moflex \
+  --title 'My series' --id C1234
+python3 native/cia_builder.py build series.json series.cia --backend /path/to/VidInjector9002-CLI
+```
+
+The JSON project controls each episode's menu title and optional banner, plus
+the application title, publisher, icon, and banner. Run `preview` instead of
+`build` with a PNG output and `--asset icon` or `--asset banner` for the
+backend's preview. A prepared banner binary can supply its own banner audio.
+MobiPEG does not distribute the external tool or its assets. Browser CIA
+building and physical installation testing are pending.
+
+Choose **Save app for offline use** in the footer to cache the converter, player,
+and both WASM engines. After the status confirms setup, you can reopen and use
+them offline. On iPhone and iPad, Safari offers **Share → Add to Home Screen**.
+While batch encoding, **Save in this browser** stores verified outputs locally
+and starts the next item automatically. A browser that offers a folder picker
+can save directly to a selected folder. Browser-saved outputs remain available
+after reload.
 
 The browser build requires **SharedArrayBuffer and cross-origin isolation**, including when using the scalar engine. The local server supplies the required headers. For phone access or public hosting, use HTTPS; plain HTTP on a LAN does not provide the required secure context.
 

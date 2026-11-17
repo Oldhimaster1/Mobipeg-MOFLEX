@@ -5,10 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#f5f6f2">
   <title>MobiPEG — MOFLEX Player</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="stylesheet" href="style.css?v=20261117i">
   <link rel="stylesheet" href="player.css?v=20261117i">
-  <script defer src="isolation.js"></script>
-  <script type="module" src="player.mjs?v=20261117i"></script>
+  <script defer src="isolation.js?v=20261117s"></script>
+  <script type="module" src="player.mjs?v=20261117r"></script>
 </head>
 <body>
   <header><a class="brand" href="./"><span class="logo">m<span>↗</span></span><strong>MobiPEG<span class="web"> / player</span></strong></a><div class="header-right"><span class="privacy"><i></i> On-device decoding</span><a href="./">← Converter</a></div></header>
@@ -18,15 +20,41 @@
       <p class="player-description">Open a Nintendo 3DS <code>.moflex</code> video to play it here. Video is decoded in bounded batches with the actual MobiClip decoder, on your device. The original file is never uploaded.</p>
       <label class="player-picker">Choose a .moflex file <input id="movieFile" type="file"></label>
       <canvas id="screen" width="400" height="240" aria-label="Decoded MobiClip video frame"></canvas>
+      <p id="subtitle" class="player-subtitle" hidden></p>
+      <div class="player-buttons"><label id="subtitleControl" hidden>Subtitles <select id="subtitleSelect"></select></label><label id="audioControl" hidden>Audio <select id="audioSelect"></select></label></div>
       <div class="player-buttons"><button id="play" type="button" class="primary" disabled>▶ Play</button><button id="pause" type="button" class="secondary" disabled>Pause</button><label id="eyeControl" hidden>3D view <select id="eye"><option value="0">Left eye</option><option value="1">Right eye</option></select></label></div>
       <div class="player-seek"><span id="position">0:00</span><input id="seek" type="range" min="0" max="1" step="0.001" value="0" disabled aria-label="Seek through movie"><span id="duration">0:00</span></div>
       <p id="playerStatus" role="status">Choose a file to begin.</p>
       <p id="playerInfo" class="hint"></p>
       <p id="stereoInfo" class="hint"></p>
       <div class="player-buttons"><label>Video export <select id="exportMode"><option value="auto">Automatic (2D or SBS)</option><option value="sbs">Side-by-side 3D</option><option value="left">Left eye</option><option value="right">Right eye</option><option value="2d">2D / left eye</option></select></label><label>Container <select id="exportFormat"><option value="mp4">MP4</option><option value="mkv">MKV</option></select></label><button id="exportVideo" type="button" class="secondary" disabled>Convert &amp; download</button></div>
+      <div class="player-buttons" id="exportTracks" hidden>
+        <label>Export audio <select id="exportAudio"><option value="primary">Primary</option><option value="alternate">Alternate</option><option value="all">Both</option><option value="none">None</option></select></label>
+        <label id="exportSubtitlesControl" hidden><input type="checkbox" id="exportSubtitles" checked> Include subtitles in MKV</label>
+      </div>
       <p class="hint">Browser export is intended for files that fit comfortably in memory. Desktop conversion is recommended for long movies. Exports preserve decoded audio and use standard MPEG-4/AAC for broad playback compatibility.</p>
+      <details id="trailerEditor" hidden>
+        <summary>Edit SUPER MOFLEX tracks and metadata</summary>
+        <form id="trailerForm">
+          <div id="metadataFields" class="trailer-fields"></div>
+          <div class="trailer-fields">
+            <label>Primary audio language <input id="trailerMainLanguage" maxlength="3" placeholder="ENG"></label>
+            <label>Poster image <input id="newPoster" type="file" accept="image/*"></label>
+            <label id="removePoster" hidden><input name="removePoster" type="checkbox"> Remove current poster</label>
+            <label>Alternate audio <input id="newAltAudio" type="file" accept="audio/*,.mkv,.mp4"></label>
+            <label>Alternate audio language <input name="alternateLanguage" maxlength="3" value="ALT"></label>
+            <label id="removeAltAudio" hidden><input name="removeAltAudio" type="checkbox"> Remove current alternate audio</label>
+            <label>Import subtitles <input type="file" id="newSubtitles" accept=".srt,.ass,.ssa" multiple></label>
+          </div>
+          <div id="existingSubtitles" class="trailer-fields"></div>
+          <div id="newSubtitleLanguages" class="trailer-fields"></div>
+          <button type="submit" class="secondary" id="writeTrailer">Download edited MOFLEX</button>
+          <p id="trailerStatus" role="status"></p>
+        </form>
+      </details>
       <p class="hint">Experimental playback: decode speed depends on your device, and audio may buffer on slower phones. Seeking, stereoscopic eye selection and long-movie support need testing on your specific files. This is a browser preview, not 3DS hardware certification.</p>
     </section>
+    <footer><a href="./">Web Studio</a></footer>
   </main>
 </body>
 </html>

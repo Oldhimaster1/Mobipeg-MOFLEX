@@ -50,6 +50,8 @@ def parallel_workspace(args, inp, out, encoder, media, notify):
         fields+=('audio_offset_ms',)
     if getattr(args,'normalize_audio',False):
         fields+=('normalize_audio',)
+    if media.get('hdr_transfer') and getattr(args,'hdr_mode','auto')!='auto':
+        fields+=('hdr_mode',)
     config={'version':1,'source':inp.name,'bytes':inp.stat().st_size,'source_sha256':file_hash(inp),
             'encoder_sha256':file_hash(encoder),'media':media,
             'settings':{key:getattr(args,key) for key in fields}}

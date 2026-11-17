@@ -15,3 +15,7 @@
 .player-seek span{font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
 #playerStatus{min-height:22px;color:#3f7251;font-size:13px}
 @media(max-width:600px){.player-card{padding:20px 16px}.player-buttons .primary,.player-buttons .secondary{min-width:0;flex:1}.player-buttons label{width:100%;margin-left:0}}
+.player-subtitle { white-space: pre-line; text-align: center; font-size: 1rem; }
+.trailer-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: .75rem; margin-block: 1rem; }
+.trailer-fields label { display: grid; gap: .25rem; min-width: 0; overflow-wrap: anywhere; }
+.trailer-fields input, .trailer-fields textarea { max-width: 100%; }
