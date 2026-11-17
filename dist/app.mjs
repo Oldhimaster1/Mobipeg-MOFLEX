@@ -1,6 +1,14 @@
+import{createUsage}from'./usage.mjs?v=20261117a';
 import{validate,rate,PRESETS}from'./core.mjs?v=20261116d';
 import{createMovieJob,appendMovieSegment,assembleMovie,cleanupMovieJob,getCodedRate,nextMovieClip}from'./movie.mjs?v=20261116d';
 const $=id=>document.getElementById(id),form=$('settings');let file=null,worker=null,previewURL=null,outputURL=null,started=0,stageStarted=0,ticker=null,report=null,wake=null,busy=false,runToken=0,stallMonitor=null,movieJob=null,completedMovieJob=null;
+const usage=createUsage();
+const usageOptOut=$('usageOptOut');
+usageOptOut.checked=!usage.enabled();
+usageOptOut.disabled=usage.privacySignal();
+usageOptOut.onchange=()=>usage.setEnabled(!usageOptOut.checked);
+// Give visitors time to use the footer opt-out before the initial view report.
+setTimeout(()=>usage.view(),3000);
 const time=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
 function log(s){$('logs').textContent=($('logs').textContent+'\n'+s).slice(-16000);}
 function settings(){const d=new FormData(form);return validate({mode:d.get('mode'),engine:d.get('engine')||'auto',preset:d.get('preset'),resolution:d.get('resolution'),fps:d.get('fps'),filter:d.get('filter'),motion:d.get('motion'),q:d.get('q')===''?null:Number(d.get('q')),audioTrack:Number(d.get('audioTrack')||0),maxMB:d.get('maxMB')===''?null:Number(d.get('maxMB'))});}
@@ -81,6 +89,7 @@ const publishCandidate=(verified,reason='')=>{
   $('result').hidden=false;
   $('resultmeta').textContent=`${(d.blob.size/1e6).toFixed(2)} MB · ${d.frames.toLocaleString()} coded frames · Q${d.q} · ${d.audio?'ADPCM audio':'No audio'} · ${time(d.seconds)}${d.durationFieldSaturated?' · 3DS >71 min seek behavior unverified':''}${verified?'':' · UNVERIFIED'}`;
   log(verified?'Complete video'+(d.audio?' + audio':'')+' decode passed. Physical 3DS playback is not certified by this check.':'Verification incomplete: '+reason+'; candidate offered as UNVERIFIED.');
+  if(verified)usage.conversion(d.seconds,file.size,d.blob.size);
   candidate=null;
   finish();
 };

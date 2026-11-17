@@ -154,3 +154,23 @@ Based on [MobiPEG](https://github.com/quatric/mobipeg), its modified [x264 backe
 The modified FFmpeg and x264 source trees retain their upstream notices and license texts in [`native/source/`](native/source/). Redistribution of binaries must comply with the applicable licenses, including corresponding-source requirements. Web application additions are licensed under GPL-2.0-or-later; see [LICENSE](LICENSE).
 
 MobiPEG is an independent project and is not affiliated with Nintendo or MobiClip.
+
+### Aggregate website statistics
+
+The hosted Web Studio sends a page-view event and, after a conversion passes full
+verification, its rounded duration and input/output byte counts to
+`https://usage-stats.moflex.workers.dev/ingest`. Media, filenames, conversion
+reports and visitor identifiers are not sent. Requests omit credentials and
+referrers. The footer provides a persistent browser opt-out; Do Not Track and
+Global Privacy Control also disable reporting. Local copies do not report.
+Cloudflare processes network metadata to deliver these requests; the separately
+managed Worker stores daily aggregate counters. Statistics are best effort,
+exclude opted-out or blocked requests, and are not unique-person counts.
+
+Backend administration is separate from this repository. Protect `/panel` and
+`/api/stats` with Cloudflare Access while keeping `/ingest` public. The originally
+supplied Worker capped input files at 5,000,000,000 bytes; raise its input bound to
+support larger sources or their statistics will be rejected. Never rerun a schema
+containing `DROP TABLE` against existing counters.
+
+Reporting checks: `node --test tests/usage.test.mjs` (mocked network only).
