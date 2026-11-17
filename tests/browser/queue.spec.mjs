@@ -7,6 +7,7 @@ import {join,resolve} from 'node:path';
 test('queue preserves per-video settings and releases each result before continuing',async({page})=>{
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.addInitScript(()=>{
+    Object.defineProperty(navigator,'hardwareConcurrency',{value:1});
     Object.defineProperty(navigator,'storage',{value:{estimate:async()=>({quota:2_000_000_000,usage:250_000_000}),getDirectory:undefined},configurable:true});
     window.workerMessages=[];
     window.Worker=class{
@@ -16,7 +17,8 @@ test('queue preserves per-video settings and releases each result before continu
         window.workerMessages.push(message);
         setTimeout(()=>{
           if(this.dead)return;
-          if(message.type==='convert')this.onmessage?.({data:{type:'candidate',blob:new Blob(['moflex']),frames:24,seconds:1,audio:false,q:30,attempts:1}});
+          if(message.type==='inspect')this.onmessage?.({data:{type:'inspected',media:{duration:1,audio:false}}});
+          else if(message.type==='convert')this.onmessage?.({data:{type:'candidate',blob:new Blob(['moflex']),frames:24,seconds:1,audio:false,q:30,attempts:1}});
           else if(message.type==='verify')this.onmessage?.({data:{type:'verified',kind:message.kind}});
         },10);
       }
@@ -58,6 +60,7 @@ test('queue preserves per-video settings and releases each result before continu
 
 test('queue can reorder, remove, cancel and continue without encoding in parallel',async({page})=>{
   await page.addInitScript(()=>{
+    Object.defineProperty(navigator,'hardwareConcurrency',{value:1});
     window.activeWorkers=0;window.maxActiveWorkers=0;
     window.Worker=class{
       constructor(){this.dead=false;window.activeWorkers++;window.maxActiveWorkers=Math.max(window.maxActiveWorkers,window.activeWorkers);}
@@ -93,6 +96,7 @@ test('two real videos encode, verify and download serially',async({page},testInf
     execFileSync(ffmpeg,['-v','error','-f','lavfi','-i',`color=${color}:s=160x90:r=10:d=0.6`,'-f','lavfi','-i',`sine=frequency=${440+index*220}:sample_rate=44100:duration=0.6`,'-shortest','-c:v','mpeg4','-q:v','5','-c:a','aac',path]);
     return path;
   });
+  await page.addInitScript(()=>Object.defineProperty(navigator,'hardwareConcurrency',{value:1}));
   await page.goto('/');
   await page.locator('#file').setInputFiles(inputs);
   await page.locator('#resolution').selectOption('256x144');

@@ -21,7 +21,7 @@ import tempfile
 import threading
 from typing import Callable
 
-from parallel_encode import encode_parallel
+from parallel_encode import encode_parallel, parallel_workspace
 from moflex_join import FAT32_LIMIT, FAT32_MESSAGE
 
 
@@ -253,8 +253,10 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print,
                  f"{FAT32_LIMIT-estimate['maximum']:,} bytes.")
     if args.dry_run:return out
 
+    if getattr(args,'resume',False) and args.workers==1:
+        raise ValueError('Saved range recovery requires at least two workers.')
     if args.workers>1:
-        with tempfile.TemporaryDirectory(prefix='mobipeg-v15-parallel-',dir=out.parent) as scratch:
+        with parallel_workspace(args,inp,out,encoder,media,callback) as scratch:
             final,frames,parts=encode_parallel(
                 args=args,inp=inp,out=out,encoder=encoder,probe=probe,media=media,
                 filters=filters,layout_options=layout_options,base_q=base_q,
@@ -522,6 +524,8 @@ def parser():
     p.add_argument('--audio-codec',choices=('adpcm','fastaudio'),default='adpcm',help='ADPCM is the hardware-tested default; FastAudio is smaller but 3DS-unverified')
     p.add_argument('--workers',type=int,default=1,
                    help='Parallel encoders for movie-sized inputs, 1 up to logical CPU count; disables hard size limit')
+    p.add_argument('--resume',action='store_true',
+                   help='Save verified parallel ranges and resume with the same input, output and settings')
     p.add_argument('--list-audio-tracks',action='store_true',help='List audio languages/titles for --input and exit')
     p.add_argument('--ffmpeg',help='Path to the patched MobiPEG ffmpeg')
     p.add_argument('--overwrite',action='store_true',help='Replace existing exact output path')

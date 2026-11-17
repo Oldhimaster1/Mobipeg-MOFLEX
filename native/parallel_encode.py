@@ -2,14 +2,88 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from fractions import Fraction
 from pathlib import Path
+import hashlib
+import json
 import math
 import os
 import shutil
 import subprocess
+import tempfile
 
-from moflex_join import join
+from moflex_join import inspect, join
+
+
+def file_hash(path):
+    digest=hashlib.sha256()
+    with Path(path).open('rb') as source:
+        for chunk in iter(lambda:source.read(8*1024*1024), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def write_checkpoint(path, data):
+    pending=path.with_suffix('.tmp')
+    with pending.open('w', encoding='utf-8') as stream:
+        json.dump(data,stream)
+        stream.flush()
+        os.fsync(stream.fileno())
+    os.replace(pending,path)
+
+
+@contextmanager
+def parallel_workspace(args, inp, out, encoder, media, notify):
+    if not getattr(args,'resume',False):
+        with tempfile.TemporaryDirectory(prefix='mobipeg-v15-parallel-',dir=out.parent) as scratch:
+            yield Path(scratch)
+        return
+    notify('Checking source and encoder for saved ranges…')
+    fields=('mode','preset','filter','motion_refinement','resolution','fps','q','audio_track','audio_codec','workers')
+    config={'version':1,'source':inp.name,'bytes':inp.stat().st_size,'source_sha256':file_hash(inp),
+            'encoder_sha256':file_hash(encoder),'media':media,
+            'settings':{key:getattr(args,key) for key in fields}}
+    root=out.parent/'.mobipeg-checkpoints'
+    root.mkdir(exist_ok=True)
+    key=hashlib.sha256(json.dumps([out.name,config],sort_keys=True).encode()).hexdigest()
+    work=root/key
+    work.mkdir(exist_ok=True)
+    with (work/'job.lock').open('a+b') as lock:
+        try:
+            if os.name=='nt':
+                import msvcrt
+                lock.seek(0)
+                msvcrt.locking(lock.fileno(),msvcrt.LK_NBLCK,1)
+            else:
+                import fcntl
+                fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        except OSError as error:
+            raise RuntimeError('This movie is already being converted by another Studio process.') from error
+        write_checkpoint(work/'job.json',config)
+        notify(f'Saved ranges are stored in {work}')
+        yield work
+        # A normal return follows verification and publication. Failed jobs
+        # keep their verified ranges for the next identical invocation.
+        for pattern in ('part-*.moflex','part-*.json','part-*.tmp','video-*.moflex'):
+            for artifact in work.glob(pattern):
+                try:artifact.unlink()
+                except OSError as error:notify(f'Could not remove temporary range: {error}')
+        (work/'job.json').unlink(missing_ok=True)
+
+
+def restore_range(record, final, timeline, expected, last):
+    try:
+        saved=json.loads(record.read_text(encoding='utf-8'))
+        frames=saved['frames']
+        if (saved['timeline']==list(timeline) and isinstance(frames,int) and
+                0<frames<=expected+2 and (last or frames==expected) and
+                final.stat().st_size==saved['bytes'] and file_hash(final)==saved['sha256']):
+            inspect(final,frames)
+            return frames
+    except (OSError,ValueError,KeyError,TypeError):
+        pass
+    return None
 
 
 def plan_ranges(seconds, fps, target=30, eyes=1, workers=1):
@@ -95,6 +169,14 @@ def encode_parallel(*, args, inp, out, encoder, probe, media, filters, layout_op
             index=offsets[slot]+local
             video=output_dir/f'video-{index:05d}.moflex'
             final=output_dir/f'part-{index:05d}.moflex'
+            record=output_dir/f'part-{index:05d}.json'
+            if getattr(args,'resume',False):
+                restored=restore_range(record,final,(start,length,expected),expected,index==len(ranges)-1)
+                if restored:
+                    callback(f'Reusing verified range {index+1}/{len(ranges)}.')
+                    results[index]=(final,restored)
+                    progress(slot,(local+1)/len(group))
+                    continue
             callback(f'Worker {slot+1}/{workers}: part {index+1}/{len(ranges)} at {start:.3f}s')
             command=[encoder,'-hide_banner','-nostdin','-v','error','-y','-ss',f'{start:.8f}',
                      '-i',inp,*filters,'-an','-c:v','mobiclip','-mobiclip','1',
@@ -128,6 +210,12 @@ def encode_parallel(*, args, inp, out, encoder, probe, media, filters, layout_op
                 invoke(audio_command)
                 video.unlink()
             else:video.replace(final)
+            if getattr(args,'resume',False):
+                inspect(final,frames)
+                invoke([encoder,'-hide_banner','-nostdin','-v','error','-xerror','-i',final,
+                        '-map','0:v:0','-map','0:a:0?','-f','null','-'])
+                write_checkpoint(record,{'timeline':[start,length,expected],'frames':frames,
+                                         'bytes':final.stat().st_size,'sha256':file_hash(final)})
             results[index]=(final,frames)
             progress(slot,(local+1)/len(group))
 

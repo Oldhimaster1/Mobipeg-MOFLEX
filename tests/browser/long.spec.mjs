@@ -3,10 +3,53 @@ import {execFileSync} from 'node:child_process';
 import {resolve} from 'node:path';
 import {readFileSync} from 'node:fs';
 const fixture=process.env.MOBIPEG_BROWSER_FIXTURE;
+test('OPFS recovery ignores a damaged range and protects a job open in another tab',async({page})=>{
+ await page.goto('/');
+ const result=await page.evaluate(async()=>{
+   const {openCheckpoint,setCheckpointMedia,persistRange,restoreCheckpoints,closeCheckpoint}=
+     await import('/checkpoints.mjs');
+   const source=new File(['source video'],'source.mkv');
+   const settings={preset:'small',workers:2};
+   const options={storage:navigator.storage,locks:navigator.locks,cancelled:()=>false};
+   let job=await openCheckpoint(source,settings,options);
+   let locked=false;
+   try{await openCheckpoint(source,settings,options);}catch(error){locked=/already being converted/.test(error.message);}
+   await setCheckpointMedia(job,{duration:10,audio:true});
+   const clips=[0,1,2].map(index=>({index,start:index*3,seconds:3,codedFrames:72}));
+   const partName=index=>'test-part-'+index;
+   for(const clip of clips){
+     await persistRange(job,clip.index,clip,async()=>{
+       const handle=await job.work.getFileHandle(partName(clip.index),{create:true});
+       const writable=await handle.createWritable();
+       await writable.write('data');
+       await writable.close();
+       return {file:await handle.getFile(),frames:72};
+     });
+   }
+   const damaged=await (await job.work.getFileHandle(partName(1))).createWritable();
+   await damaged.write('xxxx');
+   await damaged.close();
+   await job.work.removeEntry(partName(2));
+   await closeCheckpoint(job,false);
+   job=await openCheckpoint(source,settings,options);
+   await restoreCheckpoints(job,clips,async(index,frames)=>({
+     file:await (await job.work.getFileHandle(partName(index))).getFile(),frames,
+   }));
+   const restored=job.segments.flatMap((part,index)=>part?[index]:[]);
+   const originalId=job.id;
+   await closeCheckpoint(job,false);
+   const changed=await openCheckpoint(new File(['changed data'],'source.mkv'),settings,options);
+   const differentSource=changed.id!==originalId;
+   await closeCheckpoint(changed,false);
+   return {locked,restored,differentSource};
+ });
+ expect(result).toEqual({locked:true,restored:[0],differentSource:true});
+});
 for(const engine of ['scalar','simd'])test(`${engine}: real segmented OPFS movie, language selection and download`,async({page},testInfo)=>{
  test.skip(!fixture,'Generate a 65-second red/blue stereo clip with two labeled audio tracks');
  const pageErrors=[];page.on('pageerror',e=>pageErrors.push(e.message));
  await page.goto('/');
+ const selectSettings=async()=>{
  await page.locator('#file').setInputFiles(fixture);
  await page.locator('#engine').evaluate(el=>el.closest('details').open=true);
  await page.locator('#engine').selectOption(engine);
@@ -16,7 +59,19 @@ for(const engine of ['scalar','simd'])test(`${engine}: real segmented OPFS movie
  await page.locator('#audioTrack').selectOption('1');
  await page.locator('input[name=mode][value=half-sbs]').check();
  await page.locator('#longMovie').check();await page.locator('#speed').selectOption('fast');
+ await page.locator('#workers').fill(engine==='scalar'?'1':'2');
+ };
+ await selectSettings();
  await page.locator('#convert').click();
+ if(engine==='scalar'){
+   await expect(page.locator('#logs')).toContainText('Range 1 saved to local storage',{timeout:100000});
+   page.once('dialog',dialog=>dialog.accept());
+   await page.reload({timeout:30000});
+   await selectSettings();
+   await page.locator('#convert').click();
+   await expect(page.locator('#logs')).toContainText('Resuming with 1 verified saved ranges.',{timeout:30000});
+   await expect(page.locator('#logs')).not.toContainText('Encoding range 1 starting');
+ }
  await expect(page.locator('#stage')).toHaveText('Your MOFLEX is ready.',{timeout:210000});
  await expect(page.locator('#resultmeta')).toContainText('3,120 coded frames');
  const downloaded=page.waitForEvent('download');await page.locator('#download').click();
@@ -27,7 +82,7 @@ for(const engine of ['scalar','simd'])test(`${engine}: real segmented OPFS movie
  expect(energy(880)).toBeGreaterThan(energy(440)*100);
  const download=page.waitForEvent('download');await page.locator('#report').click();
  const report=await download;const reportPath=testInfo.outputPath('report.json');await report.saveAs(reportPath);
- const result=JSON.parse(readFileSync(reportPath));expect(result.verified).toBe(true);expect(result.settings.speed).toBe('fast');expect(result.output.chapters).toBe(3);
+ const result=JSON.parse(readFileSync(reportPath));expect(result.verified).toBe(true);expect(result.settings.speed).toBe('fast');expect(result.output.chapters).toBe(engine==='scalar'?3:4);
  // Cleanup must release the completed on-device movie too.
  page.once('dialog',dialog=>dialog.accept());await page.locator('#clearMovieData').click();
  await expect(page.locator('#clearMovieData')).toBeHidden();

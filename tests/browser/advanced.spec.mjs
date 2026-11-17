@@ -13,7 +13,7 @@ test('advanced overrides reach the worker, remain optional, and reset on mobile'
  await page.locator('#adv-volume').fill('-6');
  await expect(page.locator('#advancedCommand')).toContainText('MOBI_SUBME=2');
  await expect(page.locator('#advancedCommand')).toContainText("'-me_method' 'dia'");
- await expect(page.locator('#advancedCommand')).toContainText('volume=-6dB,apad');
+ await expect(page.locator('#advancedCommand')).toContainText('volume=-6dB,aresample=48000');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
  await page.locator('#file').setInputFiles({name:'form-fixture.mp4',mimeType:'video/mp4',buffer:Buffer.from('form fixture, no media encoding')});
  await page.locator('#convert').click();

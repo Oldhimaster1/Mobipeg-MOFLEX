@@ -1,4 +1,5 @@
-import {appendMovieSegment, getCodedRate} from './movie.mjs?v=20261117j';
+import {appendMovieSegment, getCodedRate} from './movie.mjs?v=20261117k';
+import {persistRange} from './checkpoints.mjs?v=20261117k';
 
 // Balanced, frame-aligned timeline parts require no source chapters.
 // A bounded worker pool reuses compiled WASM and recycles memory every four parts.
@@ -25,7 +26,7 @@ export function planBalancedMovieClips(seconds, settings, wanted=1) {
   return clips;
 }
 export async function runParallelMovie({file, settings, media, job, workers, onUpdate=()=>{},
-  signal, createWorker=()=>new Worker('worker.js?v=20261117j'), save=appendMovieSegment}) {
+  signal, createWorker=()=>new Worker('worker.js?v=20261117k'), save=appendMovieSegment}) {
   const clips=planBalancedMovieClips(media.duration,settings,workers);
   const count=Math.min(Math.max(1,Math.floor(workers)),clips.length);
   const live=new Set();
@@ -56,7 +57,7 @@ export async function runParallelMovie({file, settings, media, job, workers, onU
             notify();
           }else if(d.type==='log'&&/error|failed/i.test(d.line))onUpdate({log:d.line});
         };
-        try{w.postMessage({type:'segment',file,settings,clip:{start:clip.start,seconds:clip.seconds},media});}
+        try{w.postMessage({type:'segment',file,settings,clip:{start:clip.start,seconds:clip.seconds},media,verifyRange:!!job.manifest});}
         catch(e){done(e);}
       });
   }
@@ -70,6 +71,11 @@ export async function runParallelMovie({file, settings, media, job, workers, onU
       let w=null,used=0;
       try{for(const clip of chunk){
         if(aborted())throw Error('Cancelled');
+        if(job.segments[clip.index]){
+          progress[slot]=(clip.shardIndex+1)/clip.shardLength;
+          notify();
+          continue;
+        }
         if(!w){w=createWorker();live.add(w);used=0;}
         const d=await encode(clip,slot,w);
         if(aborted())throw Error('Cancelled');
@@ -79,7 +85,12 @@ export async function runParallelMovie({file, settings, media, job, workers, onU
           if(!(d.frames>0)||d.frames>clip.codedFrames+2)throw Error('Encoder returned an unexpected frame count');
           if(d.frames!==clip.codedFrames&&clip.index!==clips.length-1)
             throw Error('Input video ended before the scheduled timeline; try one worker.');
-          await save(job,d.blob,d.frames,clip.index);
+          if(job.manifest){
+            await persistRange(job,clip.index,clip,async()=>{
+              await save(job,d.blob,d.frames,clip.index);
+              return job.segments[clip.index];
+            });
+          }else await save(job,d.blob,d.frames,clip.index);
           if(aborted())throw Error('Cancelled');
         }
         progress[slot]=(clip.shardIndex+1)/clip.shardLength;
@@ -91,7 +102,7 @@ export async function runParallelMovie({file, settings, media, job, workers, onU
     const failure=results.find(r=>r.status==='rejected'&&r.reason?.message!=='Cancelled')??results.find(r=>r.status==='rejected');
     if(failure)throw failure.reason;
     const parts=job.segments.filter(Boolean).length;
-    if(!parts||job.segments.some(x=>!x))throw Error('One or more encoded timeline parts are missing.');
+    if(!parts||Array.from(job.segments).some(x=>!x))throw Error('One or more encoded timeline parts are missing.');
     return {parts,frames:job.segments.reduce((sum,x)=>sum+x.frames,0),workers:count};
   }finally{abort();signal?.removeEventListener('abort',abort);}
 }

@@ -1,7 +1,8 @@
 // Movie assembly for independent, seek-indexed MOFLEX segments.
 // Works with the existing unmodified V15 WASM encoder, keeping each trial small.
 // All temporary files and the final output stay in the browser's private storage.
-import {FAT32_LIMIT, FAT32_MESSAGE} from './queue.mjs?v=20261117j';
+import {FAT32_LIMIT, FAT32_MESSAGE} from './queue.mjs?v=20261117k';
+import {pruneCheckpoint} from './checkpoints.mjs?v=20261117k';
 
 const BLOCK = 4096;
 const MAX_INDEX_ENTRIES = 50000;
@@ -218,6 +219,12 @@ export async function createMovieJob() {
   const work = await dir.getDirectoryHandle(id, { create:true });
   return { root:dir, work, id, segments:[], outputName:'movie.moflex' };
 }
+export async function loadMovieSegment(job, index, frames) {
+  const name = 'part-' + String(index).padStart(5, '0') + '.moflex';
+  const file = await (await job.work.getFileHandle(name)).getFile();
+  return {name, file, frames};
+}
+
 export async function appendMovieSegment(job, blob, frameCount, index = job.segments.length) {
   expect(blob && blob.size && frameCount > 0, 'empty movie segment');
   expect(Number.isSafeInteger(index) && index >= 0 && index < MAX_INDEX_ENTRIES, 'invalid segment index');
@@ -330,6 +337,13 @@ export async function assembleMovie(job, settings, progress = () => {}, cancelle
 }
 export async function cleanupMovieJob(job, keepResult = false) {
   if (!job) return;
+  if (job.manifest) {
+    if (!keepResult) {
+      await job.work.removeEntry(job.outputName).catch(() => {});
+      await pruneCheckpoint(job);
+    }
+    return;
+  }
   for (const part of job.segments.filter(Boolean)) {
     try { await job.work.removeEntry(part.name); } catch {}
   }
