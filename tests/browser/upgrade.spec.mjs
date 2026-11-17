@@ -114,3 +114,22 @@ test('browser restores pending queue order and individual settings after reload'
   await page.locator('#queueList > li').nth(1).locator('.queue-select').click();
   await expect(page.locator('#preset')).toHaveValue('best');
 });
+
+test('browser can list and safely delete an abandoned OPFS checkpoint',async({page})=>{
+  await page.goto('/');
+  await page.evaluate(async()=>{
+    const root=await (await navigator.storage.getDirectory()).getDirectoryHandle('mobipeg-long-movies',{create:true});
+    const folder=await root.getDirectoryHandle('resume-'+'a'.repeat(64),{create:true});
+    const handle=await folder.getFileHandle('checkpoint.json',{create:true});
+    const writer=await handle.createWritable();
+    await writer.write(JSON.stringify({config:{identity:{name:'recovery-test.mkv',bytes:12345},
+      encoder:'v15-test'},generation:'test'}));
+    await writer.close();
+  });
+  await page.locator('#refreshSavedJobs').click();
+  await expect(page.locator('#savedJobsList > li')).toHaveCount(1);
+  await expect(page.locator('#savedJobsList')).toContainText('recovery-test.mkv');
+  page.once('dialog',dialog=>dialog.accept());
+  await page.getByRole('button',{name:'Delete saved ranges'}).click();
+  await expect(page.locator('#savedJobsList > li')).toHaveCount(0);
+});

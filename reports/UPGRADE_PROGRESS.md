@@ -122,3 +122,5 @@ When changing the web application, update the dependency version queries and the
 - Seven queue unit tests passed in the available local Node runtime. Browser UI regression, integration and physical-device testing remain pending. Keep the branch separate from master pending those checks.
 
 - Follow-up: restored entries now retain correct input-byte estimates. Added a Chromium UI regression for restoring a two-file queue, reselecting both sources, and checking per-file presets. This Playwright test has not yet run in this session.
+
+- Browser checkpoint management lists recoverable OPFS jobs and stored-byte estimates, and offers confirmed deletion under the per-job Web Lock. It never loads video payload bytes for display. Four focused Node tests passed locally; browser UI verification is added but not run in this session.

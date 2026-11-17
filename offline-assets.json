@@ -1,10 +1,10 @@
 {
-  "version": "20261117v",
+  "version": "20261117w",
   "files": {
-    "index.html": "3e81cd9cab28682e1c7e585956a788479fe972b59f570f58db588c20d47fa9c8",
+    "index.html": "812da8c0e8f4d1f4437b749b3459c1eb1212584b2d7b279db20975966a0230ea",
     "player.html": "33937ec53384d2ee830d960cdeea1c073f70699fede062a8785df8079d9f031b",
     "guide.html": "0dd1ce8cd75fc64f07e0b5f67ac75c273f049e1af9eb095c7eb396eafea17f76",
-    "app.mjs": "8f254791ba05e16459c9a761f34fa9755b603fb180608954c8b85661200b8b90",
+    "app.mjs": "f3129ef78d709651091be2aba6cc02fa1f70d97a913e1a3f0f09ea1977100a82",
     "core.mjs": "2de575567eb53de8727fd5460a252b5b5759799893039dc7e5a8ba176d70731b",
     "movie.mjs": "63728b3f4ebaed566aa4457149575c2aec78408033596d138235a3ad78b7c81d",
     "parallel.mjs": "26b082ca5a9d4b3b4f4c7392be65999864b14b446f1198014a76d2b975c027d6",
@@ -35,6 +35,7 @@
     "dist/translations.mjs": "cba608346a455be73ab4a0653664d3d614fc87a787bcf7ffb1c8649880ac2c35",
     "dist/queue-translations.mjs": "96196fb0e4222fef0ae40057fe5c28b4f829464eef521cdaf14af398634eecd3",
     "subtitle-timing.mjs": "dfd87a149ab1aa4b742357b4b70a882f1da4ea420f252234b25de82e297af469",
-    "queue-state.mjs": "5964e525d6844a67ba76b3248ff5bf9f4fa04e1f121dca4149cea3417b80d782"
+    "queue-state.mjs": "5964e525d6844a67ba76b3248ff5bf9f4fa04e1f121dca4149cea3417b80d782",
+    "checkpoint-manager.mjs": "1ea65e3b784a66bb29088263c702778a5030a73d356379516b9c3731e8b4505f"
   }
 }

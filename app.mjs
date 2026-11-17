@@ -7,6 +7,7 @@ import{estimateConversion,totalEstimate,formatBytes,FAT32_LIMIT,FAT32_MESSAGE,fi
 import{runParallelMovie,planBalancedMovieClips}from'./parallel.mjs?v=20261117s';
 import{batchStorage,saveBatchFile}from'./batch-output.mjs?v=20261117s';
 import{loadQueue,saveQueue,relinkQueue,sourceIdentity}from'./queue-state.mjs?v=20261117u';
+import{listSavedMovieJobs,removeSavedMovieJob}from'./checkpoint-manager.mjs?v=20261117w';
 const $=id=>document.getElementById(id),form=$('settings');let file=null,worker=null,previewURL=null,outputURL=null,started=0,stageStarted=0,ticker=null,report=null,wake=null,busy=false,runToken=0,stallMonitor=null,movieJob=null,completedMovieJob=null,sampleWorker=null,sampleToken=0,sampleData=null,audioInspector=null,parallelAbort=null;
 let queue=[],activeQueueId=null,queueRunning=false,queueCurrent=null,queueDownloaded=false,originStorage=null,nextQueueId=1,restoringSettings=false;
 let queueRestored=false;
@@ -166,6 +167,35 @@ const savedPanel=document.createElement('section');
 savedPanel.className='card';savedPanel.hidden=true;
 savedPanel.innerHTML='<h2>Saved queue files</h2><p class="hint">Download or delete files saved in this browser. Keep any copies you want before clearing site storage.</p><ul id="savedBatchFiles"></ul>';
 $('queuePanel').after(savedPanel);
+const savedJobsPanel=document.createElement('section');
+savedJobsPanel.id='savedJobsPanel';savedJobsPanel.className='card';
+savedJobsPanel.hidden=!navigator.storage?.getDirectory;
+savedJobsPanel.innerHTML='<h2>Saved movie recoveries</h2><p class="hint">Interrupted long movies can reuse verified ranges after you reselect the same original video and settings. These files are private to this browser; clearing site storage can remove them.</p><button type="button" class="text-button" id="refreshSavedJobs">Check saved recoveries</button><p id="savedJobsStatus" class="hint" role="status"></p><ul id="savedJobsList"></ul>';
+savedPanel.after(savedJobsPanel);
+async function refreshSavedJobs(){
+  if(savedJobsPanel.hidden)return;
+  $('refreshSavedJobs').disabled=true;
+  $('savedJobsStatus').textContent='Checking private movie storage…';
+  try{
+    const jobs=await listSavedMovieJobs();
+    const list=$('savedJobsList');list.replaceChildren();
+    for(const job of jobs){
+      const row=document.createElement('li'),description=document.createElement('span');
+      description.textContent=job.name+' · '+job.ranges+' saved range records · '+formatBytes(job.storedBytes)+' stored';
+      const remove=rowButton('Delete saved ranges',async()=>{
+        if(!askConfirm('Delete all saved recovery data for '+job.name+'? Completed movie downloads are not affected.'))return;
+        try{await removeSavedMovieJob(job.id);await refreshSavedJobs();}
+        catch(error){$('savedJobsStatus').textContent=error.message||String(error);}
+      });
+      row.append(description,' ',remove);list.append(row);
+    }
+    $('savedJobsStatus').textContent=jobs.length
+      ?jobs.length+' recoverable job'+(jobs.length===1?'':'s')+' found. Reselect the original video and matching settings to resume.'
+      :'No unfinished movie recoveries found.';
+  }catch(error){$('savedJobsStatus').textContent='Cannot inspect saved movies: '+(error.message||String(error));}
+  finally{$('refreshSavedJobs').disabled=false;}
+}
+$('refreshSavedJobs').onclick=refreshSavedJobs;
 
 async function refreshSavedBatch(){
   if(!navigator.storage?.getDirectory)return;
@@ -648,6 +678,7 @@ $('makeSample').onclick=()=>{
 };
 
 initLanguage();
+refreshSavedJobs();
 try{
   const restored=loadQueue(validate);
   if(restored.length){
