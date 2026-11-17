@@ -21,7 +21,7 @@ import tempfile
 import threading
 from typing import Callable
 
-from parallel_encode import audio_window, encode_parallel, parallel_workspace
+from parallel_encode import audio_window, encode_parallel, measure_audio_peak, parallel_workspace
 from moflex_join import FAT32_LIMIT, FAT32_MESSAGE
 
 
@@ -267,6 +267,12 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print,
                  f"{FAT32_LIMIT-estimate['maximum']:,} bytes.")
     if args.dry_run:return out
 
+    peak_gain=0
+    if getattr(args,'normalize_audio',False) and media['audio']:
+        callback('Measuring audio peak across the selected track...')
+        peak_gain=measure_audio_peak(encoder,inp,args.audio_track)
+        callback(f'Using {peak_gain:+.1f} dB of gain for the entire movie.')
+
     if getattr(args,'resume',False) and args.workers==1:
         raise ValueError('Saved range recovery requires at least two workers.')
     if args.workers>1:
@@ -278,7 +284,7 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print,
                 progress=progress or (lambda lane,fraction:None),
                 invoke=invoke,verified_frame_count=verified_frame_count,
                 probe_coded_rate=probe_coded_rate,q_flags=q_flags,
-                presets=PRESETS,scratch=scratch,target_bytes=target_bytes)
+                presets=PRESETS,scratch=scratch,target_bytes=target_bytes,peak_gain=peak_gain)
             callback('Verifying complete parallel movie video decode...')
             invoke([encoder,'-hide_banner','-nostdin','-v','error','-xerror',
                     '-i',final,'-map','0:v:0','-f','null','-'])
@@ -347,7 +353,7 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print,
                         # Stream-copy output must advertise 2x coded FPS;
                         # muxer then writes the correct 1x display FPS.
                         remux_output=['-r',coded_fps_label]
-                    seek,audio_map=audio_window(None,seconds,args.audio_track,audio_offset)
+                    seek,audio_map=audio_window(None,seconds,args.audio_track,audio_offset,peak_gain)
                     audio_command=[encoder,'-hide_banner','-nostdin','-v','error','-y',
                             *remux_input,
                             '-i',video,*seek,'-i',inp,'-map','0:v:0',*audio_map,
@@ -415,6 +421,7 @@ def gui():
              'audio_track':tk.StringVar(value='0 — First audio track'),
              'max_size_mb':tk.StringVar(value=''),
              'audio_offset_ms':tk.StringVar(value='0'),
+             'normalize_audio':tk.BooleanVar(value=False),
              'audio_codec':tk.StringVar(value='adpcm')}
     cpu_count=os.cpu_count() or 1
     cpu_workers=tk.IntVar(value=min(2,cpu_count))
@@ -458,6 +465,7 @@ def gui():
     timeline=tk.Canvas(app,height=18,bg='#e1e4dc',highlightthickness=0)
     timeline.grid(row=12,column=0,columnspan=3,sticky='ew',padx=12,pady=5)
     add_row(13,'Audio offset (ms, + delays audio)',choices['audio_offset_ms'])
+    ttk.Checkbutton(app,text='Normalize audio peak',variable=choices['normalize_audio']).grid(row=13,column=2,padx=9)
     lane_state={}
     def update_timeline(lane,fraction):
         if lane<0:return
@@ -509,6 +517,7 @@ def gui():
                    '--workers',str(cpu_workers.get())]
         if paths['output'].get():arguments+=['--output',paths['output'].get()]
         if choices['max_size_mb'].get():arguments+=['--max-size-mb',choices['max_size_mb'].get()]
+        if choices['normalize_audio'].get():arguments.append('--normalize-audio')
         def worker():
             try:
                 result=encode(parser().parse_args(arguments),callback=write,progress=update_timeline)
@@ -540,6 +549,7 @@ def parser():
                    help='Hard decimal-MB final file-size limit; trials may be slow')
     p.add_argument('--audio-track',type=int,default=0,help='Audio track number, starting at 0; use --list-audio-tracks to inspect languages')
     p.add_argument('--audio-offset-ms',type=int,default=0,help='Shift audio by up to 30 seconds; positive delays audio')
+    p.add_argument('--normalize-audio',action='store_true',help='Measure the selected track and apply one peak-normalizing gain to the entire movie')
     p.add_argument('--audio-codec',choices=('adpcm','fastaudio'),default='adpcm',help='ADPCM is the hardware-tested default; FastAudio is smaller but 3DS-unverified')
     p.add_argument('--workers',type=int,default=1,
                    help='Parallel encoders for movie-sized inputs, 1 up to logical CPU count')

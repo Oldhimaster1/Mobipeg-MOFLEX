@@ -10,6 +10,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -47,6 +48,8 @@ def parallel_workspace(args, inp, out, encoder, media, notify):
         fields+=('max_size_mb',)
     if getattr(args,'audio_offset_ms',0):
         fields+=('audio_offset_ms',)
+    if getattr(args,'normalize_audio',False):
+        fields+=('normalize_audio',)
     config={'version':1,'source':inp.name,'bytes':inp.stat().st_size,'source_sha256':file_hash(inp),
             'encoder_sha256':file_hash(encoder),'media':media,
             'settings':{key:getattr(args,key) for key in fields}}
@@ -142,7 +145,20 @@ def run_with_progress(argv, env, frames, notify):
         exit_code=process.wait()
     if exit_code:raise RuntimeError(f'FFmpeg failed (exit {exit_code}): '+ '\n'.join(errors[-20:]))
 
-def audio_window(start, seconds, track, offset_ms):
+def measure_audio_peak(encoder, source, track):
+    result=subprocess.run([str(encoder),'-hide_banner','-nostdin','-v','info','-nostats',
+                           '-i',str(source),'-map',f'0:a:{track}','-af',
+                           'aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,'
+                           'astats=metadata=0:reset=0:measure_perchannel=none:measure_overall=Peak_level',
+                           '-f','null','-'],stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
+    peak=re.search(rb'Peak level dB:\s*(-inf|-?\d+(?:\.\d+)?)',result.stderr)
+    if result.returncode or peak is None:
+        raise RuntimeError('Could not measure the selected audio track')
+    db=float(peak.group(1))
+    return 0 if db==-math.inf else min(24,math.floor((-1-db)*10)/10)
+
+
+def audio_window(start, seconds, track, offset_ms, peak_gain=0):
     samples=round(seconds*48000)
     source_sample=round((start or 0)*48000)-offset_ms*48
     seek=max(0,source_sample)/48000 if offset_ms else start
@@ -152,7 +168,8 @@ def audio_window(start, seconds, track, offset_ms):
         return seek_args,['-filter_complex',f'anullsrc=r=48000:cl=stereo,atrim=end_sample={samples}[audio]',
                           '-map','[audio]']
     pad=f'adelay={delay}S:all=1,' if delay else ''
-    audio_filter=f'aresample=48000:async=0:first_pts=0,{pad}apad,atrim=end_sample={samples},asetpts=N/SR/TB'
+    volume=f'volume={peak_gain}dB,' if peak_gain else ''
+    audio_filter=f'aresample=48000:async=0:first_pts=0,{volume}{pad}apad,atrim=end_sample={samples},asetpts=N/SR/TB'
     return seek_args,['-map',f'1:a:{track}','-af',audio_filter]
 
 
@@ -175,7 +192,7 @@ def allocate_movie_budget(ranges, target_bytes):
 def encode_parallel(*, args, inp, out, encoder, probe, media, filters, layout_options,
                     base_q, coded_fps_label, callback, progress=lambda slot, fraction:None,
                     invoke, verified_frame_count, probe_coded_rate, q_flags,
-                    presets, scratch, target_bytes=None):
+                    presets, scratch, target_bytes=None, peak_gain=0):
     """Write to a temporary assembled file; caller performs full verification."""
     workers=args.workers
     rate=Fraction(coded_fps_label)
@@ -235,7 +252,7 @@ def encode_parallel(*, args, inp, out, encoder, probe, media, filters, layout_op
                         elif not math.isclose(exposed,float(rate),rel_tol=.001):
                             raise RuntimeError(f'Unexpected stereoscopic stream rate {exposed}')
                         remux_output=['-r',coded_fps_label]
-                    seek,audio_map=audio_window(start,seconds,args.audio_track,getattr(args,'audio_offset_ms',0))
+                    seek,audio_map=audio_window(start,seconds,args.audio_track,getattr(args,'audio_offset_ms',0),peak_gain)
                     audio_command=[encoder,'-hide_banner','-nostdin','-v','error','-y',*remux_input,'-i',video,
                             *seek,'-i',inp,'-map','0:v:0',*audio_map,'-c:v','copy',
                             '-c:a','pcm_s16le','-ar','48000','-ac','2',

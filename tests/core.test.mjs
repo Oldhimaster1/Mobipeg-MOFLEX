@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from'node:assert/strict';import{execFileSync}from'node:child_process';import{PRESETS,FILTERS,RATES,RESOLUTIONS,validate,filters,codedRate,encodeArgs,audioArgs,environment,parseProbe,progressLine,convert,verifyCandidate,encodeClipArgs,audioClipArgs,audioTracks}from'../dist/core.mjs';
+import test from 'node:test';import assert from'node:assert/strict';import{execFileSync}from'node:child_process';import{PRESETS,FILTERS,RATES,RESOLUTIONS,validate,filters,codedRate,encodeArgs,audioArgs,environment,parseProbe,progressLine,convert,verifyCandidate,encodeClipArgs,audioClipArgs,audioTracks,analyzeAudioPeak}from'../dist/core.mjs';
 const defaults={mode:'2d',preset:'quality',filter:'detail',fps:'24',resolution:'400x224',motion:'auto',q:null,maxMB:null};
 for(const mode of ['2d','full-sbs','half-sbs'])for(const fps of ['24','25','30','24000/1001','30000/1001'])for(const resolution of ['400x240','400x224','320x240'])for(const filter of Object.keys(FILTERS))test(`native filter parity ${mode} ${fps} ${resolution} ${filter}`,()=>{const s={...defaults,mode,fps,resolution,filter};const[w,h]=resolution.split('x');const native=JSON.parse(execFileSync('python3',['-c',`import sys,json;sys.path.insert(0,'native');import MobiPEG_Studio_V15 as m;print(json.dumps(m.video_filters('${mode}',${w},${h},'${fps}','${filter}')))`],{encoding:'utf8'}));assert.deepEqual(filters(s),native[0]);assert.equal(encodeArgs(s,30).at(-4),mode==='2d'?'6':'1');assert.equal(native[1],mode==='2d'?'6':'0');});
 for(const q of Array.from({length:48},(_,i)=>i+12))test(`quantizer ${q}`,()=>{const a=encodeArgs({...defaults,q},q);assert.equal(12+6*Number(a[a.indexOf('-mobi_qyx')+1])+Number(a[a.indexOf('-qp')+1])%6,q);});
@@ -65,6 +65,16 @@ test('audio offsets change source seeks once on the global movie clock',()=>{
  assert.equal(earlier[earlier.indexOf('-ss')+1],'0.25000000');
  assert.ok(audioClipArgs(delayed,0,.1).includes('anullsrc=r=48000:cl=stereo,atrim=end_sample=4800[audio]'));
  assert.throws(()=>validate({...defaults,audioOffsetMs:30001}),/Audio offset/);
+});
+test('peak normalization caps amplification and preserves digital silence',async()=>{
+ const gain=peak=>analyzeAudioPeak({...defaults,audioTrack:1},new Blob(),async args=>{
+   assert.equal(args[args.indexOf('-map')+1],'0:a:1');
+   return {log:`[Parsed_astats] Peak level dB: ${peak}`};
+ },()=>{},1);
+ assert.equal(await gain('-21.074220'),20);
+ assert.equal(await gain('-100'),24);
+ assert.equal(await gain('-inf'),0);
+ assert.equal(await gain('3.2'),-4.2);
 });
 test('audio verification rejects accumulated chapter padding drift',async()=>{
  await assert.rejects(()=>verifyCandidate({kind:'audio',blob:new Blob(['x']),frames:24,seconds:1,run:async()=>({seconds:1.2})}),/audio duration/);

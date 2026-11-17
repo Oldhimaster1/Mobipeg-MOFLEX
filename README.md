@@ -92,6 +92,11 @@ equivalent is `--audio-offset-ms 250` for a quarter-second delay. The shift is
 applied on the movie timeline, including across parallel ranges. The output
 keeps the original video duration and fills uncovered parts with silence.
 
+Enable **Normalize audio peak** or pass `--normalize-audio` to scan the selected
+track and apply one gain to the entire movie. It aims for a PCM peak of −1 dBFS
+before compression, with up to 24 dB of amplification. This setting adds an
+audio analysis pass. It adjusts peak level rather than perceived loudness.
+
 For all options:
 
 ```sh

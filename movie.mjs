@@ -1,8 +1,8 @@
 // Movie assembly for independent, seek-indexed MOFLEX segments.
 // Works with the existing unmodified V15 WASM encoder, keeping each trial small.
 // All temporary files and the final output stay in the browser's private storage.
-import {FAT32_LIMIT, FAT32_MESSAGE} from './queue.mjs?v=20261117p';
-import {pruneCheckpoint} from './checkpoints.mjs?v=20261117p';
+import {FAT32_LIMIT, FAT32_MESSAGE} from './queue.mjs?v=20261117q';
+import {pruneCheckpoint} from './checkpoints.mjs?v=20261117q';
 
 const BLOCK = 4096;
 const MAX_INDEX_ENTRIES = 50000;

@@ -21,7 +21,29 @@ export function validateAdvanced(a){
   }
   if(a.highpass!=null&&a.lowpass!=null&&a.highpass>=a.lowpass)throw Error('highpass must be below lowpass');
 }
-export function advancedAudioFilter(s,samples=null,delay=0){const a=s.advanced??{};return [a.highpass!=null?`highpass=f=${a.highpass}`:null,a.lowpass!=null?`lowpass=f=${a.lowpass}`:null,a.volume!=null?`volume=${a.volume}dB`:null,'aresample=48000:async=0:first_pts=0',delay?`adelay=${delay}S:all=1`:null,'apad',samples!=null?`atrim=end_sample=${samples}`:null,'asetpts=N/SR/TB'].filter(Boolean).join(',');}
+function audioEffects(s){
+  const a=s.advanced??{};
+  return [a.highpass!=null?`highpass=f=${a.highpass}`:null,
+    a.lowpass!=null?`lowpass=f=${a.lowpass}`:null,
+    a.volume!=null?`volume=${a.volume}dB`:null].filter(Boolean);
+}
+export function advancedAudioFilter(s,samples=null,delay=0,gain=0){
+  return [...audioEffects(s),'aresample=48000:async=0:first_pts=0',
+    gain?`volume=${gain}dB`:null,delay?`adelay=${delay}S:all=1`:null,'apad',
+    samples!=null?`atrim=end_sample=${samples}`:null,'asetpts=N/SR/TB'].filter(Boolean).join(',');
+}
+export async function analyzeAudioPeak(s,source,run,notify,duration){
+  notify({stage:'Measuring audio peak',fraction:0,duration});
+  const filters=[...audioEffects(s),'aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo',
+    'astats=metadata=0:reset=0:measure_perchannel=none:measure_overall=Peak_level'];
+  const result=await run([...base,'-v','info','-i','/input/source','-map',`0:a:${s.audioTrack??0}`,
+    '-af',filters.join(','),'-f','null','-'],{source});
+  const measured=/Peak level dB:\s*(-inf|-?\d+(?:\.\d+)?)/i.exec(result.log)?.[1];
+  if(measured==='-inf')return 0;
+  const peak=Number(measured);
+  if(!Number.isFinite(peak))throw Error('Could not measure the selected audio track');
+  return Math.min(24,Math.floor((-1-peak)*10)/10);
+}
 export function rate(s){const [n,d=1]=String(s).split('/').map(Number);return n/d;}
 export function validateCrop(c){
   if(c==null)return;
@@ -54,14 +76,14 @@ export function encodeClipArgs(s,q,start,seconds){
   args.splice(args.length-1,0,'-frames:v',String(Math.round(seconds*rate(s.fps))*(s.mode==='2d'?1:2)));
   return args;
 }
-export function audioClipArgs(s,start,seconds){
+export function audioClipArgs(s,start,seconds,gain=0){
   if(!Number.isFinite(start)||start<0||!Number.isFinite(seconds)||seconds<=0)throw Error('Invalid movie audio segment');
-  return audioMuxArgs(s,seconds,start);
+  return audioMuxArgs(s,seconds,start,gain);
 }
-export function audioArgs(s,seconds){
-  return audioMuxArgs(s,seconds,null);
+export function audioArgs(s,seconds,gain=0){
+  return audioMuxArgs(s,seconds,null,gain);
 }
-function audioMuxArgs(s,seconds,start){
+function audioMuxArgs(s,seconds,start,gain){
   const samples=Math.round(seconds*48000);
   const offset=(s.audioOffsetMs??0)*48;
   const sourceSample=Math.round((start??0)*48000)-offset;
@@ -70,7 +92,7 @@ function audioMuxArgs(s,seconds,start){
   const sourceArgs=seekSeconds===null?[]:['-ss',seekSeconds.toFixed(8)];
   const audioMap=delay>=samples
     ? ['-filter_complex',`anullsrc=r=48000:cl=stereo,atrim=end_sample=${samples}[audio]`,'-map','[audio]']
-    : ['-map',`1:a:${s.audioTrack??0}`,'-af',advancedAudioFilter(s,samples,delay)];
+    : ['-map',`1:a:${s.audioTrack??0}`,'-af',advancedAudioFilter(s,samples,delay,gain)];
   return [...base,'-i','/input/video.moflex',...sourceArgs,'-i','/input/source','-map','0:v:0',
     ...audioMap,'-c:v','copy','-c:a','pcm_s16le','-ar','48000','-ac','2',
     '-mo_audio',s.audioCodec??'adpcm',...(s.mode==='2d'?[]:['-r',codedRate(s)]),...layout(s),
@@ -99,6 +121,10 @@ if(knownMedia!==null){
   media={duration:knownMedia.duration,audio:knownMedia.audio};
 }else{notify({stage:'Inspecting video',fraction:null});const probe=await run(['-hide_banner','-i','/input/source'],{source},null,{},true);media=parseProbe(probe.log);}
 let q=s.q??PRESETS[s.preset].q,low=rangeBudget===null?12:q,high=59,best=null,attempt=0;
+const peakGain=s.normalizeAudio&&media.audio
+  ? knownMedia?.peakGain??await analyzeAudioPeak(s,source,run,notify,media.duration)
+  : 0;
+if(!Number.isFinite(peakGain)||peakGain < -120||peakGain > 24)throw Error('Invalid audio peak measurement');
 const cap=rangeBudget??(s.maxMB===null?null:Math.floor(s.maxMB*1e6)),seen=new Set();
 while(attempt<(cap===null?1:9)&&low<=high&&!seen.has(q)){seen.add(q);attempt++;notify({stage:`Encoding${cap===null?'':` · size trial ${attempt}/9`} · Q${q}`,fraction:0,attempt,q,duration:clip?.seconds??media.duration});const enc=await run(clip?encodeClipArgs(s,q,clip.start,clip.seconds):encodeArgs(s,q),{source},'/video.moflex',environment(s));if(!enc.frames&&clip&&enc.code===0)return {empty:true,frames:0,seconds:0,audio:media.audio,settings:s,attempts:attempt};if(!enc.frames||s.mode!=='2d'&&enc.frames%2)throw Error('Incomplete video or missing stereo eye');const seconds=enc.frames/(rate(s.fps)*(s.mode==='2d'?1:2));let blob=enc.blob;
 let audioCodec=null;
@@ -108,14 +134,14 @@ if(media.audio){
   const inputs={source,'video.moflex':blob};
   let mux;
   try{
-    const args=clip?audioClipArgs(s,clip.start,seconds):audioArgs(s,seconds);
+    const args=clip?audioClipArgs(s,clip.start,seconds,peakGain):audioArgs(s,seconds,peakGain);
     mux=await run(args,inputs,'/final.moflex',{});
   }catch(error){
     // A joined file needs a consistent audio descriptor in every range.
     if(audioCodec!=='fastaudio'||clip)throw error;
     audioCodec='adpcm';
     notify({stage:'FastAudio unavailable; retrying with compatible ADPCM',fraction:0,duration:seconds});
-    mux=await run(audioArgs({...s,audioCodec},seconds),inputs,'/final.moflex',{});
+    mux=await run(audioArgs({...s,audioCodec},seconds,peakGain),inputs,'/final.moflex',{});
   }
   blob=mux.blob;
   if(mux.frames!==enc.frames)throw Error('Frame count changed during audio mux');

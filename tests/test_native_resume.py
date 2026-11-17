@@ -30,11 +30,18 @@ class NativeResumeTest(unittest.TestCase):
                 'testsrc2=s=320x240:r=24:d=9', '-f', 'lavfi', '-i',
                 'sine=f=880:r=48000:d=9','-c:v','ffv1','-c:a','pcm_s16le',str(source)],check=True)
             args = studio.parser().parse_args(['-i',str(source),'-o',str(output),'--workers','2',
-                '--preset','balanced','--resolution','320x240','--max-size-mb','0.85','--resume'])
+                '--preset','balanced','--resolution','320x240','--max-size-mb','0.85','--resume','--normalize-audio'])
             messages=[]
             studio.encode(args,callback=messages.append)
             self.assertLessEqual(output.stat().st_size,850000)
             self.assertGreater(sum(message.startswith('Range ') for message in messages),2)
+            self.assertEqual(messages.count('Measuring audio peak across the selected track...'),1)
+            pcm=array('h',subprocess.check_output([str(encoder),'-v','error','-i',str(output),
+                '-map','0:a:0','-ac','1','-f','s16le','-']))
+            if sys.byteorder=='big':
+                pcm.byteswap()
+            for start in (48000,5*48000):
+                self.assertGreater(max(abs(value) for value in pcm[start:start+1200]),25000)
             self.assertEqual(studio.verified_frame_count(encoder.with_name('ffprobe'+studio.EXE_SUFFIX),output),216)
             args.output=str(Path(work)/'impossible.moflex')
             args.max_size_mb=0.008192

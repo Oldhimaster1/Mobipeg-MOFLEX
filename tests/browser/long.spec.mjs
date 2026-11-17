@@ -19,6 +19,7 @@ for(const workers of [1,2])test(`whole-movie size target with ${workers} workers
    await page.locator('#preset').selectOption('balanced');
    await page.locator('#speed').selectOption('fast');
    await page.locator('#audioOffsetMs').fill('250');
+   await page.locator('#normalizeAudio').check();
    await page.locator('#maxMB').evaluate(el=>el.closest('details').open=true);
    await page.locator('#maxMB').fill('0.85');
    await page.locator('#convert').click();
@@ -34,6 +35,12 @@ for(const workers of [1,2])test(`whole-movie size target with ${workers} workers
    let firstTone=0;
    while(firstTone<pcm.length/2&&Math.abs(pcm.readInt16LE(firstTone*2))<600)firstTone++;
    expect(Math.abs(firstTone-12000)).toBeLessThan(48);
+   for(const start of [48000,5*48000]){
+     let peak=0;
+     for(let frame=start;frame<start+1200;frame++)peak=Math.max(peak,Math.abs(pcm.readInt16LE(frame*2)));
+     expect(peak).toBeGreaterThan(25000);
+   }
+   expect((await page.locator('#logs').textContent()).match(/Measuring audio peak/g)).toHaveLength(1);
  }finally{rmSync(work,{recursive:true,force:true});}
 });
 test('OPFS recovery ignores a damaged range and protects a job open in another tab',async({page})=>{
