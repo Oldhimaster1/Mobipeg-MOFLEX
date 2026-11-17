@@ -1,9 +1,0 @@
-[
-  {
-    "name": "eyes-half-correct-geometry",
-    "input": "/workspace/scratch/0abd15633552/test-clips/half-eyes.mp4",
-    "settings": {
-      "mode": "half-sbs"
-    }
-  }
-]

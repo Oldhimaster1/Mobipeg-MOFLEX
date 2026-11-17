@@ -1,9 +1,0 @@
-[
-  {
-    "name": "simd-avatar-half-24",
-    "input": "/workspace/scratch/0abd15633552/test-clips/avatar-short.mp4",
-    "settings": {
-      "mode": "half-sbs"
-    }
-  }
-]
