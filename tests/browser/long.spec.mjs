@@ -8,7 +8,7 @@ for(const engine of ['scalar','simd'])test(`${engine}: real segmented OPFS movie
  const pageErrors=[];page.on('pageerror',e=>pageErrors.push(e.message));
  await page.goto('/');
  await page.locator('#file').setInputFiles(fixture);
- await page.locator('details').first().evaluate(el=>el.open=true);
+ await page.locator('#engine').evaluate(el=>el.closest('details').open=true);
  await page.locator('#engine').selectOption(engine);
  await page.locator('#inspectAudio').click();
  await expect(page.locator('#audioTrack option')).toHaveCount(2,{timeout:30000});

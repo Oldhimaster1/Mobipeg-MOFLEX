@@ -196,3 +196,26 @@ Validation: `node --test tests/core.test.mjs tests/movie.test.mjs tests/advanced
 advanced output for both WASM engines and all three video modes;
 `playwright test --config tests/browser/advanced.config.mjs` checks mobile form
 submission, overrides, validation, cancel and reset with a mocked conversion worker.
+
+### Output preview, framing, and additional presets
+
+The browser's **Output preview** generates a framed source image and a genuine
+encoded-and-decoded MobiClip I-frame at the chosen timestamp. Stereo previews
+provide separate Left and Right views. It processes one displayed frame, uses the
+current profile/quantizer and never counts as a successful conversion. It does
+not preview audio, interframe motion behavior, whole-file verification or physical
+3DS playback. The final size search can select a different quantizer. Cancel
+terminates its worker; settings changes invalidate and release preview buffers.
+
+**Framing & crop** adds Fit, Fill, Stretch, and four even-pixel margins. Margins
+apply separately to each SBS eye before SAR correction and scaling. The existing
+Fit/default filter path is preserved. Additional per-eye resolution presets span
+256×144–800×480. Rates span 10–60 fps, including 23.976, 29.970 and 59.940.
+Resolutions above 400×240 and rates above 30 display fps are experimental for
+console playback. New options do not change the portable native packages.
+
+Validation: add `tests/framing.test.mjs` to the Node test command;
+`node tests/framing-wasm.mjs` covers actual preview pixels and full video/audio
+decoding at selected new resolutions/rates and crop modes with both WASM engines;
+`playwright test --config tests/browser/framing.config.mjs` covers real browser
+preview, stereo eye colors, crop, cancel, verified conversion and mobile layout.
