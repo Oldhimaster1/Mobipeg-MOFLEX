@@ -1,4 +1,4 @@
-import rows from './translations.mjs?v=20261117d';
+import rows from './translations.mjs?v=20261117e';
 export const LANGUAGES=['en','es','fr','de','pt','ja','ko','zh-Hans'];
 const entries=new Map(rows.map(row=>[row[0],row]));
 const KEY='mobipeg-interface-language';

@@ -1,4 +1,4 @@
-import{initLanguage,translateText}from'./i18n.mjs?v=20261117d';
+import{initLanguage,translateText}from'./i18n.mjs?v=20261117e';
 import{createUsage}from'./usage.mjs?v=20261117a';
 import{validate,rate,PRESETS,ADVANCED_NUMBERS,ADVANCED_ENUMS,encodeArgs,encodeClipArgs,audioArgs,environment}from'./core.mjs?v=20261117d';
 import{createMovieJob,appendMovieSegment,assembleMovie,cleanupMovieJob,getCodedRate,nextMovieClip}from'./movie.mjs?v=20261116d';
