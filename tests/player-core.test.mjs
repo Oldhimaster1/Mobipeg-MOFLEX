@@ -1,6 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {parseMoflexVideoDescriptor,displayedCodedFrame} from '../dist/player-core.mjs';
+
+test('MOFLEX file picker does not restrict native file selection by MIME type',()=>{
+  for(const page of ['../player.html','../dist/player.html']){
+    const html=readFileSync(new URL(page,import.meta.url),'utf8');
+    const input=html.match(/<input\s+id="movieFile"[^>]*>/)?.[0];
+    assert.ok(input,`${page} must expose a MOFLEX picker`);
+    assert.match(input,/type="file"/);
+    assert.doesNotMatch(input,/\baccept\s*=/i,'file types are checked after selection');
+  }
+});
 
 const descriptor=(layout,numerator=24000,denominator=1001)=>Uint8Array.from([
   3,13,(numerator>>>24)&255,(numerator>>>16)&255,(numerator>>>8)&255,numerator&255,

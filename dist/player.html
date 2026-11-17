@@ -16,7 +16,7 @@
     <section class="card player-card">
       <div class="panel-heading"><div><span class="eyebrow">REAL MOBICLIP DECODE</span><h1>MOFLEX Player</h1></div><span class="tag">LOCAL FILE</span></div>
       <p class="player-description">Open a Nintendo 3DS <code>.moflex</code> video to play it here. Video is decoded in bounded batches with the actual MobiClip decoder, on your device. The original file is never uploaded.</p>
-      <label class="player-picker">Choose a .moflex file <input id="movieFile" type="file" accept=".moflex,video/*"></label>
+      <label class="player-picker">Choose a .moflex file <input id="movieFile" type="file"></label>
       <canvas id="screen" width="400" height="240" aria-label="Decoded MobiClip video frame"></canvas>
       <div class="player-buttons"><button id="play" type="button" class="primary" disabled>▶ Play</button><button id="pause" type="button" class="secondary" disabled>Pause</button><label id="eyeControl" hidden>3D view <select id="eye"><option value="0">Left eye</option><option value="1">Right eye</option></select></label></div>
       <div class="player-seek"><span id="position">0:00</span><input id="seek" type="range" min="0" max="1" step="0.001" value="0" disabled aria-label="Seek through movie"><span id="duration">0:00</span></div>
