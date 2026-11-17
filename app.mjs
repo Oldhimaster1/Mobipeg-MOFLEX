@@ -116,10 +116,18 @@ const startWorker=(type,payload)=>{
        continueMovie();
      }else if(d.type==='segment'){
        worker?.terminate();worker=null;
+       if(d.empty){
+         if(!movieFrames)return fail('No video frames could be decoded.');
+         movieParts--;movieDuration=movieFrames*movieFPS.den/movieFPS.num;
+         log('Video ended before the container audio; assembling the complete video.');
+         continueMovie();return;
+       }
        try{
          await appendMovieSegment(movieJob,d.blob,d.frames);
          if(token!==runToken)return;
          movieFrames+=d.frames;
+         const expected=Math.round(payload.clip.seconds*rate(s.fps))*(s.mode==='2d'?1:2);
+         if(d.frames<expected)movieDuration=movieFrames*movieFPS.den/movieFPS.num;
          log('Chapter '+movieParts+' saved to local storage: '+(d.blob.size/1e6).toFixed(2)+' MB, '+d.frames+' frames.');
          continueMovie();
        }catch(err){if(token===runToken)fail('Could not save movie chapter: '+(err.message||String(err))+'. Check free device storage.');}

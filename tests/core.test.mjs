@@ -57,3 +57,9 @@ test('audio languages and explicit stream selection',()=>{
 test('audio verification rejects accumulated chapter padding drift',async()=>{
  await assert.rejects(()=>verifyCandidate({kind:'audio',blob:new Blob(['x']),frames:24,seconds:1,run:async()=>({seconds:1.2})}),/audio duration/);
 });
+
+test('movie EOF after video does not treat a longer audio tail as missing frames',async()=>{
+ const r=await convert({settings:defaults,source:new Blob(),verify:false,clip:{start:30,seconds:1},run:async(args,files,output)=>args.length===3?{log:'Duration: 00:00:31.00\nVideo: h264\nAudio: aac'}:{code:0,frames:0,blob:new Blob()}});
+ assert.equal(r.empty,true);
+ await assert.rejects(()=>convert({settings:defaults,source:new Blob(),run:async(args)=>args.length===3?{log:'Duration: 00:00:01.00\nVideo: h264'}:{code:0,frames:0,blob:new Blob()}}),/Incomplete video/);
+});

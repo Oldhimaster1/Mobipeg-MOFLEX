@@ -25,6 +25,10 @@ for(const engine of ['engine','engine-simd'])for(const mode of ['2d','full-sbs',
  };
  const result=await convert({source,settings:{mode,preset:'balanced',filter:'detail',fps:'24',resolution:'400x224',motion:'off',q:null,maxMB:null,audioTrack:1,movieAudio:true},run,clip:{start:0,seconds:2}});
  assert.equal(result.frames,mode==='2d'?48:96);assert.equal(result.seconds,2);
+ if(mode==='2d'){
+  const empty=await convert({source,settings:{mode,preset:'balanced',filter:'detail',fps:'24',resolution:'400x224',motion:'off',q:null,maxMB:null},run,verify:false,clip:{start:2,seconds:1}});
+  assert.equal(empty.empty,true,'A clean end of video must be distinguishable from an encoder error');
+ }
  const path=join(work,`${engine}-${mode}-final.moflex`);writeFileSync(path,Buffer.from(await result.blob.arrayBuffer()));
  execFileSync(ff,['-v','error','-xerror','-i',path,'-f','null','-']);
  results.push({engine,mode,frames:result.frames,seconds:result.seconds,bytes:result.blob.size,completeDecode:true});

@@ -15,7 +15,7 @@ export function encodeArgs(s,q,input='/input/source',out='/video.moflex'){valida
 export function encodeClipArgs(s,q,start,seconds){
   if(!Number.isFinite(start)||start<0||!Number.isFinite(seconds)||seconds<=0)throw Error('Invalid movie segment');
   const args=encodeArgs(s,q);
-  args.splice(args.indexOf('-i'),0,'-ss',start.toFixed(8));
+  args.splice(args.indexOf('-i'),0,'-xerror','-ss',start.toFixed(8));
   args.splice(args.length-1,0,'-frames:v',String(Math.round(seconds*rate(s.fps))*(s.mode==='2d'?1:2)));
   return args;
 }
@@ -41,7 +41,7 @@ export async function verifyCandidate({kind,blob,frames,seconds,run,notify=()=>{
   if(kind==='audio'&&Number.isFinite(check.seconds)&&Math.abs(check.seconds-seconds)>.05)throw Error('Decoded audio duration does not match video');
 }
 export async function convert({settings:s,source,run,notify=()=>{},verify=true,clip=null}){validate(s);if(clip&&(!Number.isFinite(clip.start)||clip.start<0||!Number.isFinite(clip.seconds)||clip.seconds<=0))throw Error('Invalid movie clip');notify({stage:'Inspecting video',fraction:null});const probe=await run(['-hide_banner','-i','/input/source'],{source},null,{},true);const media=parseProbe(probe.log);let q=s.q??PRESETS[s.preset].q,low=12,high=59,best=null,attempt=0;const cap=s.maxMB===null?null:Math.floor(s.maxMB*1e6),seen=new Set();
-while(attempt<(cap===null?1:9)&&low<=high&&!seen.has(q)){seen.add(q);attempt++;notify({stage:`Encoding${cap===null?'':` · size trial ${attempt}/9`} · Q${q}`,fraction:0,attempt,q,duration:clip?.seconds??media.duration});const enc=await run(clip?encodeClipArgs(s,q,clip.start,clip.seconds):encodeArgs(s,q),{source},'/video.moflex',environment(s));if(!enc.frames||s.mode!=='2d'&&enc.frames%2)throw Error('Incomplete video or missing stereo eye');const seconds=enc.frames/(rate(s.fps)*(s.mode==='2d'?1:2));let blob=enc.blob;
+while(attempt<(cap===null?1:9)&&low<=high&&!seen.has(q)){seen.add(q);attempt++;notify({stage:`Encoding${cap===null?'':` · size trial ${attempt}/9`} · Q${q}`,fraction:0,attempt,q,duration:clip?.seconds??media.duration});const enc=await run(clip?encodeClipArgs(s,q,clip.start,clip.seconds):encodeArgs(s,q),{source},'/video.moflex',environment(s));if(!enc.frames&&clip&&enc.code===0)return {empty:true,frames:0,seconds:0,audio:media.audio,settings:s,attempts:attempt};if(!enc.frames||s.mode!=='2d'&&enc.frames%2)throw Error('Incomplete video or missing stereo eye');const seconds=enc.frames/(rate(s.fps)*(s.mode==='2d'?1:2));let blob=enc.blob;
 if(media.audio){notify({stage:'Encoding ADPCM audio',fraction:0,duration:seconds});const mux=await run(clip?audioClipArgs(s,clip.start,seconds):audioArgs(s,seconds),{source,'video.moflex':blob},'/final.moflex',{});blob=mux.blob;if(mux.frames!==enc.frames)throw Error('Frame count changed during audio mux');}
 notify({stage:`Candidate Q${q}: ${(blob.size/1e6).toFixed(2)} MB`,fraction:null});if(cap===null||blob.size<=cap){if(!best||q<best.q)best={q,blob,frames:enc.frames,seconds};high=q-1;}else low=q+1;if(cap===null)break;q=Math.floor((low+high)/2);}
 if(!best)throw Error('Cannot meet this size limit at the coarsest V15 quantizer. Increase the limit.');if(verify){await verifyCandidate({kind:'video',blob:best.blob,frames:best.frames,seconds:best.seconds,run,notify});if(media.audio)await verifyCandidate({kind:'audio',blob:best.blob,frames:best.frames,seconds:best.seconds,run,notify});}if(cap!==null&&best.blob.size>cap)throw Error('Final size exceeds the limit');return {...best,audio:media.audio,settings:s,attempts:attempt};}

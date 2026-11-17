@@ -28,9 +28,9 @@ users can inspect `--list-audio-tracks -i FILE` and choose `--audio-track N`.
 - `node --test tests/core.test.mjs tests/movie.test.mjs`
 - `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s native/V15 -p test_studio.py -v`
 - `node tests/long-movie.mjs /tmp/mobipeg-long-results`
-- Install `tests/browser/package.json` dependencies and Chromium, generate a
-  65-second half-SBS red/blue input with English/Japanese-labeled 440/880 Hz audio
-  tracks, then set `MOBIPEG_BROWSER_FIXTURE` and run
+- Install `tests/browser/package.json` dependencies and Chromium, run
+  `python3 tests/browser/generate-fixture.py --output /tmp/mobipeg-browser.mp4`,
+  then set `MOBIPEG_BROWSER_FIXTURE=/tmp/mobipeg-browser.mp4` and run
   `npx playwright test --config tests/browser/long.config.mjs`.
 
 The long-timeline test uses a genuinely encoded synthetic audiovisual chapter,
@@ -45,7 +45,11 @@ Both rebuilt scalar and SIMD binaries also passed real two-second 2D, full-SBS,
 and half-SBS conversion and complete decode checks under Node. Chromium completed
 a 65-second half-SBS movie with each engine: three OPFS chapters, 3,120 coded
 frames, selected-language audio confirmed by its tone, verified download, and
-cleanup of the stored movie.
+cleanup of the stored movie. Clean end-of-video is distinguished from encoder
+errors so an audio tail longer than the video cannot force an extra empty chapter.
+Both WASM engines also passed an explicit seek-to-EOF regression and Chromium
+conversion with a 65-second video/66-second audio fixture. The existing Chromium
+short-conversion, cancellation and mobile-layout tests also passed.
 
 Native tests generate their previously missing fixtures in temporary directories;
 no private video is required or committed.
