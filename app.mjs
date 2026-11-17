@@ -1,5 +1,6 @@
+import{initLanguage,translateText}from'./i18n.mjs?v=20261117d';
 import{createUsage}from'./usage.mjs?v=20261117a';
-import{validate,rate,PRESETS,ADVANCED_NUMBERS,ADVANCED_ENUMS,encodeArgs,encodeClipArgs,audioArgs,environment}from'./core.mjs?v=20261117c';
+import{validate,rate,PRESETS,ADVANCED_NUMBERS,ADVANCED_ENUMS,encodeArgs,encodeClipArgs,audioArgs,environment}from'./core.mjs?v=20261117d';
 import{createMovieJob,appendMovieSegment,assembleMovie,cleanupMovieJob,getCodedRate,nextMovieClip}from'./movie.mjs?v=20261116d';
 const $=id=>document.getElementById(id),form=$('settings');let file=null,worker=null,previewURL=null,outputURL=null,started=0,stageStarted=0,ticker=null,report=null,wake=null,busy=false,runToken=0,stallMonitor=null,movieJob=null,completedMovieJob=null,sampleWorker=null,sampleToken=0,sampleData=null,audioInspector=null;
 const usage=createUsage();
@@ -33,7 +34,7 @@ function advancedPreview(){
       '\n\n'+(s.movieAudio?'First chapter; repeated with aligned seeks. ':'')+'Audio invocation runs only when an audio stream exists. Duration uses source metadata (1 s placeholder before a file is selected). Size-limited trials may change Q.';
   }catch(e){$('advancedCommand').textContent=e.message;}
 }
-function settings(){const d=new FormData(form);return validate({mode:d.get('mode'),engine:d.get('engine')||'auto',preset:d.get('preset'),resolution:d.get('resolution'),fps:d.get('fps'),filter:d.get('filter'),motion:d.get('motion'),q:d.get('q')===''?null:Number(d.get('q')),audioTrack:Number(d.get('audioTrack')||0),maxMB:d.get('maxMB')===''?null:Number(d.get('maxMB')),advanced:readAdvanced(d),crop:{fit:d.get('fit'),...Object.fromEntries(['left','right','top','bottom'].map(k=>[k,Number(d.get('crop-'+k))]))}});}
+function settings(){const d=new FormData(form);return validate({mode:d.get('mode'),engine:d.get('engine')||'auto',preset:d.get('preset'),resolution:d.get('resolution'),fps:d.get('fps'),filter:d.get('filter'),motion:d.get('motion'),q:d.get('q')===''?null:Number(d.get('q')),audioTrack:Number(d.get('audioTrack')||0),maxMB:d.get('maxMB')===''?null:Number(d.get('maxMB')),speed:d.get('speed')||'original',advanced:readAdvanced(d),crop:{fit:d.get('fit'),aspect:d.get('aspect')||'source',...Object.fromEntries(['left','right','top','bottom'].map(k=>[k,Number(d.get('crop-'+k))]))}});}
 function select(f){if(busy||!f)return;invalidateSample();file=f;$('sampleStatus').textContent='Generate a preview to see the current settings.';$('makeSample').disabled=false;$('samplePosition').disabled=false;$('sampleStart').value='0';if(previewURL)URL.revokeObjectURL(previewURL);previewURL=URL.createObjectURL(f);$('preview').src=previewURL;$('empty').hidden=true;$('selected').hidden=false;$('drop').classList.add('has-video');$('replace').hidden=false;$('filename').textContent=f.name;$('audioTrack').replaceChildren(new Option('0 — First audio track','0'));$('filesize').textContent=(f.size/1e6).toFixed(2)+' MB';$('filemeta').textContent='Preview unavailable? The encoder can still inspect this file.';$('convert').disabled=false;}
 $('preview').onloadedmetadata=()=>{if(navigator.storage?.getDirectory&&$('preview').duration>180)$('longMovie').checked=true;$('filemeta').textContent=`${$('preview').videoWidth} × ${$('preview').videoHeight} · ${time($('preview').duration)}`;advancedPreview();};$('file').onchange=e=>select(e.target.files[0]);$('replace').onclick=()=>$('file').click();for(const type of ['dragenter','dragover'])$('drop').addEventListener(type,e=>{e.preventDefault();if(!busy)$('drop').classList.add('over');});for(const type of ['dragleave','drop'])$('drop').addEventListener(type,e=>{e.preventDefault();$('drop').classList.remove('over');if(type==='drop')select(e.dataTransfer.files[0]);});
 form.oninput=()=>{advancedPreview();invalidateSample();};
@@ -44,12 +45,12 @@ function fail(message){$('stage').textContent='Conversion stopped';$('error').hi
 $('cancel').onclick=()=>{fail('Cancelled. Your original file is untouched.');};
 $('clearMovieData').onclick=async()=>{
   if(busy||!completedMovieJob)return;
-  if(!confirm('Delete the temporary on-device movie copy? Download the .moflex first; this cannot be undone.'))return;
+  if(!askConfirm('Delete the temporary on-device movie copy? Download the .moflex first; this cannot be undone.'))return;
   const saved=completedMovieJob;completedMovieJob=null;
   try{await cleanupMovieJob(saved,false);$('clearMovieData').hidden=true;log('Temporary movie storage removed.');}
   catch(e){log('Could not clear local storage: '+e.message);}
 };
-form.onsubmit=async e=>{e.preventDefault();if(!file||busy)return;let s;try{s=settings();}catch(e){alert(e.message);return;}const movieMode=$('longMovie').checked;s.movieAudio=movieMode;if(movieMode&&s.maxMB!==null){alert('Movie mode currently requires No limit for maximum size. The short chapters are combined into one final MOFLEX.');return;}if(movieMode&&!navigator.storage?.getDirectory){alert('Long-movie mode requires on-device private file storage (OPFS), which is unavailable in this browser.');return;}if(file.size>512*1024*1024&&!confirm('This is a large input. Browser memory may be insufficient, especially on mobile. Continue?'))return;lock(true);const token=++runToken;if(outputURL){URL.revokeObjectURL(outputURL);outputURL=null;}if(completedMovieJob){const old=completedMovieJob;completedMovieJob=null;$('clearMovieData').hidden=true;cleanupMovieJob(old,false).catch(e=>log('Old movie cleanup warning: '+e.message));}$('job').hidden=false;$('result').hidden=true;$('error').hidden=true;$('cancel').hidden=false;$('stage').textContent='Loading native WASM encoder…';$('joblabel').textContent='CONVERSION';$('logs').textContent='MobiPEG V15 · fixed layout-0 source\nNo media upload. WebAssembly · FFmpeg scheduler threads, single codec thread.';$('memory').textContent='';$('eta').textContent='Estimating time…';$('progress').removeAttribute('value');started=stageStarted=performance.now();ticker=setInterval(()=>$('elapsed').textContent=time((performance.now()-started)/1000)+' elapsed',1000);$('job').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'nearest'});try{const requestedWake=await navigator.wakeLock?.request('screen');if(token!==runToken){requestedWake?.release().catch(()=>{});return;}wake=requestedWake;}catch{}if(token!==runToken)return;
+form.onsubmit=async e=>{e.preventDefault();if(!file||busy)return;let s;try{s=settings();}catch(e){showAlert(e.message);return;}const movieMode=$('longMovie').checked;s.movieAudio=movieMode;if(movieMode&&s.maxMB!==null){showAlert('Movie mode currently requires No limit for maximum size. The short chapters are combined into one final MOFLEX.');return;}if(movieMode&&!navigator.storage?.getDirectory){showAlert('Long-movie mode requires on-device private file storage (OPFS), which is unavailable in this browser.');return;}if(file.size>512*1024*1024&&!askConfirm('This is a large input. Browser memory may be insufficient, especially on mobile. Continue?'))return;lock(true);const token=++runToken;if(outputURL){URL.revokeObjectURL(outputURL);outputURL=null;}if(completedMovieJob){const old=completedMovieJob;completedMovieJob=null;$('clearMovieData').hidden=true;cleanupMovieJob(old,false).catch(e=>log('Old movie cleanup warning: '+e.message));}$('job').hidden=false;$('result').hidden=true;$('error').hidden=true;$('cancel').hidden=false;$('stage').textContent='Loading native WASM encoder…';$('joblabel').textContent='CONVERSION';$('logs').textContent='MobiPEG V15 · fixed layout-0 source\nNo media upload. WebAssembly · FFmpeg scheduler threads, single codec thread.';$('memory').textContent='';$('eta').textContent='Estimating time…';$('progress').removeAttribute('value');started=stageStarted=performance.now();ticker=setInterval(()=>$('elapsed').textContent=time((performance.now()-started)/1000)+' elapsed',1000);$('job').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'nearest'});try{const requestedWake=await navigator.wakeLock?.request('screen');if(token!==runToken){requestedWake?.release().catch(()=>{});return;}wake=requestedWake;}catch{}if(token!==runToken)return;
 let candidate=null;
 let movieDuration=0,movieAudio=false,movieFrames=0,movieParts=0;
 const movieFPS=getCodedRate(s);
@@ -61,7 +62,7 @@ const beginMoviePart=async()=>{
     movieParts++;
     $('joblabel').textContent='LONG MOVIE · CHAPTER '+movieParts;
     log('Encoding chapter '+movieParts+' starting '+time(clip.start)+', length '+time(clip.seconds)+'.');
-    switchWorker('segment',{type:'segment',file,settings:s,clip});
+    switchWorker('segment',{type:'segment',file,settings:s,clip,media:{duration:movieDuration,audio:movieAudio}});
     return;
   }
   expectMovieParts();
@@ -118,7 +119,7 @@ const publishCandidate=(verified,reason='')=>{
 };
 const startWorker=(type,payload)=>{
   if(token!==runToken)return;
-  currentWorkerType=type;lastActivity=performance.now();idleWarningShown=false;const w=new Worker('worker.js?v=20261117c');worker=w;
+  currentWorkerType=type;lastActivity=performance.now();idleWarningShown=false;const w=new Worker('worker.js?v=20261117d');worker=w;
   w.onerror=e=>{
     if(token!==runToken||worker!==w)return;
     const message=`Encoder worker failed: ${e.message||'unknown error'}`;
@@ -192,7 +193,7 @@ window.addEventListener('beforeunload',e=>{if(busy){e.preventDefault();e.returnV
 $('inspectAudio').onclick=()=>{
   if(!file||busy)return;
   let s;try{s=settings();}catch(e){log(e.message);return;}
-  const selected=file,w=new Worker('worker.js?v=20261117c');audioInspector=w;
+  const selected=file,w=new Worker('worker.js?v=20261117d');audioInspector=w;
   $('inspectAudio').disabled=true;
   const end=()=>{w.terminate();if(audioInspector===w)audioInspector=null;$('inspectAudio').disabled=busy;};
   w.onerror=e=>{log('Audio inspection failed: '+e.message);end();};
@@ -222,14 +223,14 @@ function drawSample(){
 $('sampleEye').onchange=drawSample;
 $('sampleStart').oninput=invalidateSample;
 $('samplePosition').onclick=()=>{if(!busy){$('sampleStart').value=Number.isFinite($('preview').currentTime)?$('preview').currentTime.toFixed(3):'0';invalidateSample();}};
-$('resetCrop').onclick=()=>{if(busy)return;$('fit').value='fit';for(const k of ['left','right','top','bottom'])$('crop-'+k).value='0';form.dispatchEvent(new Event('change'));};
+$('resetCrop').onclick=()=>{if(busy)return;$('fit').value='fit';$('aspect').value='source';for(const k of ['left','right','top','bottom'])$('crop-'+k).value='0';form.dispatchEvent(new Event('change'));};
 $('cancelSample').onclick=()=>{sampleToken++;endSample();$('sampleStatus').textContent='Preview cancelled.';};
 $('makeSample').onclick=()=>{
   if(!file||busy)return;let s,start;
   try{s=settings();start=Number($('sampleStart').value);if(!Number.isFinite(start)||start<0||Number.isFinite($('preview').duration)&&start>=$('preview').duration)throw Error('Choose a preview position within the video.');}
   catch(e){$('sampleStatus').textContent=e.message;return;}
   invalidateSample();lock(true);const token=++sampleToken;let w;
-  try{w=new Worker('worker.js?v=20261117c');sampleWorker=w;}catch(e){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();return;}
+  try{w=new Worker('worker.js?v=20261117d');sampleWorker=w;}catch(e){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();return;}
   $('cancelSample').hidden=false;$('sampleStatus').textContent='Loading preview encoder…';
   w.onerror=e=>{if(token===sampleToken){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();}};
   w.onmessage=async({data:d})=>{
@@ -249,3 +250,8 @@ $('makeSample').onclick=()=>{
   };
   w.postMessage({type:'preview',file,settings:s,start});
 };
+
+initLanguage();
+
+function showAlert(message){alert(translateText(message));}
+function askConfirm(message){return confirm(translateText(message));}

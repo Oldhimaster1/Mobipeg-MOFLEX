@@ -219,3 +219,41 @@ Validation: add `tests/framing.test.mjs` to the Node test command;
 decoding at selected new resolutions/rates and crop modes with both WASM engines;
 `playwright test --config tests/browser/framing.config.mjs` covers real browser
 preview, stereo eye colors, crop, cancel, verified conversion and mobile layout.
+
+### Speed, crop ratios, and interface languages
+
+**Encoding speed → Fast** reduces `MOBI_SUBME` to 2 while retaining the profile's
+quantizer, motion-estimation method, and refinement setting. Explicit Advanced
+subme overrides take precedence. Original remains the default. Fast changes
+compressed pixels and size; it is an optional quality/speed tradeoff, not a
+bit-exact acceleration. Full decoding checks remain active. Long-movie chapters
+reuse validated metadata from the initial inspection, eliminating one redundant
+probe/module startup per chapter without changing encode arguments.
+
+**Letterbox / Fit** now has an explicit name. Crop aspect ratio offers 4:3, 16:9,
+16:10, 5:3, 21:9, 1:1, and 9:16. Crops are centered on even pixels after manual
+margins, account for SAR, and apply to each SBS eye independently. Framing then
+fits, fills or stretches into the selected output resolution.
+
+The header offers eight local interface languages: English, Spanish, French,
+German, Portuguese, Japanese, Korean and Simplified Chinese. No translation API,
+account, video upload, or locale telemetry is used. Browser language is selected
+initially; a localStorage preference remembers subsequent choices. Technical
+logs, source filenames, track metadata, and the English guide remain unchanged.
+A MutationObserver translates changed interface nodes rather than rescanning the
+whole document on every progress tick; raw parameter values are preserved.
+
+Additional regression checks: `node --test tests/options.test.mjs`;
+`tests/browser/options.spec.mjs` (included in the framing config) checks all eight
+languages and 390/768/1024/1280 px layouts, local persistence, settings, filenames,
+and privacy preferences. The framing WASM checks now exercise Fast and per-eye
+aspect crops. The 65-second scalar/SIMD browser movie tests exercise cached
+metadata, Fast, three OPFS chapters, Japanese audio selection, complete decoding,
+and cleanup. They remain synthetic tests, not physical 3DS or iPhone evidence.
+
+Reproduce the stage-time benchmark with
+`node tests/speed-benchmark.mjs reports/speed-validation-20261117.json`.
+The report records three repetitions, frame/decode checks and source-reference
+PSNR for each mode and engine. It excludes source generation, WASM module loading,
+audio and final verification, and measures a short generated chart rather than a
+full movie. Run it without other benchmarks for interpretable timings.

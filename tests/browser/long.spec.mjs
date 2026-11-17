@@ -15,7 +15,7 @@ for(const engine of ['scalar','simd'])test(`${engine}: real segmented OPFS movie
  await expect(page.locator('#audioTrack option').nth(1)).toContainText('jpn');
  await page.locator('#audioTrack').selectOption('1');
  await page.locator('input[name=mode][value=half-sbs]').check();
- await page.locator('#longMovie').check();
+ await page.locator('#longMovie').check();await page.locator('#speed').selectOption('fast');
  await page.locator('#convert').click();
  await expect(page.locator('#stage')).toHaveText('Your MOFLEX is ready.',{timeout:210000});
  await expect(page.locator('#resultmeta')).toContainText('3,120 coded frames');
@@ -27,7 +27,7 @@ for(const engine of ['scalar','simd'])test(`${engine}: real segmented OPFS movie
  expect(energy(880)).toBeGreaterThan(energy(440)*100);
  const download=page.waitForEvent('download');await page.locator('#report').click();
  const report=await download;const reportPath=testInfo.outputPath('report.json');await report.saveAs(reportPath);
- const result=JSON.parse(readFileSync(reportPath));expect(result.verified).toBe(true);expect(result.output.chapters).toBe(3);
+ const result=JSON.parse(readFileSync(reportPath));expect(result.verified).toBe(true);expect(result.settings.speed).toBe('fast');expect(result.output.chapters).toBe(3);
  // Cleanup must release the completed on-device movie too.
  page.once('dialog',dialog=>dialog.accept());await page.locator('#clearMovieData').click();
  await expect(page.locator('#clearMovieData')).toBeHidden();

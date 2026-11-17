@@ -1,6 +1,7 @@
 // Faithful port of MobiPEG_Studio_V15.py orchestration. The codec is native WASM.
 export const PRESETS={best:{q:27,search:9,me:'umh'},quality:{q:30,search:9,me:'hex'},balanced:{q:32,search:7,me:'hex'},small:{q:36,search:7,me:'hex'}};
 export const FILTERS={detail:null,clean:'hqdn3d=0.7:1.1:0:0',smooth:'hqdn3d=1.4:1.8:0:0',bilateral:'bilateral=sigmaS=1.2:sigmaR=0.035:planes=1'};
+export const ASPECTS=['source','4/3','16/9','16/10','5/3','21/9','1/1','9/16'];
 export const RATES=['10','12','15','18','20','24000/1001','24','25','30000/1001','30','48','50','60000/1001','60'];
 export const RESOLUTIONS=['400x240','400x224','400x208','400x192','400x176','400x160','384x224','352x240','320x240','320x224','320x192','320x176','256x192','256x144','512x288','640x368','640x480','800x480'];
 // Only expose controls used by this custom MobiClip build; arbitrary output and
@@ -25,10 +26,11 @@ export function rate(s){const [n,d=1]=String(s).split('/').map(Number);return n/
 export function validateCrop(c){
   if(c==null)return;
   if(typeof c!=='object'||Array.isArray(c)||!['fit','fill','stretch'].includes(c.fit))throw Error('Invalid framing mode');
-  for(const k of Object.keys(c))if(!['fit','left','right','top','bottom'].includes(k))throw Error('Unknown crop parameter');
+  if(c.aspect!=null&&!ASPECTS.includes(c.aspect))throw Error('Invalid crop aspect ratio');
+  for(const k of Object.keys(c))if(!['fit','aspect','left','right','top','bottom'].includes(k))throw Error('Unknown crop parameter');
   for(const k of ['left','right','top','bottom'])if(c[k]!=null&&(!Number.isInteger(c[k])||c[k]<0||c[k]>16384||c[k]%2))throw Error('Crop margins must be even input pixel counts from 0 to 16384');
 }
-export function validate(s){validateCrop(s.crop);validateAdvanced(s.advanced);if(s.audioTrack!==undefined&&(!Number.isInteger(s.audioTrack)||s.audioTrack<0))throw Error('Invalid audio track');if(s.engine!==undefined&&!['auto','scalar','simd'].includes(s.engine))throw Error('Unknown WASM engine');if(!['2d','full-sbs','half-sbs'].includes(s.mode)||!PRESETS[s.preset]||!Object.hasOwn(FILTERS,s.filter)||!RATES.includes(s.fps)||!RESOLUTIONS.includes(s.resolution)||!['auto','on','off'].includes(s.motion))throw Error('Unsupported conversion setting');if(s.q!==null&&(!Number.isInteger(s.q)||s.q<12||s.q>59))throw Error('Quantizer must be 12–59');if(s.maxMB!==null&&(!Number.isFinite(s.maxMB)||s.maxMB<0.004096))throw Error('Maximum size must be at least 0.004096 MB');return s;}
+export function validate(s){if(s.speed!=null&&!['original','fast'].includes(s.speed))throw Error('Unknown encoding speed');validateCrop(s.crop);validateAdvanced(s.advanced);if(s.audioTrack!==undefined&&(!Number.isInteger(s.audioTrack)||s.audioTrack<0))throw Error('Invalid audio track');if(s.engine!==undefined&&!['auto','scalar','simd'].includes(s.engine))throw Error('Unknown WASM engine');if(!['2d','full-sbs','half-sbs'].includes(s.mode)||!PRESETS[s.preset]||!Object.hasOwn(FILTERS,s.filter)||!RATES.includes(s.fps)||!RESOLUTIONS.includes(s.resolution)||!['auto','on','off'].includes(s.motion))throw Error('Unsupported conversion setting');if(s.q!==null&&(!Number.isInteger(s.q)||s.q<12||s.q>59))throw Error('Quantizer must be 12–59');if(s.maxMB!==null&&(!Number.isFinite(s.maxMB)||s.maxMB<0.004096))throw Error('Maximum size must be at least 0.004096 MB');return s;}
 export function codedRate(s){if(s.mode==='2d')return s.fps;const [n,d]=s.fps.split('/');return d?`${Number(n)*2}/${d}`:String(Number(n)*2);}
 export function scale(w,h,sar,clean,a={},crop={}){
   crop=crop??{};
@@ -36,13 +38,13 @@ export function scale(w,h,sar,clean,a={},crop={}){
   const framing=crop.fit??'fit',range=`in_range=${a.inputRange??'auto'}:out_range=tv:flags=${a.scaler??'lanczos'}`;
   const sizing=framing==='stretch'?`scale=${w}:${h}:reset_sar=1:${range}`:
     `scale=${w}:${h}:force_original_aspect_ratio=${framing==='fill'?'increase':'decrease'}:force_divisible_by=2:reset_sar=1:${range}`;
-  return [...(edges.some(Boolean)?[`crop=iw-${l+r}:ih-${t+b}:${l}:${t}`]:[]),...(sar===2?['setsar=sar*2']:[]),sizing,
+  return [...(edges.some(Boolean)?[`crop=iw-${l+r}:ih-${t+b}:${l}:${t}`]:[]),...(sar===2?['setsar=sar*2']:[]),...(crop.aspect&&crop.aspect!=='source'?[`crop=w='trunc(min(iw,ih*(${crop.aspect})/sar)/2)*2':h='trunc(min(ih,iw*sar/(${crop.aspect}))/2)*2':x='trunc((iw-ow)/4)*2':y='trunc((ih-oh)/4)*2'`]:[]),sizing,
     ...(framing==='stretch'?[]:[framing==='fill'?`crop=${w}:${h}:(iw-ow)/2:(ih-oh)/2`:`pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2`]),
     'setsar=1',...(clean?[clean]:[]),'format=yuv420p'].join(',');
 }
 export function filters(s){const[w,h]=s.resolution.split('x').map(Number),a=s.advanced??{},denoise=['lumaSpatial','chromaSpatial','lumaTemporal','chromaTemporal'],customDenoise=denoise.some(k=>a[k]!=null),clean=customDenoise?'hqdn3d='+denoise.map(k=>a[k]??0).join(':'):FILTERS[s.filter];if(s.mode==='2d')return ['-vf',`fps=${s.fps},${scale(w,h,1,clean,a,s.crop)}`];const eye=scale(w,h,s.mode==='half-sbs'?2:1,clean,a,s.crop),tb=`1/(2*(${s.fps}))`;return ['-filter_complex',`[0:v:0]fps=${s.fps},split=2[left][right];[left]crop=iw/2:ih:0:0,${eye},settb=expr=${tb},setpts=2*N[l];[right]crop=iw/2:ih:iw/2:0,${eye},settb=expr=${tb},setpts=2*N+1[r];[l][r]interleave=nb_inputs=2,format=yuv420p[vid]`,'-map','[vid]'];}
 export function layout(s){return s.mode==='2d'?['-mo_layout','6']:['-mo_layout','0','-mo_interleave_input_double_rate','1'];}
-export function environment(s){const p=PRESETS[s.preset],ref=s.motion==='on'||s.motion==='auto'&&['best','quality'].includes(s.preset);const a=s.advanced??{};return {MOBI_SUBME:String(a.subme??p.search),MOBI_SKIP:String(a.skip??0),MOBI_V11_MV_REFINE:a.refine!=null?String(a.refine):ref?'1':'0',MOBI_V11_MV_PENALTY:String(a.penalty??0),...(a.diagonal!=null?{MOBI_V11_MV_DIAGONAL:String(a.diagonal)}:{})};}
+export function environment(s){const p=PRESETS[s.preset],ref=s.motion==='on'||s.motion==='auto'&&['best','quality'].includes(s.preset);const a=s.advanced??{};return {MOBI_SUBME:String(a.subme??(s.speed==='fast'?2:p.search)),MOBI_SKIP:String(a.skip??0),MOBI_V11_MV_REFINE:a.refine!=null?String(a.refine):ref?'1':'0',MOBI_V11_MV_PENALTY:String(a.penalty??0),...(a.diagonal!=null?{MOBI_V11_MV_DIAGONAL:String(a.diagonal)}:{})};}
 export const base=['-hide_banner','-nostdin','-v','warning','-y','-stats_period','0.25','-progress','pipe:1','-threads','1','-filter_threads','1','-filter_complex_threads','1'];
 export function encodeArgs(s,q,input='/input/source',out='/video.moflex'){validate(s);const p=PRESETS[s.preset];return [...base,'-i',input,...filters(s),'-an','-c:v','mobiclip','-mobiclip','1','-qp',String(12+(q-12)%6),'-mobi_qyx',String(Math.floor((q-12)/6)),'-preset','medium','-me_method',s.advanced?.me??p.me,'-threads','1','-filter_complex_threads','1','-g',String(s.advanced?.gop??Math.ceil(rate(s.fps)*2)),...(s.mode==='2d'?[]:['-r',codedRate(s)]),...layout(s),'-f','moflex',out];}
 export function encodeClipArgs(s,q,start,seconds){
@@ -73,7 +75,12 @@ export async function verifyCandidate({kind,blob,frames,seconds,run,notify=()=>{
   if(kind==='video'&&check.frames!==frames)throw Error('Decoded frame count does not match encoded video');
   if(kind==='audio'&&Number.isFinite(check.seconds)&&Math.abs(check.seconds-seconds)>.05)throw Error('Decoded audio duration does not match video');
 }
-export async function convert({settings:s,source,run,notify=()=>{},verify=true,clip=null}){validate(s);if(clip&&(!Number.isFinite(clip.start)||clip.start<0||!Number.isFinite(clip.seconds)||clip.seconds<=0))throw Error('Invalid movie clip');notify({stage:'Inspecting video',fraction:null});const probe=await run(['-hide_banner','-i','/input/source'],{source},null,{},true);const media=parseProbe(probe.log);let q=s.q??PRESETS[s.preset].q,low=12,high=59,best=null,attempt=0;const cap=s.maxMB===null?null:Math.floor(s.maxMB*1e6),seen=new Set();
+export async function convert({settings:s,source,run,notify=()=>{},verify=true,clip=null,media:knownMedia=null}){validate(s);if(clip&&(!Number.isFinite(clip.start)||clip.start<0||!Number.isFinite(clip.seconds)||clip.seconds<=0))throw Error('Invalid movie clip');let media;
+if(knownMedia!==null){
+  if(!clip||typeof knownMedia!=='object'||!Number.isFinite(knownMedia.duration)||knownMedia.duration<=0||typeof knownMedia.audio!=='boolean')throw Error('Invalid inspected movie metadata');
+  media={duration:knownMedia.duration,audio:knownMedia.audio};
+}else{notify({stage:'Inspecting video',fraction:null});const probe=await run(['-hide_banner','-i','/input/source'],{source},null,{},true);media=parseProbe(probe.log);}
+let q=s.q??PRESETS[s.preset].q,low=12,high=59,best=null,attempt=0;const cap=s.maxMB===null?null:Math.floor(s.maxMB*1e6),seen=new Set();
 while(attempt<(cap===null?1:9)&&low<=high&&!seen.has(q)){seen.add(q);attempt++;notify({stage:`Encoding${cap===null?'':` · size trial ${attempt}/9`} · Q${q}`,fraction:0,attempt,q,duration:clip?.seconds??media.duration});const enc=await run(clip?encodeClipArgs(s,q,clip.start,clip.seconds):encodeArgs(s,q),{source},'/video.moflex',environment(s));if(!enc.frames&&clip&&enc.code===0)return {empty:true,frames:0,seconds:0,audio:media.audio,settings:s,attempts:attempt};if(!enc.frames||s.mode!=='2d'&&enc.frames%2)throw Error('Incomplete video or missing stereo eye');const seconds=enc.frames/(rate(s.fps)*(s.mode==='2d'?1:2));let blob=enc.blob;
 if(media.audio){notify({stage:'Encoding ADPCM audio',fraction:0,duration:seconds});const mux=await run(clip?audioClipArgs(s,clip.start,seconds):audioArgs(s,seconds),{source,'video.moflex':blob},'/final.moflex',{});blob=mux.blob;if(mux.frames!==enc.frames)throw Error('Frame count changed during audio mux');}
 notify({stage:`Candidate Q${q}: ${(blob.size/1e6).toFixed(2)} MB`,fraction:null});if(cap===null||blob.size<=cap){if(!best||q<best.q)best={q,blob,frames:enc.frames,seconds};high=q-1;}else low=q+1;if(cap===null)break;q=Math.floor((low+high)/2);}

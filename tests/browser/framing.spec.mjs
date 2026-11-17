@@ -16,7 +16,7 @@ for(const engine of ['scalar','simd'])test(`${engine}: actual stereo preview, pe
  await page.locator('#engine').selectOption(engine);
  await page.locator('input[name=mode][value=half-sbs]').check();
  await page.locator('#resolution').selectOption('352x240');await page.locator('#fps').selectOption('15');
- await page.locator('.framing > summary').click();await page.locator('#fit').selectOption('fill');await page.locator('#crop-left').fill('16');
+ await page.locator('.framing > summary').click();await page.locator('#fit').selectOption('fill');await page.locator('#aspect').selectOption('16/9');await page.locator('#speed').selectOption('fast');await page.locator('#crop-left').fill('16');
  await page.locator('#sampleStart').fill('0.5');await page.locator('#makeSample').click();await page.locator('#cancelSample').click();
  await expect(page.locator('#makeSample')).toBeEnabled();await expect(page.locator('#sampleStatus')).toHaveText('Preview cancelled.');
  await page.locator('#makeSample').click();

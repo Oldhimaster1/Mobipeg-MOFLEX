@@ -1,0 +1,145 @@
+{
+  "fixture": "Generated 3-second 1280x720 testsrc2 at 24 fps; encoded at 400x224, Q30, 2D",
+  "metric": "FFmpeg call time inside WASM; excludes module loading, source generation, audio and final verification",
+  "limitations": "Synthetic chart, three repetitions per setting. Actual movies, source codecs and devices will differ. Fast changes pixels and compression; original remains default.",
+  "rows": [
+    {
+      "engine": "engine",
+      "speed": "original",
+      "repeat": 0,
+      "encodeSeconds": 3.994818564,
+      "frames": 72,
+      "bytes": 348160,
+      "psnrDB": 42.22713,
+      "completeDecode": true
+    },
+    {
+      "engine": "engine",
+      "speed": "fast",
+      "repeat": 0,
+      "encodeSeconds": 1.6753455979999998,
+      "frames": 72,
+      "bytes": 200704,
+      "psnrDB": 41.105217,
+      "completeDecode": true
+    },
+    {
+      "engine": "engine",
+      "speed": "fast",
+      "repeat": 1,
+      "encodeSeconds": 1.7425695520000002,
+      "frames": 72,
+      "bytes": 200704,
+      "psnrDB": 41.105217,
+      "completeDecode": true
+    },
+    {
+      "engine": "engine",
+      "speed": "original",
+      "repeat": 1,
+      "encodeSeconds": 6.348940645999999,
+      "frames": 72,
+      "bytes": 348160,
+      "psnrDB": 42.22713,
+      "completeDecode": true
+    },
+    {
+      "engine": "engine",
+      "speed": "original",
+      "repeat": 2,
+      "encodeSeconds": 5.811079331999999,
+      "frames": 72,
+      "bytes": 348160,
+      "psnrDB": 42.22713,
+      "completeDecode": true
+    },
+    {
+      "engine": "engine",
+      "speed": "fast",
+      "repeat": 2,
+      "encodeSeconds": 2.7838009149999996,
+      "frames": 72,
+      "bytes": 200704,
+      "psnrDB": 41.105217,
+      "completeDecode": true
+    },
+    {
+      "engine": "engine-simd",
+      "speed": "original",
+      "repeat": 0,
+      "encodeSeconds": 3.030320593,
+      "frames": 72,
+      "bytes": 348160,
+      "psnrDB": 42.22713,
+      "completeDecode": true
+    },
+    {
+      "engine": "engine-simd",
+      "speed": "fast",
+      "repeat": 0,
+      "encodeSeconds": 1.466706202,
+      "frames": 72,
+      "bytes": 200704,
+      "psnrDB": 41.105217,
+      "completeDecode": true
+    },
+    {
+      "engine": "engine-simd",
+      "speed": "fast",
+      "repeat": 1,
+      "encodeSeconds": 1.7236156429999998,
+      "frames": 72,
+      "bytes": 200704,
+      "psnrDB": 41.105217,
+      "completeDecode": true
+    },
+    {
+      "engine": "engine-simd",
+      "speed": "original",
+      "repeat": 1,
+      "encodeSeconds": 3.003772453,
+      "frames": 72,
+      "bytes": 348160,
+      "psnrDB": 42.22713,
+      "completeDecode": true
+    },
+    {
+      "engine": "engine-simd",
+      "speed": "original",
+      "repeat": 2,
+      "encodeSeconds": 2.580358115,
+      "frames": 72,
+      "bytes": 348160,
+      "psnrDB": 42.22713,
+      "completeDecode": true
+    },
+    {
+      "engine": "engine-simd",
+      "speed": "fast",
+      "repeat": 2,
+      "encodeSeconds": 2.083034408,
+      "frames": 72,
+      "bytes": 200704,
+      "psnrDB": 41.105217,
+      "completeDecode": true
+    }
+  ],
+  "summary": [
+    {
+      "engine": "engine",
+      "originalMedianSeconds": 5.811079331999999,
+      "fastMedianSeconds": 1.7425695520000002,
+      "speedup": 3.3347761214641025,
+      "originalPSNR": 42.22713,
+      "fastPSNR": 41.105217
+    },
+    {
+      "engine": "engine-simd",
+      "originalMedianSeconds": 3.003772453,
+      "fastMedianSeconds": 1.7236156429999998,
+      "speedup": 1.7427159385556819,
+      "originalPSNR": 42.22713,
+      "fastPSNR": 41.105217
+    }
+  ]
+}
