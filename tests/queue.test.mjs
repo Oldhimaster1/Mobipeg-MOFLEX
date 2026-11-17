@@ -46,3 +46,9 @@ test('additional movie workers raise estimated peak RAM and disk usage',()=>{
 test('byte formatting stays readable across units',()=>{
   assert.equal(formatBytes(999),'999 B');assert.equal(formatBytes(1500),'1.5 KB');assert.equal(formatBytes(2_000_000),'2.00 MB');assert.equal(formatBytes(3_000_000_000),'3.00 GB');assert.equal(formatBytes(NaN),'Unavailable');
 });
+
+test('restored browser queues still show the original input byte totals',()=>{
+  const item={file:null,source:{name:'original.mkv',size:123456,lastModified:0},
+    estimate:{known:true,minimum:100,maximum:200,temporaryBytes:300}};
+  assert.equal(totalEstimate([item]).inputBytes,123456);
+});

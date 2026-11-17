@@ -42,7 +42,7 @@ export function totalEstimate(items){
   return {
     known:known.length,
     unknown:items.length-known.length,
-    inputBytes:items.reduce((sum,item)=>sum+(item.file?.size||0),0),
+    inputBytes:items.reduce((sum,item)=>sum+(item.file?.size??item.source?.size??0),0),
     minimum:known.reduce((sum,item)=>sum+item.estimate.minimum,0),
     maximum:known.reduce((sum,item)=>sum+item.estimate.maximum,0),
     peakTemporary:known.reduce((max,item)=>Math.max(max,item.estimate.temporaryBytes),0),

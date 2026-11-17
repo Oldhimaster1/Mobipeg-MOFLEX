@@ -120,3 +120,5 @@ When changing the web application, update the dependency version queries and the
 - Queue order, encoding settings, durations, and status are kept in a bounded versioned local-storage manifest. Unfinished jobs require users to reselect the original source files after reload; the site does not store source movie bytes. Reattached jobs keep their saved settings, can retry, and retain ordering.
 - Source selection compares filename, byte length and last-modified timestamp when available. This is a convenience check only; the existing checkpoint recovery independently hashes original media before reusing encoded ranges.
 - Seven queue unit tests passed in the available local Node runtime. Browser UI regression, integration and physical-device testing remain pending. Keep the branch separate from master pending those checks.
+
+- Follow-up: restored entries now retain correct input-byte estimates. Added a Chromium UI regression for restoring a two-file queue, reselecting both sources, and checking per-file presets. This Playwright test has not yet run in this session.

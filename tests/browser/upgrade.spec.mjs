@@ -1,6 +1,6 @@
 import {expect,test} from '@playwright/test';
 import {execFileSync} from 'node:child_process';
-import {mkdtempSync,readFileSync,rmSync} from 'node:fs';
+import {copyFileSync,mkdtempSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 
@@ -90,4 +90,27 @@ test('queue saves and continues automatically, with downloads still available af
   const download=page.waitForEvent('download');
   await page.locator('#savedBatchFiles button').first().click();
   expect((await download).suggestedFilename()).toMatch(/\.moflex$/);
+});
+
+test('browser restores pending queue order and individual settings after reload',async({page})=>{
+  const first=join(work,'first.mkv'),second=join(work,'second.mkv');
+  copyFileSync(source,first);copyFileSync(source,second);
+  await page.goto('/');
+  await page.locator('#file').setInputFiles([first,second]);
+  await expect(page.locator('#queueList > li')).toHaveCount(2);
+  await page.locator('#queueList > li').nth(0).locator('.queue-select').click();
+  await page.locator('#preset').selectOption('small');
+  await page.locator('#queueList > li').nth(1).locator('.queue-select').click();
+  await page.locator('#preset').selectOption('best');
+  await page.reload();
+  await expect(page.locator('#queueList > li')).toHaveCount(2);
+  await expect(page.locator('#startQueue')).toBeDisabled();
+  await expect(page.locator('#reselectQueueSources')).toBeVisible();
+  await page.locator('.queue-recovery + input[type=file]').setInputFiles([first,second]);
+  await expect(page.locator('#startQueue')).toBeEnabled();
+  await expect(page.locator('#reselectQueueSources')).toBeHidden();
+  await page.locator('#queueList > li').nth(0).locator('.queue-select').click();
+  await expect(page.locator('#preset')).toHaveValue('small');
+  await page.locator('#queueList > li').nth(1).locator('.queue-select').click();
+  await expect(page.locator('#preset')).toHaveValue('best');
 });
