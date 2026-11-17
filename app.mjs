@@ -6,8 +6,18 @@ import{openCheckpoint,setCheckpointMedia,restoreCheckpoints,persistRange,closeCh
 import{estimateConversion,totalEstimate,formatBytes,FAT32_LIMIT,FAT32_MESSAGE,fitsFat32,fat32Estimate}from'./queue.mjs?v=20261117s';
 import{runParallelMovie,planBalancedMovieClips}from'./parallel.mjs?v=20261117s';
 import{batchStorage,saveBatchFile}from'./batch-output.mjs?v=20261117s';
+import{loadQueue,saveQueue,relinkQueue,sourceIdentity}from'./queue-state.mjs?v=20261117u';
 const $=id=>document.getElementById(id),form=$('settings');let file=null,worker=null,previewURL=null,outputURL=null,started=0,stageStarted=0,ticker=null,report=null,wake=null,busy=false,runToken=0,stallMonitor=null,movieJob=null,completedMovieJob=null,sampleWorker=null,sampleToken=0,sampleData=null,audioInspector=null,parallelAbort=null;
 let queue=[],activeQueueId=null,queueRunning=false,queueCurrent=null,queueDownloaded=false,originStorage=null,nextQueueId=1,restoringSettings=false;
+let queueRestored=false;
+function persistQueue(){
+  if(!queueRestored)return;
+  try{saveQueue(queue);}catch(error){
+    console.warn('Cannot save browser queue:',error);
+    const notice=document.getElementById('queueRestoreStatus');
+    if(notice)notice.textContent='Queue storage is unavailable. Jobs may be lost if this tab closes.';
+  }
+}
 // Hardware concurrency is a *logical* upper bound, not a RAM guarantee.
 // Phones default to one encoder to avoid exhausting their browser process.
 const coreMax=Math.max(1,Math.floor(Number(navigator.hardwareConcurrency)||1));
@@ -109,13 +119,21 @@ function saveActiveSettings(){
   try{item.settings=snapshotSettings();refreshEstimates();}catch{}
 }
 function addFiles(files){
-  if(busy)return;const added=[];
+  if(busy)return;
   let initial;try{initial=snapshotSettings();}catch(e){showAlert(e.message);return;}
-  for(const selected of files){
+  const {linked,unmatched}=relinkQueue(queue,Array.from(files));
+  const added=[...linked];
+  for(const selected of unmatched){
     if(!selected||queue.some(item=>item.file===selected))continue;
-    const item={id:nextQueueId++,file:selected,settings:structuredClone(initial),duration:null,audio:true,status:'pending',estimate:null};queue.push(item);added.push(item);probeBrowserMetadata(item);
+    const item={id:nextQueueId++,file:selected,source:sourceIdentity(selected),
+      settings:structuredClone(initial),duration:null,audio:true,status:'pending',estimate:null};
+    queue.push(item);added.push(item);probeBrowserMetadata(item);
   }
-  if(!added.length)return;$('queuePanel').hidden=false;select(added[0].file,added[0]);refreshStorage();renderQueue();
+  if(!added.length)return;
+  $('queuePanel').hidden=false;select(added[0].file,added[0]);
+  if(linked.length)$('queueRestoreStatus').textContent=
+    'Restored '+linked.length+' video'+(linked.length===1?'':'s')+' with their saved settings.';
+  refreshStorage();renderQueue();
 }
 let batchDestination=null,batchSaving=false;
 const folderInput=document.createElement('input');
@@ -132,6 +150,16 @@ $('replace').before(folderButton,folderInput);
 const batchControls=document.createElement('div');
 batchControls.innerHTML='<div class="queue-actions"><button id="batchFolder" type="button" class="text-button">Save to a folder</button><button id="batchPrivate" type="button" class="text-button">Save in this browser</button><button id="batchManual" type="button" class="text-button" hidden>Use manual downloads</button></div><p id="batchSaveStatus" class="hint" role="status"></p>';
 $('startQueue').parentElement.before(batchControls);
+const queueRecovery=document.createElement('div');
+queueRecovery.className='queue-recovery';
+queueRecovery.innerHTML='<p id="queueRestoreStatus" class="hint" role="status"></p><button type="button" id="reselectQueueSources" class="text-button" hidden>Reselect original videos</button>';
+batchControls.after(queueRecovery);
+const relinkInput=document.createElement('input');
+relinkInput.type='file';relinkInput.multiple=true;relinkInput.hidden=true;
+relinkInput.accept='video/*,.mkv,.avi,.mov,.webm,.m4v,.moflex';
+relinkInput.onchange=()=>{addFiles(relinkInput.files);relinkInput.value='';};
+queueRecovery.after(relinkInput);
+$('reselectQueueSources').onclick=()=>{if(!busy&&!queueRunning)relinkInput.click();};
 $('batchFolder').hidden=typeof window.showDirectoryPicker!=='function';
 $('batchPrivate').hidden=!navigator.storage?.getDirectory;
 const savedPanel=document.createElement('section');
@@ -195,14 +223,29 @@ function renderQueue(){
   $('queuePanel').hidden=!queue.length;const list=$('queueList');list.replaceChildren();
   queue.forEach((item,index)=>{
     const row=document.createElement('li');row.className='queue-item'+(item.id===activeQueueId?' active':'')+(item===queueCurrent?' current':'');
-    const selectButton=document.createElement('button');selectButton.type='button';selectButton.className='queue-select';selectButton.disabled=busy||queueRunning;selectButton.onclick=()=>{saveActiveSettings();select(item.file,item);};
-    const name=document.createElement('strong');name.textContent=item.file.name;const meta=document.createElement('span');const duration=item.duration?time(item.duration):'duration unavailable';const estimate=item.estimate?.known?`${formatBytes(item.estimate.minimum)}–${formatBytes(item.estimate.maximum)}`:'estimate pending';meta.textContent=`${duration} · ${estimate} · ${item.status}`;selectButton.append(name,meta);
-    const actions=document.createElement('div');actions.className='queue-item-actions';actions.append(rowButton('↑',()=>moveQueue(index,-1),busy||queueRunning||index===0),rowButton('↓',()=>moveQueue(index,1),busy||queueRunning||index===queue.length-1),rowButton('Remove',()=>removeQueue(item),busy||queueRunning));
+    const selectButton=document.createElement('button');selectButton.type='button';selectButton.className='queue-select';selectButton.disabled=busy||queueRunning;
+    selectButton.onclick=()=>{if(!item.file){relinkInput.click();return;}saveActiveSettings();select(item.file,item);};
+    const name=document.createElement('strong');name.textContent=item.source?.name??item.file?.name??'Video';
+    const meta=document.createElement('span'),duration=item.duration?time(item.duration):'duration unavailable';
+    const estimate=item.estimate?.known?`${formatBytes(item.estimate.minimum)}–${formatBytes(item.estimate.maximum)}`:'estimate pending';
+    meta.textContent=`${duration} · ${estimate} · ${item.status==='needs-file'?'reselect original video':item.status}`;
+    selectButton.append(name,meta);
+    const actions=document.createElement('div');actions.className='queue-item-actions';
+    actions.append(rowButton('↑',()=>moveQueue(index,-1),busy||queueRunning||index===0),
+      rowButton('↓',()=>moveQueue(index,1),busy||queueRunning||index===queue.length-1),
+      rowButton('Remove',()=>removeQueue(item),busy||queueRunning));
+    if(['failed','cancelled','done'].includes(item.status))
+      actions.append(rowButton('Retry',()=>{item.status=item.file?'pending':'needs-file';renderQueue();},busy||queueRunning));
     row.append(selectButton,actions);list.append(row);
   });
-  $('startQueue').disabled=busy||queueRunning||!queue.some(item=>item.status==='pending');$('clearQueue').disabled=busy||queueRunning;
+  $('startQueue').disabled=busy||queueRunning||!queue.some(item=>item.status==='pending'&&item.file);
+  $('clearQueue').disabled=busy||queueRunning;
   for(const id of ['batchFolder','batchPrivate','batchManual'])$(id).disabled=busy||queueRunning;
   folderButton.disabled=busy||queueRunning;
+  $('reselectQueueSources').hidden=!queue.some(item=>item.status==='needs-file');
+  $('reselectQueueSources').disabled=busy||queueRunning;
+  if(!queue.length)$('queueRestoreStatus').textContent='';
+  persistQueue();
 }
 function moveQueue(index,offset){const target=index+offset;if(target<0||target>=queue.length)return;[queue[index],queue[target]]=[queue[target],queue[index]];renderQueue();}
 function removeQueue(item){
@@ -212,7 +255,7 @@ function clearSelectedFile(){file=null;if(previewURL)URL.revokeObjectURL(preview
 $('clearQueue').onclick=()=>{if(busy||queueRunning)return;queue=[];activeQueueId=null;clearSelectedFile();renderQueue();refreshEstimates();};
 async function refreshStorage(){try{originStorage=await navigator.storage?.estimate?.()??null;}catch{originStorage=null;}refreshEstimates();}
 function refreshEstimates(){
-  for(const item of queue)item.estimate=estimateConversion({fileBytes:item.file.size,duration:item.duration,settings:{...item.settings,movieAudio:item.settings.movieAudio||item.settings.workers>1},audio:item.audio});
+  for(const item of queue)item.estimate=estimateConversion({fileBytes:item.file?.size??item.source.size,duration:item.duration,settings:{...item.settings,movieAudio:item.settings.movieAudio||item.settings.workers>1},audio:item.audio});
   const totals=totalEstimate(queue),free=originStorage?.quota&&Number.isFinite(originStorage.usage)?Math.max(0,originStorage.quota-originStorage.usage):null;
   const output=totals.known?`${formatBytes(totals.minimum)}–${formatBytes(totals.maximum)}`:'waiting for durations';
   $('estimateSummary').textContent=`${queue.length} video${queue.length===1?'':'s'} · ${formatBytes(totals.inputBytes)} input · ${output} estimated output · ${totals.known?'up to '+formatBytes(totals.peakTemporary)+' temporary disk per item':'temporary disk unknown'} · rough peak RAM ${totals.known?formatBytes(totals.peakMemory):'unknown'} · ${free===null?'browser storage unavailable':formatBytes(free)+' browser storage free'}`+(totals.unknown?` · ${totals.unknown} duration${totals.unknown===1?'':'s'} unavailable`:'');
@@ -221,8 +264,11 @@ function refreshEstimates(){
   const ratio=free&&totals.peakTemporary?Math.min(1,totals.peakTemporary/free):0;$('estimateMeter').style.width=(ratio*100).toFixed(1)+'%';$('estimateMeter').classList.toggle('warning',ratio>.8);renderQueue();
 }
 function beginNextQueuedItem(){
-  const next=queue.find(item=>item.status==='pending');
-  if(!next){queueRunning=false;queueCurrent=null;$('queueNext').hidden=true;$('startQueue').hidden=false;$('stage').textContent='Queue complete';renderQueue();return;}
+  const next=queue.find(item=>item.status==='pending'&&item.file);
+  if(!next){queueRunning=false;queueCurrent=null;$('queueNext').hidden=true;$('startQueue').hidden=false;
+    $('stage').textContent=queue.some(item=>item.status==='needs-file')
+      ?'Queue paused — reselect the remaining source videos':'Queue complete';
+    renderQueue();return;}
   queueCurrent=next;next.status='encoding';queueDownloaded=false;select(next.file,next);renderQueue();form.requestSubmit();
 }
 function stopQueueBeforeEncoding(){if(!queueRunning||!queueCurrent)return;if(queueCurrent.status==='encoding')queueCurrent.status='pending';queueCurrent=null;queueRunning=false;$('startQueue').hidden=false;$('queueNext').hidden=true;renderQueue();}
@@ -602,6 +648,20 @@ $('makeSample').onclick=()=>{
 };
 
 initLanguage();
+try{
+  const restored=loadQueue(validate);
+  if(restored.length){
+    queue=restored.map((entry,index)=>({...entry,id:index+1}));
+    nextQueueId=queue.length+1;
+    $('queueRestoreStatus').textContent='Saved queue restored. Reselect original videos to resume unfinished jobs; source videos were not stored.';
+    refreshEstimates();
+  }
+}catch(error){
+  $('queueRestoreStatus').textContent='Saved queue could not be restored: '+(error.message||String(error));
+  console.warn('Batch queue restore failed:',error);
+}
+queueRestored=true;
+renderQueue();
 
 function showAlert(message){alert(translateText(message));}
 function askConfirm(message){return confirm(translateText(message));}

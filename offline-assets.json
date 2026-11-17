@@ -1,10 +1,10 @@
 {
-  "version": "20261117t",
+  "version": "20261117u",
   "files": {
-    "index.html": "c0c477731f8f715b4233c1ca352161df9500c6e9ffa00581662d9eb00ac45a53",
+    "index.html": "c698076765bddb99e9fb4c3c087ddbf1fb002cc16bba74945e8c6ec489ae274a",
     "player.html": "33937ec53384d2ee830d960cdeea1c073f70699fede062a8785df8079d9f031b",
     "guide.html": "0dd1ce8cd75fc64f07e0b5f67ac75c273f049e1af9eb095c7eb396eafea17f76",
-    "app.mjs": "0aa58e681a150dae768e237c70538a6a932f768a57ed728b9b8f265287f22c78",
+    "app.mjs": "db4a0f9f2bbd7ad2fa64b16b815ebf660085f61b356860afaaa130fe08104338",
     "core.mjs": "2de575567eb53de8727fd5460a252b5b5759799893039dc7e5a8ba176d70731b",
     "movie.mjs": "63728b3f4ebaed566aa4457149575c2aec78408033596d138235a3ad78b7c81d",
     "parallel.mjs": "26b082ca5a9d4b3b4f4c7392be65999864b14b446f1198014a76d2b975c027d6",
@@ -34,6 +34,7 @@
     "engine-simd/mobipeg.wasm": "694326d0b5b72bcf64121843d0f03e91a19207699789841991bc3ff1dafb2149",
     "dist/translations.mjs": "cba608346a455be73ab4a0653664d3d614fc87a787bcf7ffb1c8649880ac2c35",
     "dist/queue-translations.mjs": "96196fb0e4222fef0ae40057fe5c28b4f829464eef521cdaf14af398634eecd3",
-    "subtitle-timing.mjs": "dfd87a149ab1aa4b742357b4b70a882f1da4ea420f252234b25de82e297af469"
+    "subtitle-timing.mjs": "dfd87a149ab1aa4b742357b4b70a882f1da4ea420f252234b25de82e297af469",
+    "queue-state.mjs": "5964e525d6844a67ba76b3248ff5bf9f4fa04e1f121dca4149cea3417b80d782"
   }
 }
