@@ -1,6 +1,6 @@
 import {classifyStereoPixels,displayedCodedFrame,inspectPlayableMoflex} from './player-core.mjs?v=20261117r';
 import {readSuperMoflex,subtitleCues,subtitlesAt} from './super-moflex.mjs?v=20261117r';
-import {openTrailerEditor} from './trailer-editor.mjs?v=20261117r';
+import {openTrailerEditor} from './trailer-editor.mjs?v=20261117t';
 
 const $=id=>document.getElementById(id);
 const canvas=$('screen'),context=canvas.getContext('2d',{alpha:false});
