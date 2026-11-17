@@ -5,12 +5,14 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from array import array
 from pathlib import Path
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'native'))
 import MobiPEG_Studio_V15 as studio
+from parallel_encode import plan_ranges
 
 
 class NativeResumeTest(unittest.TestCase):
@@ -24,9 +26,11 @@ class NativeResumeTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as work:
             source = Path(work) / 'input.mkv'
             output = Path(work) / 'movie.moflex'
+            boundary = round(plan_ranges(9, '24', workers=2)[1][0] * 48000)
+            pulse = f'aevalsrc=sin(2*PI*1000*n/48000)*between(n\\,{boundary-512}\\,{boundary+511}):s=48000:d=9'
             subprocess.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i',
                             'color=c=red:s=320x240:r=24:d=9', '-f', 'lavfi', '-i',
-                            'sine=frequency=440:sample_rate=48000:duration=9',
+                            pulse,
                             '-c:v', 'ffv1', '-c:a', 'pcm_s16le', str(source)], check=True)
             args = studio.parser().parse_args(['-i', str(source), '-o', str(output),
                 '--preset', 'small', '--resolution', '320x240', '--workers', '2', '--resume'])
@@ -45,6 +49,17 @@ class NativeResumeTest(unittest.TestCase):
             self.assertIn('Reusing verified range 1/2.', messages)
             self.assertNotIn('Reusing verified range 2/2.', messages)
             self.assertFalse(any(Path(work).glob('.mobipeg-checkpoints/*/part-*')))
+            pcm = array('h', subprocess.check_output([str(studio.pick_encoder()), '-v', 'error',
+                '-xerror', '-i', str(output), '-map', '0:a:0', '-ac', '1', '-f', 's16le', '-']))
+            if sys.byteorder == 'big':
+                pcm.byteswap()
+            self.assertLessEqual(abs(len(pcm)-9*48000), 256)
+            # A tone straddles the aligned range boundary. Verify energy on
+            # both sides and silence outside the pulse's immediate vicinity.
+            self.assertGreater(max(abs(x) for x in pcm[boundary-400:boundary-200]), 15000)
+            self.assertGreater(max(abs(x) for x in pcm[boundary+200:boundary+400]), 15000)
+            self.assertLess(max(abs(x) for x in pcm[boundary-1000:boundary-700]), 1500)
+            self.assertLess(max(abs(x) for x in pcm[boundary+700:boundary+1000]), 1500)
 
 
 if __name__ == '__main__':

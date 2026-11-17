@@ -73,7 +73,10 @@ export async function verifyCandidate({kind,blob,frames,seconds,run,notify=()=>{
   notify({stage:`Verifying complete ${kind}`,fraction:0,duration:seconds});
   const check=await run([...base,'-xerror','-i','/input/final.moflex','-map',kind==='video'?'0:v:0':'0:a:0','-f','null','-'],{'final.moflex':blob});
   if(kind==='video'&&check.frames!==frames)throw Error('Decoded frame count does not match encoded video');
-  if(kind==='audio'&&Number.isFinite(check.seconds)&&Math.abs(check.seconds-seconds)>.05)throw Error('Decoded audio duration does not match video');
+  // A terminal codec block can contain up to 255 padded samples at 48 kHz.
+  // Allow one block and a sample for timestamp rounding, independent of movie length.
+  if(kind==='audio'&&Number.isFinite(check.seconds)&&Math.abs(check.seconds-seconds)>257/48000)
+    throw Error('Decoded audio duration does not match video within one audio block');
 }
 export async function convert({settings:s,source,run,notify=()=>{},verify=true,clip=null,media:knownMedia=null}){validate(s);if(clip&&(!Number.isFinite(clip.start)||clip.start<0||!Number.isFinite(clip.seconds)||clip.seconds<=0))throw Error('Invalid movie clip');let media;
 if(knownMedia!==null){
@@ -82,8 +85,26 @@ if(knownMedia!==null){
 }else{notify({stage:'Inspecting video',fraction:null});const probe=await run(['-hide_banner','-i','/input/source'],{source},null,{},true);media=parseProbe(probe.log);}
 let q=s.q??PRESETS[s.preset].q,low=12,high=59,best=null,attempt=0;const cap=s.maxMB===null?null:Math.floor(s.maxMB*1e6),seen=new Set();
 while(attempt<(cap===null?1:9)&&low<=high&&!seen.has(q)){seen.add(q);attempt++;notify({stage:`Encoding${cap===null?'':` · size trial ${attempt}/9`} · Q${q}`,fraction:0,attempt,q,duration:clip?.seconds??media.duration});const enc=await run(clip?encodeClipArgs(s,q,clip.start,clip.seconds):encodeArgs(s,q),{source},'/video.moflex',environment(s));if(!enc.frames&&clip&&enc.code===0)return {empty:true,frames:0,seconds:0,audio:media.audio,settings:s,attempts:attempt};if(!enc.frames||s.mode!=='2d'&&enc.frames%2)throw Error('Incomplete video or missing stereo eye');const seconds=enc.frames/(rate(s.fps)*(s.mode==='2d'?1:2));let blob=enc.blob;
-if(media.audio){let audioSettings=s;notify({stage:`Encoding ${(s.audioCodec??'adpcm')==='fastaudio'?'FastAudio':'ADPCM'} audio`,fraction:0,duration:seconds});let mux;try{mux=await run(clip?audioClipArgs(audioSettings,clip.start,seconds):audioArgs(audioSettings,seconds),{source,'video.moflex':blob},'/final.moflex',{});}catch(error){if(s.audioCodec!=='fastaudio'||clip)throw error;notify({stage:'FastAudio unavailable; retrying with compatible ADPCM',fraction:0,duration:seconds});audioSettings={...s,audioCodec:'adpcm'};mux=await run(audioArgs(audioSettings,seconds),{source,'video.moflex':blob},'/final.moflex',{});}blob=mux.blob;if(mux.frames!==enc.frames)throw Error('Frame count changed during audio mux');}
-notify({stage:`Candidate Q${q}: ${(blob.size/1e6).toFixed(2)} MB`,fraction:null});if(cap===null||blob.size<=cap){if(!best||q<best.q)best={q,blob,frames:enc.frames,seconds};high=q-1;}else low=q+1;if(cap===null)break;q=Math.floor((low+high)/2);}
+let audioCodec=null;
+if(media.audio){
+  audioCodec=s.audioCodec??'adpcm';
+  notify({stage:`Encoding ${audioCodec==='fastaudio'?'FastAudio':'ADPCM'} audio`,fraction:0,duration:seconds});
+  const inputs={source,'video.moflex':blob};
+  let mux;
+  try{
+    const args=clip?audioClipArgs(s,clip.start,seconds):audioArgs(s,seconds);
+    mux=await run(args,inputs,'/final.moflex',{});
+  }catch(error){
+    // A joined file needs a consistent audio descriptor in every range.
+    if(audioCodec!=='fastaudio'||clip)throw error;
+    audioCodec='adpcm';
+    notify({stage:'FastAudio unavailable; retrying with compatible ADPCM',fraction:0,duration:seconds});
+    mux=await run(audioArgs({...s,audioCodec},seconds),inputs,'/final.moflex',{});
+  }
+  blob=mux.blob;
+  if(mux.frames!==enc.frames)throw Error('Frame count changed during audio mux');
+}
+notify({stage:`Candidate Q${q}: ${(blob.size/1e6).toFixed(2)} MB`,fraction:null});if(cap===null||blob.size<=cap){if(!best||q<best.q)best={q,blob,frames:enc.frames,seconds,audioCodec};high=q-1;}else low=q+1;if(cap===null)break;q=Math.floor((low+high)/2);}
 if(!best)throw Error('Cannot meet this size limit at the coarsest V15 quantizer. Increase the limit.');if(verify){await verifyCandidate({kind:'video',blob:best.blob,frames:best.frames,seconds:best.seconds,run,notify});if(media.audio)await verifyCandidate({kind:'audio',blob:best.blob,frames:best.frames,seconds:best.seconds,run,notify});}if(cap!==null&&best.blob.size>cap)throw Error('Final size exceeds the limit');return {...best,audio:media.audio,settings:s,attempts:attempt};}
 
 export function audioTracks(log){return [...log.matchAll(/Stream #0:\d+(?:\[[^\]]*\])?(?:\(([^)]+)\))?[^\n]*Audio: ([^\n]+)/g)].map((m,index)=>({index,label:`${index}: ${m[1]||'Unknown language'} — ${m[2]}`}));}

@@ -169,6 +169,15 @@ def verified_frame_count(probe:Path, movie:Path) -> int:
     return int(raw)
 
 
+def verify_audio_duration(encoder: Path, movie: Path, seconds: float) -> None:
+    output=invoke([encoder,'-hide_banner','-nostdin','-v','error','-xerror','-nostats',
+                   '-progress','pipe:1','-i',movie,'-map','0:a:0','-f','null','-'])
+    end_times=[int(value) for line in output.splitlines()
+               if line.startswith(b'out_time_us=') and (value:=line.split(b'=',1)[1]).isdigit()]
+    if not end_times or abs(end_times[-1]/1_000_000-seconds)>257/48000:
+        raise RuntimeError('Decoded audio duration does not match video within one audio block')
+
+
 def probe_coded_rate(probe:Path, movie:Path) -> float:
     """Read the actual rate exposed by this FFmpeg's MOFLEX demuxer.
 
@@ -273,8 +282,7 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print,
                     '-i',final,'-map','0:v:0','-f','null','-'])
             if media['audio']:
                 callback('Verifying complete parallel movie audio decode...')
-                invoke([encoder,'-hide_banner','-nostdin','-v','error','-xerror',
-                        '-i',final,'-map','0:a:0','-f','null','-'])
+                verify_audio_duration(encoder,final,frames/coded_fps)
             if verified_frame_count(probe,final)!=frames:
                 raise RuntimeError('Joined movie frame count differs from encoded ranges')
             if out.exists() and not args.overwrite:
@@ -371,8 +379,7 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print,
                 '-i',final,'-map','0:v:0','-f','null','-'],timeout=None)
         if media['audio']:
             callback('Verifying complete audio decode...')
-            invoke([encoder,'-hide_banner','-nostdin','-v','error','-xerror',
-                    '-i',final,'-map','0:a:0','-f','null','-'],timeout=None)
+            verify_audio_duration(encoder,final,selected['frames']/coded_fps)
         if verified_frame_count(probe,final)!=selected['frames']:
             raise RuntimeError('Frame count mismatch after audio remux')
         if target_bytes is not None and final.stat().st_size>target_bytes:

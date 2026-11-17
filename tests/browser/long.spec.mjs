@@ -78,6 +78,7 @@ for(const engine of ['scalar','simd'])test(`${engine}: real segmented OPFS movie
  const file=await downloaded,path=testInfo.outputPath('verified.moflex');await file.saveAs(path);
  const ff=resolve('native/local/bin/ffmpeg');
  const audio=execFileSync(ff,['-v','error','-xerror','-i',path,'-map','0:a:0','-ac','1','-ar','48000','-f','s16le','-'],{maxBuffer:10*1024*1024});
+ expect(Math.abs(audio.length/2-65*48000)).toBeLessThanOrEqual(256);
  const energy=hz=>{let re=0,im=0;for(let p=4800;p<43200;p+=4){const v=audio.readInt16LE(p*2),phase=2*Math.PI*hz*p/48000;re+=v*Math.cos(phase);im+=v*Math.sin(phase);}return re*re+im*im;};
  expect(energy(880)).toBeGreaterThan(energy(440)*100);
  const download=page.waitForEvent('download');await page.locator('#report').click();

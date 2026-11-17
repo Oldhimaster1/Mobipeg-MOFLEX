@@ -1,10 +1,10 @@
 import{initLanguage,translateText}from'./i18n.mjs?v=20261117f';
 import{createUsage}from'./usage.mjs?v=20261117a';
-import{validate,rate,PRESETS,ADVANCED_NUMBERS,ADVANCED_ENUMS,encodeArgs,encodeClipArgs,audioArgs,environment}from'./core.mjs?v=20261117m';
-import{createMovieJob,appendMovieSegment,assembleMovie,cleanupMovieJob,getCodedRate,nextMovieClip,planMovieClips,loadMovieSegment}from'./movie.mjs?v=20261117m';
-import{openCheckpoint,setCheckpointMedia,restoreCheckpoints,persistRange,closeCheckpoint}from'./checkpoints.mjs?v=20261117m';
-import{estimateConversion,totalEstimate,formatBytes,FAT32_LIMIT,FAT32_MESSAGE,fitsFat32,fat32Estimate}from'./queue.mjs?v=20261117m';
-import{runParallelMovie,planBalancedMovieClips}from'./parallel.mjs?v=20261117m';
+import{validate,rate,PRESETS,ADVANCED_NUMBERS,ADVANCED_ENUMS,encodeArgs,encodeClipArgs,audioArgs,environment}from'./core.mjs?v=20261117n';
+import{createMovieJob,appendMovieSegment,assembleMovie,cleanupMovieJob,getCodedRate,nextMovieClip,planMovieClips,loadMovieSegment}from'./movie.mjs?v=20261117n';
+import{openCheckpoint,setCheckpointMedia,restoreCheckpoints,persistRange,closeCheckpoint}from'./checkpoints.mjs?v=20261117n';
+import{estimateConversion,totalEstimate,formatBytes,FAT32_LIMIT,FAT32_MESSAGE,fitsFat32,fat32Estimate}from'./queue.mjs?v=20261117n';
+import{runParallelMovie,planBalancedMovieClips}from'./parallel.mjs?v=20261117n';
 const $=id=>document.getElementById(id),form=$('settings');let file=null,worker=null,previewURL=null,outputURL=null,started=0,stageStarted=0,ticker=null,report=null,wake=null,busy=false,runToken=0,stallMonitor=null,movieJob=null,completedMovieJob=null,sampleWorker=null,sampleToken=0,sampleData=null,audioInspector=null,parallelAbort=null;
 let queue=[],activeQueueId=null,queueRunning=false,queueCurrent=null,queueDownloaded=false,originStorage=null,nextQueueId=1,restoringSettings=false;
 // Hardware concurrency is a *logical* upper bound, not a RAM guarantee.
@@ -20,9 +20,9 @@ $('longMovie').closest('.field').after(workerField);
 const audioCodecField=document.createElement('div');audioCodecField.className='field';audioCodecField.innerHTML='<label for="audioCodec">MOFLEX audio codec</label><select id="audioCodec" name="audioCodec"><option value="adpcm">ADPCM — verified compatibility</option><option value="fastaudio">FastAudio — smaller, experimental on 3DS</option></select><p class="hint">FastAudio takes less space. Use ADPCM for the tested 3DS audio format.</p>';$('audioTrack').closest('.field').after(audioCodecField);
 const timeline=document.createElement('div');timeline.id='parallelTimeline';timeline.className='parallel-timeline';timeline.hidden=true;timeline.setAttribute('aria-label','Parallel encoder timelines');
 $('progress').after(timeline);
-const playerLink=document.createElement('a');playerLink.href='player.html?v=20261117m';playerLink.className='secondary';playerLink.textContent='Open MOFLEX player ↗';playerLink.style.marginTop='1rem';
+const playerLink=document.createElement('a');playerLink.href='player.html?v=20261117n';playerLink.className='secondary';playerLink.textContent='Open MOFLEX player ↗';playerLink.style.marginTop='1rem';
 $('result').append(playerLink);
-const navPlayer=document.createElement('a');navPlayer.href='player.html?v=20261117m';navPlayer.textContent='MOFLEX Player ↗';
+const navPlayer=document.createElement('a');navPlayer.href='player.html?v=20261117n';navPlayer.textContent='MOFLEX Player ↗';
 document.querySelector('.header-right')?.append(navPlayer);
 const renderWorkerCount=()=>{workerField.querySelector('#workerValue').textContent=workerSlider.value+' / '+coreMax+' logical cores';};
 workerSlider.addEventListener('input',renderWorkerCount);
@@ -199,7 +199,7 @@ const joinMovie=async()=>{
     $('progress').value=v.total?v.written/v.total:0;
   },()=>token!==runToken);
   if(token!==runToken)return;
-  candidate={blob:merged.file,frames:merged.frames,seconds:merged.seconds,audio:movieAudio,q:s.q??PRESETS[s.preset].q,attempts:movieParts,chapters:movieParts,durationFieldSaturated:merged.durationFieldSaturated};
+  candidate={blob:merged.file,frames:merged.frames,seconds:merged.seconds,audio:movieAudio,audioCodec:movieAudio?s.audioCodec:null,q:s.q??PRESETS[s.preset].q,attempts:movieParts,chapters:movieParts,durationFieldSaturated:merged.durationFieldSaturated};
   log('One indexed MOFLEX assembled: '+(merged.file.size/1e6).toFixed(2)+' MB, '+merged.frames+' frames.');
   if(merged.durationFieldSaturated)log('Warning: movie exceeds the legacy 32-bit duration field (71m35s); timestamps and frame index use wider fields. Physical 3DS playback and seeking must be tested.');
   switchWorker('verify',{type:'verify',kind:'video',blob:merged.file,frames:merged.frames,seconds:merged.seconds,settings:s});
@@ -244,7 +244,7 @@ const publishCandidate=(verified,reason='')=>{
   if(!candidate)return fail('The encoded MOFLEX is no longer available.');
   const d=candidate;
   if(!fitsFat32(d.blob.size))return fail(FAT32_MESSAGE);
-  report={encoder:'MobiPEG V15 layout-0 WASM',input:{name:file.name,bytes:file.size},settings:s,output:{bytes:d.blob.size,q:d.q,codedFrames:d.frames,seconds:d.seconds,audio:d.audio,attempts:d.attempts,chapters:d.chapters??1,durationFieldSaturated:!!d.durationFieldSaturated},verified,verificationFailure:verified?null:reason,elapsedSeconds:(performance.now()-started)/1000,userAgent:navigator.userAgent};
+  report={encoder:'MobiPEG V15 layout-0 WASM',input:{name:file.name,bytes:file.size},settings:s,output:{bytes:d.blob.size,q:d.q,codedFrames:d.frames,seconds:d.seconds,audio:d.audio,audioCodec:d.audioCodec??null,attempts:d.attempts,chapters:d.chapters??1,durationFieldSaturated:!!d.durationFieldSaturated},verified,verificationFailure:verified?null:reason,elapsedSeconds:(performance.now()-started)/1000,userAgent:navigator.userAgent};
   outputURL=URL.createObjectURL(d.blob);
   $('download').href=outputURL;
   $('download').download=file.name.replace(/\.[^.]+$/,'')+'_MobiPEG_V15_'+s.mode+(verified?'':'_UNVERIFIED')+'.moflex';
@@ -256,7 +256,7 @@ const publishCandidate=(verified,reason='')=>{
   $('error').hidden=verified;
   if(!verified)$('error').textContent=oom(reason)?'The output was encoded, but verification ran out of browser memory. This file has NOT passed full decoding checks.':'The output was encoded, but the verifier stopped responding. This file has NOT passed full decoding checks. Inspect it before trusting or sharing it.';
   $('result').hidden=false;
-  $('resultmeta').textContent=`${(d.blob.size/1e6).toFixed(2)} MB · ${d.frames.toLocaleString()} coded frames · Q${d.q} · ${d.audio?'ADPCM audio':'No audio'} · ${time(d.seconds)}${d.durationFieldSaturated?' · 3DS >71 min seek behavior unverified':''}${verified?'':' · UNVERIFIED'}`;
+  $('resultmeta').textContent=`${(d.blob.size/1e6).toFixed(2)} MB · ${d.frames.toLocaleString()} coded frames · Q${d.q} · ${d.audio?(d.audioCodec==='fastaudio'?'FastAudio':'ADPCM audio'):'No audio'} · ${time(d.seconds)}${d.durationFieldSaturated?' · 3DS >71 min seek behavior unverified':''}${verified?'':' · UNVERIFIED'}`;
   log(verified?'Complete video'+(d.audio?' + audio':'')+' decode passed. Physical 3DS playback is not certified by this check.':'Verification incomplete: '+reason+'; candidate offered as UNVERIFIED.');
   if(verified)usage.conversion(d.seconds,file.size,d.blob.size);
   candidate=null;
@@ -265,7 +265,7 @@ const publishCandidate=(verified,reason='')=>{
 };
 const startWorker=(type,payload)=>{
   if(token!==runToken)return;
-  currentWorkerType=type;lastActivity=performance.now();idleWarningShown=false;const w=new Worker('worker.js?v=20261117m');worker=w;
+  currentWorkerType=type;lastActivity=performance.now();idleWarningShown=false;const w=new Worker('worker.js?v=20261117n');worker=w;
   w.onerror=e=>{
     if(token!==runToken||worker!==w)return;
     const message=`Encoder worker failed: ${e.message||'unknown error'}`;
@@ -396,7 +396,7 @@ window.addEventListener('beforeunload',e=>{if(busy||queueRunning){e.preventDefau
 $('inspectAudio').onclick=()=>{
   if(!file||busy)return;
   let s;try{s=settings();}catch(e){log(e.message);return;}
-  const selected=file,w=new Worker('worker.js?v=20261117m');audioInspector=w;
+  const selected=file,w=new Worker('worker.js?v=20261117n');audioInspector=w;
   $('inspectAudio').disabled=true;
   const end=()=>{w.terminate();if(audioInspector===w)audioInspector=null;$('inspectAudio').disabled=busy;};
   w.onerror=e=>{log('Audio inspection failed: '+e.message);end();};
@@ -473,7 +473,7 @@ $('makeSample').onclick=()=>{
   catch(e){$('sampleStatus').textContent=e.message;return;}
   const motion=$('sampleMotion').checked;
   invalidateSample();lock(true);const token=++sampleToken;let w;
-  try{w=new Worker('worker.js?v=20261117m');sampleWorker=w;}catch(e){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();return;}
+  try{w=new Worker('worker.js?v=20261117n');sampleWorker=w;}catch(e){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();return;}
   $('cancelSample').hidden=false;$('sampleStatus').textContent='Loading preview encoder…';
   w.onerror=e=>{if(token===sampleToken){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();}};
   w.onmessage=async({data:d})=>{

@@ -56,6 +56,23 @@ test('audio languages and explicit stream selection',()=>{
 });
 test('audio verification rejects accumulated chapter padding drift',async()=>{
  await assert.rejects(()=>verifyCandidate({kind:'audio',blob:new Blob(['x']),frames:24,seconds:1,run:async()=>({seconds:1.2})}),/audio duration/);
+ await assert.rejects(()=>verifyCandidate({kind:'audio',blob:new Blob(['x']),frames:24,seconds:1,run:async()=>({seconds:1.008})}),/audio duration/);
+ await verifyCandidate({kind:'audio',blob:new Blob(['x']),frames:24,seconds:1,run:async()=>({seconds:1.0053})});
+});
+
+test('single-file FastAudio fallback reports the actual audio codec',async()=>{
+ const codecs=[];
+ const result=await convert({settings:{...defaults,audioCodec:'fastaudio'},source:new Blob(),
+   verify:false,media:{duration:1,audio:true},run:async(args,files,output)=>{
+     if(output==='/final.moflex'){
+       const codec=args[args.indexOf('-mo_audio')+1];
+       codecs.push(codec);
+       if(codec==='fastaudio')throw Error('Unsupported encoder');
+     }
+     return {frames:24,blob:new Blob(['movie'])};
+   }});
+ assert.deepEqual(codecs,['fastaudio','adpcm']);
+ assert.equal(result.audioCodec,'adpcm');
 });
 
 test('movie EOF after video does not treat a longer audio tail as missing frames',async()=>{
