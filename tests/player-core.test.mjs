@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {parseMoflexVideoDescriptor,displayedCodedFrame} from '../dist/player-core.mjs';
+import {parseMoflexVideoDescriptor,displayedCodedFrame,classifyStereoPixels} from '../dist/player-core.mjs';
 
 test('MOFLEX file picker does not restrict native file selection by MIME type',()=>{
   for(const page of ['../player.html','../dist/player.html']){
@@ -26,14 +26,27 @@ test('player reads actual layout-6 dimensions and fractional frame rate',()=>{
 
 test('player exposes real left/right alternating coded frames',()=>{
   const meta=parseMoflexVideoDescriptor(descriptor(0,30,1));
-  assert.equal(meta.eyes,2);assert.equal(meta.codedFPS,60);
+  assert.equal(meta.eyes,2);assert.equal(meta.codedFPS,60);assert.equal(meta.leftFirst,true);
   assert.equal(displayedCodedFrame(10,2,0),20);
   assert.equal(displayedCodedFrame(10,2,1),21);
+  const reversed=parseMoflexVideoDescriptor(descriptor(1,30,1));
+  assert.equal(reversed.leftFirst,false);
+  assert.equal(displayedCodedFrame(10,2,0,reversed.packing,reversed.leftFirst),21);
+  assert.equal(displayedCodedFrame(10,2,1,reversed.packing,reversed.leftFirst),20);
   assert.throws(()=>displayedCodedFrame(-1,2,0));
   assert.throws(()=>displayedCodedFrame(0,2,2));
 });
 
-test('unsupported layouts and invalid geometry fail safely',()=>{
-  assert.throws(()=>parseMoflexVideoDescriptor(descriptor(3)),/Unsupported/);
+test('packed stereo layouts and invalid geometry are handled safely',()=>{
+  assert.equal(parseMoflexVideoDescriptor(descriptor(3)).packing,'top-bottom');
+  assert.equal(parseMoflexVideoDescriptor(descriptor(3)).leftFirst,false);
+  assert.equal(parseMoflexVideoDescriptor(descriptor(4)).packing,'side-by-side');
+  assert.throws(()=>parseMoflexVideoDescriptor(descriptor(7)),/Unsupported/);
   assert.throws(()=>parseMoflexVideoDescriptor(new Uint8Array([3,2,0,0])),/Unsupported/);
+});
+
+test('pixel sampling distinguishes duplicated and differing eyes',()=>{
+  const meta={width:2,height:1,packing:'side-by-side',eyes:2};
+  assert.equal(classifyStereoPixels(Uint8Array.from([20,20,20,255,20,20,20,255]).buffer,meta,1).kind,'duplicated-eyes');
+  assert.equal(classifyStereoPixels(Uint8Array.from([0,0,0,255,255,255,255,255]).buffer,meta,1).kind,'genuine-3d');
 });

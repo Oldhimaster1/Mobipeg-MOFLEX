@@ -62,6 +62,10 @@ def run_with_progress(argv, env, frames, notify):
         exit_code=process.wait()
     if exit_code:raise RuntimeError(f'FFmpeg failed (exit {exit_code}): '+ '\n'.join(errors[-20:]))
 
+def exact_audio_filter(seconds):
+    samples=round(seconds*48000)
+    return f'aresample=48000:async=0:first_pts=0,apad,atrim=end_sample={samples},asetpts=N/SR/TB'
+
 
 def encode_parallel(*, args, inp, out, encoder, probe, media, filters, layout_options,
                     base_q, coded_fps_label, callback, progress=lambda slot, fraction:None,
@@ -115,12 +119,14 @@ def encode_parallel(*, args, inp, out, encoder, probe, media, filters, layout_op
                     elif not math.isclose(exposed,float(rate),rel_tol=.001):
                         raise RuntimeError(f'Unexpected stereoscopic stream rate {exposed}')
                     remux_output=['-r',coded_fps_label]
-                invoke([encoder,'-hide_banner','-nostdin','-v','error','-y',*remux_input,'-i',video,
+                audio_command=[encoder,'-hide_banner','-nostdin','-v','error','-y',*remux_input,'-i',video,
                         '-ss',f'{start:.8f}','-i',inp,'-map','0:v:0',
                         '-map',f'1:a:{args.audio_track}','-c:v','copy',
-                        '-c:a','pcm_s16le','-ar','48000','-ac','2','-af','apad',
-                        '-mo_audio','adpcm',*remux_output,*layout_options,
-                        '-t',f'{seconds:.8f}','-f','moflex',final]);video.unlink()
+                        '-c:a','pcm_s16le','-ar','48000','-ac','2','-af',exact_audio_filter(seconds),
+                        '-mo_audio',args.audio_codec,*remux_output,*layout_options,
+                        '-t',f'{seconds:.8f}','-f','moflex',final]
+                invoke(audio_command)
+                video.unlink()
             else:video.replace(final)
             results[index]=(final,frames)
             progress(slot,(local+1)/len(group))

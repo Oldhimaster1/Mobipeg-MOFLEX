@@ -7,10 +7,10 @@ Convert videos to MobiClip video in `.moflex` containers for Nintendo 3DS playba
 - **2D and stereoscopic 3D:** convert ordinary videos or full- and half-side-by-side stereo sources.
 - **Quality and size controls:** choose a quality preset, image cleanup filter, motion refinement, and an optional maximum output size.
 - **3DS-sized output:** select 400×240, 400×224, or 320×240 per eye, with integer and fractional frame rates.
-- **Audio conversion and verification:** convert audio to MOFLEX ADPCM and check the completed output by decoding it.
+- **Audio conversion and verification:** convert audio to compatible ADPCM or optional FastAudio and check the completed output by decoding it.
 - **Local processing:** use the native tools on your computer or convert in a browser without uploading your video.
 - **Parallel movie conversion:** split a movie timeline into independent aligned ranges (the input does **not** need chapters), show per-worker progress, and join the MOFLEX seek index in playback order. Choose between 1 and your device's advertised logical CPU count.
-- **MOFLEX player:** open and decode a local `.moflex` using the included browser player, including video seeking, stereo eye selection and ADPCM audio playback where supported.
+- **MOFLEX playback and export:** open a local `.moflex`, seek, select stereo eyes, play ADPCM or FastAudio, and export MP4/MKV without uploading it.
 
 3D conversion requires a source with separate left and right views; it does not generate depth from a 2D video.
 
@@ -92,6 +92,28 @@ For all options:
 python3 native/MobiPEG_Studio_V15.py --help
 ```
 
+Choose `--audio-codec fastaudio` for the smaller experimental audio format. The
+Studio checks that the selected build contains the encoder and falls back to
+ADPCM when it is unavailable or fails. FastAudio is fully software-decode tested,
+but its playback on a physical Nintendo 3DS has not been verified; ADPCM remains
+the default compatibility choice.
+
+Inspect or convert an existing MOFLEX with the bundled decoder:
+
+```sh
+python3 native/moflex_convert.py movie.moflex --inspect
+python3 native/moflex_convert.py movie.moflex -o movie.mp4 --mode sbs
+python3 native/moflex_convert.py movie.moflex -o left-eye.mkv --mode left
+```
+
+`--mode auto` exports stereo files as SBS and 2D files as 2D. Other choices are
+`2d`, `sbs`, `left`, and `right`. Layouts 0–1 (alternating eyes), 2–3
+(top/bottom), 4–5 (side-by-side), and 6 (2D) are read from the MOFLEX descriptor.
+The inspector samples decoded pixels to label two-eye material as genuine 3D or
+duplicated eyes. That label is a heuristic: nearly static or extremely subtle 3D
+can be misclassified. MP4/MKV exports are completely decoded before success is
+reported and preserve the first audio stream as AAC.
+
 See the [Studio quick start](native/V15_STUDIO_QUICKSTART.md) for more examples, custom encoder selection, and native test commands.
 
 ## Use in a browser
@@ -106,7 +128,7 @@ node scripts/dev-server.mjs
 
 Open **http://localhost:4173** in a modern browser. Use the HTTP server rather than opening `index.html` directly. Automatic engine selection uses SIMD when supported; Compatibility selects the scalar engine.
 
-Open **http://localhost:4173/player.html** for the separate **MOFLEX Player**. Pick a local `.moflex` file to display video with the actual MobiClip decoder; audio is decoded to short PCM buffers and played through WebAudio when available. The player only keeps short decoded frame batches in RAM, so a long movie does not have to be expanded into full uncompressed video. Seeking, playback rate and audio synchronization depend on browser performance and should be tested on the target device.
+Open **http://localhost:4173/player.html** for the separate **MOFLEX Player**. Pick a local `.moflex` file to display video with the actual MobiClip decoder; ADPCM and FastAudio are decoded to short PCM buffers and played through WebAudio when available. Descriptor layouts 0–6 support 2D, alternating-eye, top/bottom, and side-by-side material. The player can export 2D, SBS, left-eye, or right-eye video to MP4/MKV. Browser export currently uses standard MPEG-4 video plus AAC and buffers the completed output in WASM memory, so use the desktop converter for large movies. The player itself only keeps short decoded frame batches in RAM, so a long movie does not have to be expanded into full uncompressed video. Seeking, playback rate and audio synchronization depend on browser performance and should be tested on the target device.
 
 The browser build requires **SharedArrayBuffer and cross-origin isolation**, including when using the scalar engine. The local server supplies the required headers. For phone access or public hosting, use HTTPS; plain HTTP on a LAN does not provide the required secure context.
 
@@ -128,7 +150,7 @@ The included `_headers` file works on hosts that support that format. GitHub Pag
 
 ## Compatibility and limitations
 
-This version is a development preview. Native/WASM comparison reports and Chrome conversion tests are included. On November 16, 2026, a user completed browser conversions in iPhone Safari, including a decode-verified five-minute 2D video; one shorter 2D output was confirmed playing on a physical Nintendo 3DS. Long-movie joining, stereo playback, and extended-duration seeking on 3DS hardware remain unverified. Successful software decoding does not by itself establish console compatibility.
+This version is a development preview. Native/WASM comparison reports and Chrome conversion tests are included. On November 16, 2026, a user completed browser conversions in iPhone Safari, including a decode-verified five-minute 2D video; one shorter 2D ADPCM output was confirmed playing on a physical Nintendo 3DS. FastAudio, MOFLEX-to-video export, layouts 1–5, long-movie joining, stereo playback, and extended-duration seeking have software tests but remain unverified on 3DS hardware. No retail/proprietary MOFLEX sample is committed or claimed as tested; automated coverage generates files with this repository's muxer. Successful software decoding does not by itself establish console compatibility.
 
 For long videos, the browser offers an **experimental Long movie mode**. It encodes independent timeline ranges of at most 30 seconds, stores them on-device using the browser's origin-private file system (OPFS), rebuilds a single MOFLEX with a front seek index, and checks the complete video/audio decode. No source chapter information is required. Selecting two or more workers divides the timeline into roughly equally sized lanes, with separate green progress indicators. This avoids keeping the entire encoded movie in WebAssembly memory, but concurrent WASM encoders can still exceed browser memory limits, particularly on mobile. A full-length movie is **not yet tested on a physical 3DS**; seeking beyond 71 minutes is particularly uncertain because the historical seek-table duration field is 32-bit. This mode requires plenty of free local storage, may take hours, and does not support the maximum-size target. Clear the temporary movie copy using the Web Studio button once it has been downloaded. Your source video is never uploaded.
 

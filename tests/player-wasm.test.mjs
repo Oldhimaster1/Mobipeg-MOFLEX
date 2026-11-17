@@ -7,7 +7,7 @@ import {join,resolve} from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {inspectPlayableMoflex} from '../dist/player-core.mjs';
 
-test('real WASM decoder returns RGBA frames from a seeked MobiClip movie',{timeout:240000},async t=>{
+test('real WASM decodes FastAudio and exports playable MP4',{timeout:240000},async t=>{
   try{execFileSync('ffmpeg',['-version'],{stdio:'ignore'});}catch{t.skip('System FFmpeg unavailable');return;}
   const tmp=mkdtempSync(join(tmpdir(),'mobipeg-player-'));
   const source=join(tmp,'color.mkv');
@@ -15,7 +15,7 @@ test('real WASM decoder returns RGBA frames from a seeked MobiClip movie',{timeo
     'color=c=red:s=160x128:r=15:d=1.2','-f','lavfi','-i',
     'sine=frequency=440:sample_rate=48000:duration=1.2',
     '-map','0:v','-map','1:a','-c:v','ffv1','-c:a','pcm_s16le',source]);
-  const engineDir=resolve('dist/engine');
+  const engineDir=resolve(process.env.MOBIPEG_ENGINE_DIR||'dist/engine');
   const encode={args:['-hide_banner','-nostdin','-v','error','-y','-i','/input/source',
     '-vf','fps=15,scale=160:128,format=yuv420p','-an','-c:v','mobiclip','-mobiclip','1',
     '-qp','12','-mobi_qyx','3','-preset','medium','-me_method','hex','-g','30',
@@ -32,7 +32,7 @@ test('real WASM decoder returns RGBA frames from a seeked MobiClip movie',{timeo
   const withAudio={args:['-hide_banner','-nostdin','-v','error','-y','-i','/input/video',
     '-i','/input/source','-map','0:v:0','-map','1:a:0','-c:v','copy',
     '-c:a','pcm_s16le','-ar','48000','-ac','2','-af','apad',
-    '-mo_audio','adpcm','-mo_layout','6','-t','1.2','-f','moflex','/withaudio.moflex'],
+    '-mo_audio','fastaudio','-mo_layout','6','-t','1.2','-f','moflex','/withaudio.moflex'],
     files:{video:encode.destination,source},env:{},output:'/withaudio.moflex',
     destination:join(tmp,'withaudio.moflex'),result:join(tmp,'mux.json')};
   assert.equal(execute(withAudio).code,0);
@@ -54,5 +54,13 @@ test('real WASM decoder returns RGBA frames from a seeked MobiClip movie',{timeo
     '-f','s16le','/audio.raw'],files:{source:withAudio.destination},env:{},
     output:'/audio.raw',destination:join(tmp,'audio.raw'),result:join(tmp,'audio.json')};
   assert.equal(execute(audio).code,0);
-  assert.ok(readFileSync(audio.destination).length>10000,'audio must actually decode to PCM');
+  assert.equal(readFileSync(audio.destination).length,38400,'0.2 seconds of stereo s16 PCM must decode exactly');
+  const exported={args:['-hide_banner','-nostdin','-v','error','-i','/input/source',
+    '-map','0:v:0','-map','0:a:0?','-c:v','mpeg4','-q:v','3','-pix_fmt','yuv420p',
+    '-c:a','aac','-b:a','160k','-af','aresample=async=0:first_pts=0','-shortest',
+    '-movflags','+faststart','/export.mp4'],files:{source:withAudio.destination},env:{},
+    output:'/export.mp4',destination:join(tmp,'export.mp4'),result:join(tmp,'export.json')};
+  assert.equal(execute(exported).code,0);
+  execFileSync('ffmpeg',['-hide_banner','-v','error','-xerror','-i',exported.destination,
+    '-map','0:v:0','-map','0:a:0','-f','null','-']);
 });

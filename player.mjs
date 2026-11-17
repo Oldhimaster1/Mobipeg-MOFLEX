@@ -1,4 +1,4 @@
-import {displayedCodedFrame,inspectPlayableMoflex} from './player-core.mjs';
+import {classifyStereoPixels,displayedCodedFrame,inspectPlayableMoflex} from './player-core.mjs';
 
 const $=id=>document.getElementById(id);
 const canvas=$('screen'),context=canvas.getContext('2d',{alpha:false});
@@ -6,6 +6,8 @@ const time=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
 let file=null,metadata=null,decoder=null,serial=0,inFlight=false,nextFrame=0,buffer=[];
 let playing=false,currentTime=0,clockStart=0,audioContext=null,audioBase=0,audioSources=[];
 let lastFrame=-1,failed=false;
+let stereoKind=null;
+let exportURL=null;
 const BATCH_FRAMES=48;
 const status=s=>$('playerStatus').textContent=s;
 
@@ -22,11 +24,16 @@ function resetDecoder(){
   serial++;decoder?.terminate();decoder=null;inFlight=false;buffer=[];lastFrame=-1;failed=false;
   if(!metadata)return;
   const incarnation=serial;
-  decoder=new Worker('player-worker.js?v=20261117h');
+  decoder=new Worker('player-worker.js?v=20261117i');
   decoder.onerror=error=>{if(incarnation!==serial)return;inFlight=false;failed=true;pause();status('Decoder failed: '+(error.message||'unknown error'));};
   decoder.onmessage=({data:d})=>{
     if(incarnation!==serial||d.request!==incarnation)return;
     if(d.type==='ready')return;
+    if(d.type==='exported'){
+      if(exportURL)URL.revokeObjectURL(exportURL);exportURL=URL.createObjectURL(new Blob([d.buffer],{type:d.format==='mp4'?'video/mp4':'video/x-matroska'}));
+      const a=document.createElement('a');a.href=exportURL;a.download=file.name.replace(/\.moflex$/i,'')+'.'+d.format;a.click();
+      $('exportVideo').disabled=false;status('Converted video downloaded.');return;
+    }
     inFlight=false;
     if(d.type==='error'){
       failed=true;pause();status('Cannot decode this MOFLEX: '+d.message);return;
@@ -36,6 +43,7 @@ function resetDecoder(){
         failed=true;pause();status('Decoder produced invalid frames');return;
       }
       buffer.push({start:d.startFrame,count:d.frames,video:d.video,pcm:d.pcm,audioScheduled:false});
+      if(!stereoKind&&metadata.eyes===2){stereoKind=classifyStereoPixels(d.video,metadata,d.frames);$('stereoInfo').textContent=stereoKind.kind==='duplicated-eyes'?'Stereo descriptor, but sampled eyes appear duplicated (heuristic).':'Sampled eyes differ: likely genuine stereoscopic video (heuristic).';}
       nextFrame=d.startFrame+d.frames;
       if(d.frames<BATCH_FRAMES&&nextFrame<metadata.frames){
         // Some valid movie endings are shorter than input metadata. Stop at
@@ -93,13 +101,17 @@ function drawAt(seconds){
   if(!metadata)return false;
   const displayFrame=Math.min(Math.floor(seconds*metadata.displayFPS),Math.floor((metadata.frames-1)/metadata.eyes));
   const eye=Number($('eye').value)||0;
-  const index=displayedCodedFrame(displayFrame,metadata.eyes,eye);
+  const index=displayedCodedFrame(displayFrame,metadata.eyes,eye,metadata.packing,metadata.leftFirst);
   const batch=buffer.find(item=>index>=item.start&&index<item.start+item.count);
   if(!batch)return false;
   if(lastFrame!==index){
     const pixels=metadata.width*metadata.height*4;
     const frame=new Uint8ClampedArray(batch.video,(index-batch.start)*pixels,pixels);
-    context.putImageData(new ImageData(frame,metadata.width,metadata.height),0,0);
+    const image=new ImageData(frame,metadata.width,metadata.height);
+    const storedEye=metadata.leftFirst?eye:1-eye;
+    if(metadata.packing==='side-by-side')context.putImageData(image,-storedEye*metadata.eyeWidth,0,storedEye*metadata.eyeWidth,0,metadata.eyeWidth,metadata.eyeHeight);
+    else if(metadata.packing==='top-bottom')context.putImageData(image,0,-storedEye*metadata.eyeHeight,0,storedEye*metadata.eyeHeight,metadata.eyeWidth,metadata.eyeHeight);
+    else context.putImageData(image,0,0);
     lastFrame=index;
   }
   buffer=buffer.filter(item=>item.start+item.count>index-metadata.codedFPS);
@@ -125,16 +137,18 @@ function animate(){
   requestAnimationFrame(animate);
 }
 $('movieFile').onchange=async event=>{
-  const selected=event.target.files?.[0];pause();metadata=null;file=null;resetDecoder();
+  const selected=event.target.files?.[0];pause();metadata=null;file=null;stereoKind=null;$('stereoInfo').textContent='';resetDecoder();
   $('play').disabled=true;$('seek').disabled=true;$('eyeControl').hidden=true;$('playerInfo').textContent='';
+  $('exportVideo').disabled=true;
   if(!selected)return;
   status('Checking the MOFLEX seek index and video descriptor…');
   try{
     const info=await inspectPlayableMoflex(selected);
-    file=selected;metadata=info;currentTime=0;canvas.width=info.width;canvas.height=info.height;
+    file=selected;metadata=info;currentTime=0;canvas.width=info.eyeWidth;canvas.height=info.eyeHeight;
     $('duration').textContent=time(info.duration);$('seek').max=String(info.duration);$('seek').value='0';
     $('seek').disabled=false;$('play').disabled=false;$('eyeControl').hidden=info.eyes===1;
-    $('playerInfo').textContent=`${selected.name} · ${info.width}×${info.height} · ${info.displayFPS.toFixed(3)} fps · ${info.eyes===2?'Stereo layout 0':'2D layout 6'} · ${(selected.size/1e6).toFixed(2)} MB`;
+    $('exportVideo').disabled=false;
+    $('playerInfo').textContent=`${selected.name} · ${info.width}×${info.height} · ${info.displayFPS.toFixed(3)} fps · ${info.eyes===2?'Stereo layout '+info.layout+' ('+info.packing+')':'2D layout 6'} · ${(selected.size/1e6).toFixed(2)} MB`;
     startPosition(0);
   }catch(error){status('This file could not be opened: '+(error.message||String(error)));}
 };
@@ -155,6 +169,10 @@ $('seek').oninput=()=>{
   if(!metadata)return;
   const resume=playing;pause();startPosition(Number($('seek').value));
   if(resume){playing=true;clockStart=performance.now()-currentTime*1000;$('play').disabled=true;$('pause').disabled=false;}
+};
+$('exportVideo').onclick=()=>{
+  if(!file||!metadata)return;pause();resetDecoder();$('exportVideo').disabled=true;status('Converting locally to standard video…');
+  decoder.postMessage({type:'export',request:serial,file,layout:metadata.layout,displayFPS:metadata.displayFPS,mode:$('exportMode').value,format:$('exportFormat').value});
 };
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&playing){pause();status('Paused while tab is hidden.');}});
 requestAnimationFrame(animate);

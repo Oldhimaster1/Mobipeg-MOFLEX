@@ -1,5 +1,5 @@
 var createMobiPEG = (() => {
-  var _scriptName = typeof document != 'undefined' ? document.currentScript?.src : undefined;
+  var _scriptName = typeof document != 'undefined' ? document.currentScript?.src : (typeof self != 'undefined' && self.location ? self.location.href : undefined);
   return (
 async function(moduleArg = {}) {
   var moduleRtn;

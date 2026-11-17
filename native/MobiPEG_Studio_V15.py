@@ -83,6 +83,10 @@ def coded_rate_label(fps: str, mode: str) -> str:
         return f'{top*2}/{bottom}'
     return str(int(fps)*2)
 
+def exact_audio_filter(seconds: float) -> str:
+    samples=round(seconds*48000)
+    return f'aresample=48000:async=0:first_pts=0,apad,atrim=end_sample={samples},asetpts=N/SR/TB'
+
 
 def scale_filter(width: int, height: int, sar: int=1,
                  clean: str | None=None) -> str:
@@ -192,6 +196,11 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print,
             or (args.mode!='2d' and
                 b'mo_interleave_input_double_rate' not in mux_help)):
         raise RuntimeError('Wrong FFmpeg build: custom Mobiclip/MOFLEX required')
+    if args.audio_codec=='fastaudio':
+        try:invoke([encoder,'-hide_banner','-h','encoder=fastaudio'])
+        except RuntimeError:
+            callback('FastAudio is unavailable in this build; using ADPCM compatibility audio.')
+            args.audio_codec='adpcm'
     media=probe_media(probe,inp)
     if media['audio'] and not 0 <= args.audio_track < len(media['tracks']):
         raise ValueError('Selected audio track does not exist')
@@ -225,6 +234,7 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print,
                  'motion_refinement':args.motion_refinement,
                  'coded_fps':coded_fps_label,'layout':layout,
                  'maximum_bytes':target_bytes,'audio':media['audio'],
+                 'audio_codec':args.audio_codec,
                  'ffmpeg':str(encoder),'workers':args.workers}
     callback(json.dumps(description,indent=2))
     estimate=estimate_storage(media['duration'],args.resolution,args.fps,args.mode,
@@ -314,13 +324,19 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print,
                         # Stream-copy output must advertise 2x coded FPS;
                         # muxer then writes the correct 1x display FPS.
                         remux_output=['-r',coded_fps_label]
-                    invoke([encoder,'-hide_banner','-nostdin','-v','error','-y',
+                    audio_command=[encoder,'-hide_banner','-nostdin','-v','error','-y',
                             *remux_input,
                             '-i',video,'-i',inp,'-map','0:v:0','-map',f'1:a:{args.audio_track}',
-                            '-c:v','copy','-c:a','pcm_s16le','-ar','44100',
-                            '-ac','2','-af','apad','-mo_audio','adpcm',
+                            '-c:v','copy','-c:a','pcm_s16le','-ar','48000',
+                            '-ac','2','-af',exact_audio_filter(seconds),'-mo_audio',args.audio_codec,
                             *remux_output,*layout_options,'-t',f'{seconds:.8f}',
-                            '-f','moflex',final],timeout=None)
+                            '-f','moflex',final]
+                    try:invoke(audio_command,timeout=None)
+                    except RuntimeError:
+                        if args.audio_codec!='fastaudio':raise
+                        callback('FastAudio encode failed; retrying this output with ADPCM compatibility audio.')
+                        audio_command[audio_command.index('fastaudio')]='adpcm'
+                        invoke(audio_command,timeout=None)
                 else:shutil.copyfile(video,final)
                 seen[q]={'bytes':final.stat().st_size,'frames':frames,'file':final}
             info=seen[q]
@@ -373,7 +389,8 @@ def gui():
              'resolution':tk.StringVar(value='400x240'),
              'fps':tk.StringVar(value='24'),
              'audio_track':tk.StringVar(value='0 — First audio track'),
-             'max_size_mb':tk.StringVar(value='')}
+             'max_size_mb':tk.StringVar(value=''),
+             'audio_codec':tk.StringVar(value='adpcm')}
     cpu_count=os.cpu_count() or 1
     cpu_workers=tk.IntVar(value=min(2,cpu_count))
     def add_row(num,label,var,kind='text',values=(),action=None):
@@ -406,13 +423,15 @@ def gui():
     audio_box=ttk.Combobox(app,textvariable=choices['audio_track'],values=['0 — First audio track'],state='readonly')
     ttk.Label(app,text='Audio language / track').grid(row=9,column=0,sticky='w',padx=12)
     audio_box.grid(row=9,column=1,sticky='ew',padx=6)
-    ttk.Label(app,text='Parallel encoders (logical CPUs)').grid(row=10,column=0,sticky='w',padx=12,pady=4)
+    ttk.Label(app,text='MOFLEX audio codec').grid(row=10,column=0,sticky='w',padx=12)
+    ttk.Combobox(app,textvariable=choices['audio_codec'],values=('adpcm','fastaudio'),state='readonly').grid(row=10,column=1,sticky='ew',padx=6)
+    ttk.Label(app,text='Parallel encoders (logical CPUs)').grid(row=11,column=0,sticky='w',padx=12,pady=4)
     cpu_scale=ttk.Scale(app,from_=1,to=cpu_count,orient='horizontal',
                         command=lambda value:cpu_workers.set(max(1,round(float(value)))))
-    cpu_scale.set(cpu_workers.get());cpu_scale.grid(row=10,column=1,sticky='ew',padx=6)
-    ttk.Label(app,textvariable=cpu_workers).grid(row=10,column=2,padx=8)
+    cpu_scale.set(cpu_workers.get());cpu_scale.grid(row=11,column=1,sticky='ew',padx=6)
+    ttk.Label(app,textvariable=cpu_workers).grid(row=11,column=2,padx=8)
     timeline=tk.Canvas(app,height=18,bg='#e1e4dc',highlightthickness=0)
-    timeline.grid(row=11,column=0,columnspan=3,sticky='ew',padx=12,pady=5)
+    timeline.grid(row=12,column=0,columnspan=3,sticky='ew',padx=12,pady=5)
     lane_state={}
     def update_timeline(lane,fraction):
         if lane<0:return
@@ -425,10 +444,10 @@ def gui():
                 timeline.create_rectangle(left,0,left+(right-left)*lane_state.get(i,0),18,fill='#44745b',outline='')
         app.after(0,render)
     status=tk.StringVar(value='Ready. Your source file is never modified.')
-    ttk.Label(app,textvariable=status).grid(row=13,column=0,columnspan=3,sticky='w',padx=12,pady=4)
+    ttk.Label(app,textvariable=status).grid(row=14,column=0,columnspan=3,sticky='w',padx=12,pady=4)
     log=tk.Text(app,height=12,state='disabled',wrap='word')
-    log.grid(row=14,column=0,columnspan=3,sticky='nsew',padx=12,pady=8)
-    app.rowconfigure(14,weight=1)
+    log.grid(row=15,column=0,columnspan=3,sticky='nsew',padx=12,pady=8)
+    app.rowconfigure(15,weight=1)
     def write(message):
         def update():
             log.configure(state='normal')
@@ -451,6 +470,7 @@ def gui():
         # run the encoder and return UI updates via app.after(...).
         arguments=['--input',paths['input'].get(),
                    '--audio-track',choices['audio_track'].get().split()[0],
+                   '--audio-codec',choices['audio_codec'].get(),
                    '--mode',choices['mode'].get(),
                    '--preset',choices['preset'].get(),
                    '--filter',choices['filter'].get(),
@@ -470,7 +490,7 @@ def gui():
             finally:app.after(0,lambda:start.configure(state='normal'))
         threading.Thread(target=worker,daemon=True).start()
     start=ttk.Button(app,text='Convert and verify MOFLEX',command=convert)
-    start.grid(row=12,column=1,pady=10)
+    start.grid(row=13,column=1,pady=10)
     app.mainloop()
 
 
@@ -490,6 +510,7 @@ def parser():
     p.add_argument('--max-size-mb',type=float,default=None,
                    help='Hard decimal-MB final file-size limit; trials may be slow')
     p.add_argument('--audio-track',type=int,default=0,help='Audio track number, starting at 0; use --list-audio-tracks to inspect languages')
+    p.add_argument('--audio-codec',choices=('adpcm','fastaudio'),default='adpcm',help='ADPCM is the hardware-tested default; FastAudio is smaller but 3DS-unverified')
     p.add_argument('--workers',type=int,default=1,
                    help='Parallel encoders for movie-sized inputs, 1 up to logical CPU count; disables hard size limit')
     p.add_argument('--list-audio-tracks',action='store_true',help='List audio languages/titles for --input and exit')

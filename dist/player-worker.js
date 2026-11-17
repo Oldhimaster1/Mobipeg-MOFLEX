@@ -31,6 +31,28 @@ async function run(args,file,outputs,allowFailure=false){
 self.onmessage=async({data})=>{
   try{
     if(data.type==='warm'){await initialize();postMessage({type:'ready',request:data.request});return;}
+    if(data.type==='export'){
+      await initialize();
+      const {file,layout,mode,format,displayFPS}=data;
+      if(!file||file.size>768*1048576||!Number.isInteger(layout)||layout<0||layout>6||!['auto','2d','sbs','left','right'].includes(mode)||!['mp4','mkv'].includes(format))throw Error('Invalid or too-large browser export request');
+      const stereo=layout!==6,selected=mode==='auto'?(stereo?'sbs':'2d'):mode;
+      if(!stereo&&['sbs','right'].includes(selected))throw Error('The MOFLEX descriptor is 2D');
+      let vf=null;
+      if(stereo){
+        let left,right;
+        let first,second;
+        if(layout<2){if(!(displayFPS>0))throw Error('Invalid stereo frame rate');first=`select='not(mod(n,2))',setpts=N/(${displayFPS}*TB)`;second=`select='mod(n,2)',setpts=N/(${displayFPS}*TB)`;}
+        else if(layout<4){first='crop=iw:ih/2:0:0';second='crop=iw:ih/2:0:ih/2';}
+        else {first='crop=iw/2:ih:0:0';second='crop=iw/2:ih:iw/2:0';}
+        [left,right]=layout%2===0?[first,second]:[second,first];
+        vf=selected==='right'?right:selected==='left'||selected==='2d'?left:`split=2[l0][r0];[l0]${left}[l];[r0]${right}[r];[l][r]hstack=inputs=2`;
+      }
+      const output='/export.'+format,args=['-hide_banner','-nostdin','-v','error','-i','/input/movie'];
+      if(vf)args.push('-vf',vf);
+      args.push('-map','0:v:0','-map','0:a:0?','-c:v','mpeg4','-q:v','3','-pix_fmt','yuv420p','-c:a','aac','-b:a','160k','-af','aresample=async=0:first_pts=0','-shortest',...(format==='mp4'?['-movflags','+faststart']:[]),output);
+      const result=await run(args,file,[output]);const bytes=result.bytes[output];if(!bytes?.length)throw Error('Export produced no video');
+      const buffer=bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength);postMessage({type:'exported',request:data.request,buffer,format},[buffer]);return;
+    }
     if(data.type!=='decode')return;
     await initialize();
     const {file,start,frames,width,height,seconds,audio}=data;

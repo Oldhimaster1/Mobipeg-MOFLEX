@@ -16,7 +16,7 @@ test('advanced codec controls map to actual FFmpeg arguments and native environm
  assert.equal(args[args.indexOf('-me_method')+1],'dia');assert.equal(args[args.indexOf('-g')+1],'24');
  assert.deepEqual(environment(s),{MOBI_SUBME:'2',MOBI_SKIP:'0',MOBI_V11_MV_REFINE:'1',MOBI_V11_MV_PENALTY:'24',MOBI_V11_MV_DIAGONAL:'0'});
  assert.match(filters(s)[1],/flags=bicubic/);assert.match(filters(s)[1],/hqdn3d=0.7:1.1:1:1/);
- const audio=audioArgs(s,2);assert.equal(audio[audio.indexOf('-af')+1],'highpass=f=80,lowpass=f=16000,volume=-6dB,apad');
+ const audio=audioArgs(s,2);assert.equal(audio[audio.indexOf('-af')+1],'highpass=f=80,lowpass=f=16000,volume=-6dB,aresample=48000:async=0:first_pts=0,apad,atrim=end_sample=96000,asetpts=N/SR/TB');
 });
 test('malformed, unsafe or unsupported advanced parameters fail validation',()=>{
  for(const advanced of [[],true,'raw',{subme:1},{subme:10},{subme:2.5},{skip:-1},{gop:1},{gop:601},{volume:NaN},{volume:13},{refine:'1'},{refine:2},{diagonal:2},{penalty:1025},{lumaSpatial:Infinity},{me:'hex -i bad'},{scaler:'scale=800:480'},{inputRange:'full'},{ar:22050},{rawArgs:'-c:v h264'},{highpass:1000,lowpass:1000}]){

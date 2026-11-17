@@ -1,9 +1,9 @@
 import{initLanguage,translateText}from'./i18n.mjs?v=20261117f';
 import{createUsage}from'./usage.mjs?v=20261117a';
-import{validate,rate,PRESETS,ADVANCED_NUMBERS,ADVANCED_ENUMS,encodeArgs,encodeClipArgs,audioArgs,environment}from'./core.mjs?v=20261117h';
-import{createMovieJob,appendMovieSegment,assembleMovie,cleanupMovieJob,getCodedRate,nextMovieClip}from'./movie.mjs?v=20261117h';
-import{estimateConversion,totalEstimate,formatBytes}from'./queue.mjs?v=20261117h';
-import{runParallelMovie}from'./parallel.mjs?v=20261117h';
+import{validate,rate,PRESETS,ADVANCED_NUMBERS,ADVANCED_ENUMS,encodeArgs,encodeClipArgs,audioArgs,environment}from'./core.mjs?v=20261117i';
+import{createMovieJob,appendMovieSegment,assembleMovie,cleanupMovieJob,getCodedRate,nextMovieClip}from'./movie.mjs?v=20261117i';
+import{estimateConversion,totalEstimate,formatBytes}from'./queue.mjs?v=20261117i';
+import{runParallelMovie}from'./parallel.mjs?v=20261117i';
 const $=id=>document.getElementById(id),form=$('settings');let file=null,worker=null,previewURL=null,outputURL=null,started=0,stageStarted=0,ticker=null,report=null,wake=null,busy=false,runToken=0,stallMonitor=null,movieJob=null,completedMovieJob=null,sampleWorker=null,sampleToken=0,sampleData=null,audioInspector=null,parallelAbort=null;
 let queue=[],activeQueueId=null,queueRunning=false,queueCurrent=null,queueDownloaded=false,originStorage=null,nextQueueId=1,restoringSettings=false;
 // Hardware concurrency is a *logical* upper bound, not a RAM guarantee.
@@ -16,11 +16,12 @@ workerSlider.value=String(/iPhone|iPad|iPod|Android|Mobile/i.test(navigator.user
 workerSlider.defaultValue=workerSlider.value;
 workerField.querySelector('#workerValue').textContent=workerSlider.value+' / '+coreMax+' logical cores';
 $('longMovie').closest('.field').after(workerField);
+const audioCodecField=document.createElement('div');audioCodecField.className='field';audioCodecField.innerHTML='<label for="audioCodec">MOFLEX audio codec</label><select id="audioCodec" name="audioCodec"><option value="adpcm">ADPCM — verified compatibility</option><option value="fastaudio">FastAudio — smaller, experimental on 3DS</option></select><p class="hint">FastAudio is software decode-verified and falls back to ADPCM if unavailable. Physical 3DS compatibility is not yet verified.</p>';$('audioTrack').closest('.field').after(audioCodecField);
 const timeline=document.createElement('div');timeline.id='parallelTimeline';timeline.className='parallel-timeline';timeline.hidden=true;timeline.setAttribute('aria-label','Parallel encoder timelines');
 $('progress').after(timeline);
-const playerLink=document.createElement('a');playerLink.href='player.html?v=20261117h';playerLink.className='secondary';playerLink.textContent='Open MOFLEX player ↗';playerLink.style.marginTop='1rem';
+const playerLink=document.createElement('a');playerLink.href='player.html?v=20261117i';playerLink.className='secondary';playerLink.textContent='Open MOFLEX player ↗';playerLink.style.marginTop='1rem';
 $('result').append(playerLink);
-const navPlayer=document.createElement('a');navPlayer.href='player.html?v=20261117h';navPlayer.textContent='MOFLEX Player ↗';
+const navPlayer=document.createElement('a');navPlayer.href='player.html?v=20261117i';navPlayer.textContent='MOFLEX Player ↗';
 document.querySelector('.header-right')?.append(navPlayer);
 const renderWorkerCount=()=>{workerField.querySelector('#workerValue').textContent=workerSlider.value+' / '+coreMax+' logical cores';};
 workerSlider.addEventListener('input',renderWorkerCount);
@@ -70,12 +71,12 @@ function advancedPreview(){
       '\n\n'+(s.movieAudio?'First timeline range; repeated with aligned seeks. ':'')+'Audio invocation runs only when an audio stream exists. Duration uses source metadata (1 s placeholder before a file is selected). Size-limited trials may change Q.';
   }catch(e){$('advancedCommand').textContent=e.message;}
 }
-function settings(){const d=new FormData(form);return validate({mode:d.get('mode'),engine:d.get('engine')||'auto',preset:d.get('preset'),resolution:d.get('resolution'),fps:d.get('fps'),filter:d.get('filter'),motion:d.get('motion'),q:d.get('q')===''?null:Number(d.get('q')),audioTrack:Number(d.get('audioTrack')||0),maxMB:d.get('maxMB')===''?null:Number(d.get('maxMB')),speed:d.get('speed')||'original',workers:Number(d.get('workers')||1),advanced:readAdvanced(d),crop:{fit:d.get('fit'),aspect:d.get('aspect')||'source',...Object.fromEntries(['left','right','top','bottom'].map(k=>[k,Number(d.get('crop-'+k))]))}});}
+function settings(){const d=new FormData(form);return validate({mode:d.get('mode'),engine:d.get('engine')||'auto',preset:d.get('preset'),resolution:d.get('resolution'),fps:d.get('fps'),filter:d.get('filter'),motion:d.get('motion'),q:d.get('q')===''?null:Number(d.get('q')),audioTrack:Number(d.get('audioTrack')||0),audioCodec:d.get('audioCodec')||'adpcm',maxMB:d.get('maxMB')===''?null:Number(d.get('maxMB')),speed:d.get('speed')||'original',workers:Number(d.get('workers')||1),advanced:readAdvanced(d),crop:{fit:d.get('fit'),aspect:d.get('aspect')||'source',...Object.fromEntries(['left','right','top','bottom'].map(k=>[k,Number(d.get('crop-'+k))]))}});}
 function snapshotSettings(){const value=structuredClone(settings());value.movieAudio=$('longMovie').checked;return value;}
 function applySettings(value){
   restoringSettings=true;
   const set=(name,value)=>{const control=form.elements.namedItem(name);if(!control)return;if(control instanceof RadioNodeList){for(const el of control)el.checked=el.value===String(value);}else control.value=value??'';};
-  for(const key of ['mode','engine','preset','resolution','fps','filter','motion','q','audioTrack','maxMB','speed','workers'])set(key,value[key]);renderWorkerCount();
+  for(const key of ['mode','engine','preset','resolution','fps','filter','motion','q','audioTrack','audioCodec','maxMB','speed','workers'])set(key,value[key]);renderWorkerCount();
   set('longMovie',value.movieAudio?'on':'');$('longMovie').checked=!!value.movieAudio;
   set('fit',value.crop?.fit??'fit');set('aspect',value.crop?.aspect??'source');for(const edge of ['left','right','top','bottom'])set('crop-'+edge,value.crop?.[edge]??0);
   $('advancedEnabled').checked=value.advanced!==null;
@@ -235,7 +236,7 @@ const publishCandidate=(verified,reason='')=>{
 };
 const startWorker=(type,payload)=>{
   if(token!==runToken)return;
-  currentWorkerType=type;lastActivity=performance.now();idleWarningShown=false;const w=new Worker('worker.js?v=20261117h');worker=w;
+  currentWorkerType=type;lastActivity=performance.now();idleWarningShown=false;const w=new Worker('worker.js?v=20261117i');worker=w;
   w.onerror=e=>{
     if(token!==runToken||worker!==w)return;
     const message=`Encoder worker failed: ${e.message||'unknown error'}`;
@@ -322,7 +323,7 @@ window.addEventListener('beforeunload',e=>{if(busy||queueRunning){e.preventDefau
 $('inspectAudio').onclick=()=>{
   if(!file||busy)return;
   let s;try{s=settings();}catch(e){log(e.message);return;}
-  const selected=file,w=new Worker('worker.js?v=20261117h');audioInspector=w;
+  const selected=file,w=new Worker('worker.js?v=20261117i');audioInspector=w;
   $('inspectAudio').disabled=true;
   const end=()=>{w.terminate();if(audioInspector===w)audioInspector=null;$('inspectAudio').disabled=busy;};
   w.onerror=e=>{log('Audio inspection failed: '+e.message);end();};
@@ -359,7 +360,7 @@ $('makeSample').onclick=()=>{
   try{s=settings();start=Number($('sampleStart').value);if(!Number.isFinite(start)||start<0||Number.isFinite($('preview').duration)&&start>=$('preview').duration)throw Error('Choose a preview position within the video.');}
   catch(e){$('sampleStatus').textContent=e.message;return;}
   invalidateSample();lock(true);const token=++sampleToken;let w;
-  try{w=new Worker('worker.js?v=20261117h');sampleWorker=w;}catch(e){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();return;}
+  try{w=new Worker('worker.js?v=20261117i');sampleWorker=w;}catch(e){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();return;}
   $('cancelSample').hidden=false;$('sampleStatus').textContent='Loading preview encoder…';
   w.onerror=e=>{if(token===sampleToken){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();}};
   w.onmessage=async({data:d})=>{
