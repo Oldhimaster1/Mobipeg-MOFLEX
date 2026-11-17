@@ -60,6 +60,15 @@ test('audio verification rejects accumulated chapter padding drift',async()=>{
  await verifyCandidate({kind:'audio',blob:new Blob(['x']),frames:24,seconds:1,run:async()=>({seconds:1.0053})});
 });
 
+test('segmented size targets keep the preset when its complete file fits',async()=>{
+ const result=await convert({settings:{...defaults,q:30,maxMB:1},source:new Blob(),
+   clip:{start:0,seconds:1},rangeBudget:8192,verify:false,media:{duration:1,audio:false},
+   run:async()=>({frames:24,blob:new Blob([new Uint8Array(8192)])})});
+ assert.equal(result.q,30);
+ assert.equal(result.attempts,1);
+ assert.equal(result.blob.size,8192);
+});
+
 test('single-file FastAudio fallback reports the actual audio codec',async()=>{
  const codecs=[];
  const result=await convert({settings:{...defaults,audioCodec:'fastaudio'},source:new Blob(),

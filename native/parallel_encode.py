@@ -15,7 +15,7 @@ import subprocess
 import tempfile
 from threading import Event
 
-from moflex_join import inspect, join
+from moflex_join import BLOCK, FAT32_LIMIT, inspect, join
 
 
 def file_hash(path):
@@ -43,6 +43,8 @@ def parallel_workspace(args, inp, out, encoder, media, notify):
         return
     notify('Checking source and encoder for saved ranges…')
     fields=('mode','preset','filter','motion_refinement','resolution','fps','q','audio_track','audio_codec','workers')
+    if args.max_size_mb is not None:
+        fields+=('max_size_mb',)
     config={'version':1,'source':inp.name,'bytes':inp.stat().st_size,'source_sha256':file_hash(inp),
             'encoder_sha256':file_hash(encoder),'media':media,
             'settings':{key:getattr(args,key) for key in fields}}
@@ -143,17 +145,32 @@ def exact_audio_filter(seconds):
     return f'aresample=48000:async=0:first_pts=0,apad,atrim=end_sample={samples},asetpts=N/SR/TB'
 
 
+def allocate_movie_budget(ranges, target_bytes):
+    blocks=min(target_bytes,FAT32_LIMIT)//BLOCK
+    remaining=blocks-2*len(ranges)
+    if not ranges or remaining<0:
+        raise ValueError('Maximum size is too small for the movie ranges and seek indexes.')
+    total=sum(frames for _,_,frames in ranges)
+    cumulative=previous=0
+    budgets=[]
+    for _,_,frames in ranges:
+        cumulative+=frames
+        allocated=remaining*cumulative//total
+        budgets.append((2+allocated-previous)*BLOCK)
+        previous=allocated
+    return budgets
+
+
 def encode_parallel(*, args, inp, out, encoder, probe, media, filters, layout_options,
                     base_q, coded_fps_label, callback, progress=lambda slot, fraction:None,
                     invoke, verified_frame_count, probe_coded_rate, q_flags,
-                    presets, scratch):
+                    presets, scratch, target_bytes=None):
     """Write to a temporary assembled file; caller performs full verification."""
     workers=args.workers
     rate=Fraction(coded_fps_label)
     ranges=plan_ranges(media['duration'],rate,eyes=1 if args.mode=='2d' else 2,workers=workers)
     workers=min(workers,len(ranges))
-    if args.max_size_mb is not None:
-        raise ValueError('Parallel desktop mode currently requires no hard maximum file size')
+    budgets=allocate_movie_budget(ranges,target_bytes) if target_bytes is not None else None
     me=presets[args.preset]['me'];search=presets[args.preset]['search']
     improve=(args.motion_refinement=='on' or args.motion_refinement=='auto' and args.preset in ('best','quality'))
     env={k:v for k,v in os.environ.items() if not k.startswith('MOBI_')}
@@ -177,44 +194,72 @@ def encode_parallel(*, args, inp, out, encoder, probe, media, filters, layout_op
             record=output_dir/f'part-{index:05d}.json'
             if getattr(args,'resume',False):
                 restored=restore_range(record,final,(start,length,expected),expected,index==len(ranges)-1)
-                if restored:
+                if restored and (budgets is None or final.stat().st_size<=budgets[index]):
                     callback(f'Reusing verified range {index+1}/{len(ranges)}.')
                     results[index]=(final,restored)
                     progress(slot,1)
                     continue
             callback(f'Worker {slot+1}/{workers}: part {index+1}/{len(ranges)} at {start:.3f}s')
-            command=[encoder,'-hide_banner','-nostdin','-v','error','-y','-ss',f'{start:.8f}',
-                     '-i',inp,*filters,'-an','-c:v','mobiclip','-mobiclip','1',
-                     *q_flags(base_q),'-preset','medium','-me_method',me,
-                     '-g',str(math.ceil(float(Fraction(args.fps))*2)),
-                     *(['-r',coded_fps_label] if args.mode!='2d' else []),
-                     '-frames:v',str(expected),*layout_options,
-                     '-progress','pipe:2','-stats_period','0.25','-f','moflex',video]
-            run_with_progress(command,env,expected,lambda f:progress(slot,.92*f))
-            frames=verified_frame_count(probe,video)
-            if frames!=expected and index!=len(ranges)-1:
-                raise RuntimeError('Input ended before an independently scheduled range; retry with 1 worker')
-            if frames>expected+2 or args.mode!='2d' and frames%2:
-                raise RuntimeError('Unexpected coded frame count or lost stereo eye pair')
-            seconds=frames/float(rate)
-            if media['audio']:
-                remux_input=[];remux_output=[]
-                if args.mode!='2d':
-                    exposed=probe_coded_rate(probe,video)
-                    original=float(Fraction(args.fps))
-                    if math.isclose(exposed,original,rel_tol=.001):remux_input=['-itsscale','0.5']
-                    elif not math.isclose(exposed,float(rate),rel_tol=.001):
-                        raise RuntimeError(f'Unexpected stereoscopic stream rate {exposed}')
-                    remux_output=['-r',coded_fps_label]
-                audio_command=[encoder,'-hide_banner','-nostdin','-v','error','-y',*remux_input,'-i',video,
-                        '-ss',f'{start:.8f}','-i',inp,'-map','0:v:0',
-                        '-map',f'1:a:{args.audio_track}','-c:v','copy',
-                        '-c:a','pcm_s16le','-ar','48000','-ac','2','-af',exact_audio_filter(seconds),
-                        '-mo_audio',args.audio_codec,*remux_output,*layout_options,
-                        '-t',f'{seconds:.8f}','-f','moflex',final]
-                invoke(audio_command)
-                video.unlink()
-            else:video.replace(final)
+            def encode_range(q):
+                command=[encoder,'-hide_banner','-nostdin','-v','error','-y','-ss',f'{start:.8f}',
+                         '-i',inp,*filters,'-an','-c:v','mobiclip','-mobiclip','1',
+                         *q_flags(q),'-preset','medium','-me_method',me,
+                         '-g',str(math.ceil(float(Fraction(args.fps))*2)),
+                         *(['-r',coded_fps_label] if args.mode!='2d' else []),
+                         '-frames:v',str(expected),*layout_options,
+                         '-progress','pipe:2','-stats_period','0.25','-f','moflex',video]
+                run_with_progress(command,env,expected,lambda f:progress(slot,.92*f))
+                frames=verified_frame_count(probe,video)
+                if frames!=expected and index!=len(ranges)-1:
+                    raise RuntimeError('Input ended before an independently scheduled range; retry with 1 worker')
+                if frames>expected+2 or args.mode!='2d' and frames%2:
+                    raise RuntimeError('Unexpected coded frame count or lost stereo eye pair')
+                seconds=frames/float(rate)
+                if media['audio']:
+                    remux_input=[];remux_output=[]
+                    if args.mode!='2d':
+                        exposed=probe_coded_rate(probe,video)
+                        original=float(Fraction(args.fps))
+                        if math.isclose(exposed,original,rel_tol=.001):remux_input=['-itsscale','0.5']
+                        elif not math.isclose(exposed,float(rate),rel_tol=.001):
+                            raise RuntimeError(f'Unexpected stereoscopic stream rate {exposed}')
+                        remux_output=['-r',coded_fps_label]
+                    audio_command=[encoder,'-hide_banner','-nostdin','-v','error','-y',*remux_input,'-i',video,
+                            '-ss',f'{start:.8f}','-i',inp,'-map','0:v:0',
+                            '-map',f'1:a:{args.audio_track}','-c:v','copy',
+                            '-c:a','pcm_s16le','-ar','48000','-ac','2','-af',exact_audio_filter(seconds),
+                            '-mo_audio',args.audio_codec,*remux_output,*layout_options,
+                            '-t',f'{seconds:.8f}','-f','moflex',final]
+                    invoke(audio_command)
+                    video.unlink()
+                else:video.replace(final)
+                return frames
+
+            if budgets is None:
+                frames=encode_range(base_q)
+            else:
+                budget=budgets[index]
+                saved=output_dir/f'video-best-{index:05d}.moflex'
+                q=low=base_q
+                high=59
+                selected=None
+                while low<=high and not stopped.is_set():
+                    frames=encode_range(q)
+                    size=final.stat().st_size
+                    callback(f'Range {index+1}: Q={q}, {size:,} bytes, budget {budget:,} bytes')
+                    if size<=budget:
+                        final.replace(saved)
+                        selected=frames
+                        high=q-1
+                    else:
+                        low=q+1
+                    q=(low+high)//2
+                if selected is None:
+                    if stopped.is_set():return
+                    raise RuntimeError(f'Range {index+1} cannot meet its size budget at Q=59. '
+                                       'Raise the maximum size or choose a smaller resolution or frame rate.')
+                saved.replace(final)
+                frames=selected
             if getattr(args,'resume',False):
                 inspect(final,frames)
                 invoke([encoder,'-hide_banner','-nostdin','-v','error','-xerror','-i',final,
@@ -241,6 +286,6 @@ def encode_parallel(*, args, inp, out, encoder, probe, media, filters, layout_op
         if errors:raise errors[0]
     if any(item is None for item in results):raise RuntimeError('Missing encoded movie range')
     assembled=output_dir/'assembled.moflex'
-    frames=join(results,rate,assembled,callback=lambda f:progress(-1,f))
+    frames=join(results,rate,assembled,callback=lambda f:progress(-1,f),max_bytes=target_bytes)
     callback(f'Joined one indexed MOFLEX: {frames:,} coded frames')
     return assembled,frames,len(results)

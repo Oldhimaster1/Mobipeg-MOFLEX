@@ -18,6 +18,32 @@ from parallel_encode import plan_ranges
 class NativeResumeTest(unittest.TestCase):
     @unittest.skipUnless(shutil.which('ffmpeg') and (os.cpu_count() or 1) >= 2,
                          'requires FFmpeg and at least two logical CPUs')
+    def test_parallel_size_target_retries_and_preserves_frames(self):
+        try:
+            encoder = studio.pick_encoder()
+        except FileNotFoundError:
+            self.skipTest('custom FFmpeg has not been built')
+        with tempfile.TemporaryDirectory() as work:
+            source = Path(work) / 'moving.mkv'
+            output = Path(work) / 'target.moflex'
+            subprocess.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i',
+                'testsrc2=s=320x240:r=24:d=9', '-f', 'lavfi', '-i',
+                'sine=f=880:r=48000:d=9','-c:v','ffv1','-c:a','pcm_s16le',str(source)],check=True)
+            args = studio.parser().parse_args(['-i',str(source),'-o',str(output),'--workers','2',
+                '--preset','balanced','--resolution','320x240','--max-size-mb','0.85','--resume'])
+            messages=[]
+            studio.encode(args,callback=messages.append)
+            self.assertLessEqual(output.stat().st_size,850000)
+            self.assertGreater(sum(message.startswith('Range ') for message in messages),2)
+            self.assertEqual(studio.verified_frame_count(encoder.with_name('ffprobe'+studio.EXE_SUFFIX),output),216)
+            args.output=str(Path(work)/'impossible.moflex')
+            args.max_size_mb=0.008192
+            with self.assertRaisesRegex(ValueError,'too small'):
+                studio.encode(args,callback=lambda message: None)
+            self.assertFalse(Path(args.output).exists())
+
+    @unittest.skipUnless(shutil.which('ffmpeg') and (os.cpu_count() or 1) >= 2,
+                         'requires FFmpeg and at least two logical CPUs')
     def test_verified_ranges_survive_failure_and_corruption(self):
         try:
             studio.pick_encoder()

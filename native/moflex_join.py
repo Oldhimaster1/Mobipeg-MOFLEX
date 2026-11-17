@@ -183,7 +183,7 @@ def inspect(path,expected_frames=None):
         return Part(path,front,size-front,frames,entries,meta['descriptors'],meta['data'])
 
 
-def join(parts,frames_per_second:Fraction,output:Path,callback=lambda fraction:None):
+def join(parts,frames_per_second:Fraction,output:Path,callback=lambda fraction:None,max_bytes=None):
     """Join (path, expected frame count) pairs in *timeline order*."""
     require(parts,'nothing to assemble')
     inspected=[inspect(path,count) for path,count in parts]
@@ -206,6 +206,8 @@ def join(parts,frames_per_second:Fraction,output:Path,callback=lambda fraction:N
     front=create_front(first.descriptors,first.data_stream,[(f,t,o+front_size) for f,t,o in entries],frames,duration_us)
     require(len(front)==front_size,'seek table changed size')
     require(front_size+media_offset<=FAT32_LIMIT,FAT32_MESSAGE)
+    if max_bytes is not None:
+        require(front_size+media_offset<=max_bytes,'assembled movie exceeds the requested maximum size')
     output=Path(output)
     with output.open('wb') as dest:
         dest.write(front)

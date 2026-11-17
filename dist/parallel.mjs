@@ -1,5 +1,5 @@
-import {appendMovieSegment, getCodedRate} from './movie.mjs?v=20261117n';
-import {persistRange} from './checkpoints.mjs?v=20261117n';
+import {allocateMovieBudget, appendMovieSegment, getCodedRate} from './movie.mjs?v=20261117o';
+import {persistRange} from './checkpoints.mjs?v=20261117o';
 
 // Balanced, frame-aligned timeline parts require no source chapters.
 // A bounded worker pool reuses compiled WASM and recycles memory every four parts.
@@ -26,8 +26,9 @@ export function planBalancedMovieClips(seconds, settings, wanted=1) {
   return clips;
 }
 export async function runParallelMovie({file, settings, media, job, workers, onUpdate=()=>{},
-  signal, createWorker=()=>new Worker('worker.js?v=20261117n'), save=appendMovieSegment}) {
+  signal, createWorker=()=>new Worker('worker.js?v=20261117o'), save=appendMovieSegment}) {
   const clips=planBalancedMovieClips(media.duration,settings,workers);
+  const budgets=settings.maxMB==null?null:allocateMovieBudget(clips,Math.floor(settings.maxMB*1e6));
   const count=Math.min(Math.max(1,Math.floor(workers)),clips.length);
   const live=new Set();
   const stopper=new AbortController();
@@ -65,7 +66,7 @@ export async function runParallelMovie({file, settings, media, job, workers, onU
             notify();
           }else if(d.type==='log'&&/error|failed/i.test(d.line))onUpdate({log:d.line});
         };
-        try{w.postMessage({type:'segment',file,settings,clip:{start:clip.start,seconds:clip.seconds},media,verifyRange:!!job.manifest});}
+        try{w.postMessage({type:'segment',file,settings,clip:{start:clip.start,seconds:clip.seconds},media,verifyRange:!!job.manifest,rangeBudget:budgets?.[clip.index]});}
         catch(e){done(e);}
       });
   }

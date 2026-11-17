@@ -237,9 +237,12 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print,
     coded_fps=rate_value(args.fps)*(2 if stereo else 1)
     layout_options=(['-mo_layout',layout,'-mo_interleave_input_double_rate','1']
                     if stereo else ['-mo_layout',layout])
-    target_bytes=math.floor(args.max_size_mb*1000*1000) if args.max_size_mb else None
-    if target_bytes is not None and target_bytes<4096:
-        raise ValueError('Maximum output size is too small')
+    if args.max_size_mb is not None and (not math.isfinite(args.max_size_mb) or args.max_size_mb<0.004096):
+        raise ValueError('Maximum output size must be at least 0.004096 MB')
+    target_bytes=None
+    if args.max_size_mb is not None:
+        target_bytes=(FAT32_LIMIT if args.max_size_mb>=FAT32_LIMIT/1_000_000
+                      else math.floor(args.max_size_mb*1_000_000))
     rate=int(max(1,math.ceil(fps*2)))
     description={'input':str(inp),'output':str(out),'mode':args.mode,
                  'resolution':args.resolution,'fps':args.fps,'preset':args.preset,
@@ -276,7 +279,7 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print,
                 progress=progress or (lambda lane,fraction:None),
                 invoke=invoke,verified_frame_count=verified_frame_count,
                 probe_coded_rate=probe_coded_rate,q_flags=q_flags,
-                presets=PRESETS,scratch=scratch)
+                presets=PRESETS,scratch=scratch,target_bytes=target_bytes)
             callback('Verifying complete parallel movie video decode...')
             invoke([encoder,'-hide_banner','-nostdin','-v','error','-xerror',
                     '-i',final,'-map','0:v:0','-f','null','-'])
@@ -480,10 +483,6 @@ def gui():
         if not paths['input'].get():
             messagebox.showerror('Missing file','Choose an input video first.')
             return
-        if choices['max_size_mb'].get() and cpu_workers.get()>1:
-            messagebox.showerror('Size limit with parallel encoding',
-                'A strict maximum output size is supported only with one encoder. Move the worker slider to 1 or remove the size limit.')
-            return
         start.configure(state='disabled')
         status.set('Encoding and verifying…')
         lane_state.clear()
@@ -533,7 +532,7 @@ def parser():
     p.add_argument('--audio-track',type=int,default=0,help='Audio track number, starting at 0; use --list-audio-tracks to inspect languages')
     p.add_argument('--audio-codec',choices=('adpcm','fastaudio'),default='adpcm',help='ADPCM is the hardware-tested default; FastAudio is smaller but 3DS-unverified')
     p.add_argument('--workers',type=int,default=1,
-                   help='Parallel encoders for movie-sized inputs, 1 up to logical CPU count; disables hard size limit')
+                   help='Parallel encoders for movie-sized inputs, 1 up to logical CPU count')
     p.add_argument('--resume',action='store_true',
                    help='Save verified parallel ranges and resume with the same input, output and settings')
     p.add_argument('--list-audio-tracks',action='store_true',help='List audio languages/titles for --input and exit')

@@ -2,11 +2,22 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createFront, inspectMovieSegment, assembleMovie,
-  getCodedRate, nextMovieClip,
+  getCodedRate, nextMovieClip, allocateMovieBudget,
 } from '../dist/movie.mjs';
 import {FAT32_LIMIT, fitsFat32, fat32Estimate} from '../dist/queue.mjs';
 
 const BLOCK=4096;
+test('whole-movie budgets account for all 4096-byte blocks and weight by coded frames',()=>{
+  const clips=[{codedFrames:90},{codedFrames:30}];
+  assert.deepEqual(allocateMovieBudget(clips,12*BLOCK+91),[8*BLOCK,4*BLOCK]);
+  assert.throws(()=>allocateMovieBudget(clips,4*BLOCK-1),/too small/);
+  assert.equal(allocateMovieBudget(clips,FAT32_LIMIT+1).reduce((a,b)=>a+b,0),FAT32_LIMIT-(BLOCK-1));
+});
+
+test('assembly rejects the exact maximum size before opening the output',async()=>{
+  const job={segments:[{file:segment(2),frames:60}],work:{getFileHandle(){throw Error('opened output');}}};
+  await assert.rejects(()=>assembleMovie(job,{mode:'2d',fps:'30',maxMB:0.012287}),/exceeds the requested maximum/);
+});
 const descriptors=Uint8Array.from([
   3,13,0,0,0,30,0,1,1,144,0,240,1,1,6,
   4,2,1,0,0,0

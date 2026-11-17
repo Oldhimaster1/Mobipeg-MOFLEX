@@ -1,8 +1,8 @@
 // Movie assembly for independent, seek-indexed MOFLEX segments.
 // Works with the existing unmodified V15 WASM encoder, keeping each trial small.
 // All temporary files and the final output stay in the browser's private storage.
-import {FAT32_LIMIT, FAT32_MESSAGE} from './queue.mjs?v=20261117n';
-import {pruneCheckpoint} from './checkpoints.mjs?v=20261117n';
+import {FAT32_LIMIT, FAT32_MESSAGE} from './queue.mjs?v=20261117o';
+import {pruneCheckpoint} from './checkpoints.mjs?v=20261117o';
 
 const BLOCK = 4096;
 const MAX_INDEX_ENTRIES = 50000;
@@ -211,6 +211,24 @@ export function planMovieClips(seconds, settings, targetSeconds = 30) {
   expect(result.length > 0, 'movie has no encodable frames');
   return result;
 }
+// Each standalone range has a seek block and at least one media block.
+// Budget the complete range files, including their own audio and indexes.
+export function allocateMovieBudget(clips, targetBytes) {
+  const blocks = Math.floor(Math.min(targetBytes,FAT32_LIMIT)/BLOCK);
+  const minimum = 2*clips.length;
+  if (!Number.isSafeInteger(blocks) || !clips.length || blocks < minimum)
+    throw Error('Maximum size is too small for the movie ranges and seek indexes.');
+  const frames = clips.reduce((sum,clip)=>sum+clip.codedFrames,0);
+  const remaining = blocks-minimum;
+  let cumulative = 0, last = 0;
+  return clips.map(clip=>{
+    cumulative += clip.codedFrames;
+    const allocated = Math.floor(remaining*cumulative/frames);
+    const bytes = (2+allocated-last)*BLOCK;
+    last = allocated;
+    return bytes;
+  });
+}
 export async function createMovieJob() {
   expect(navigator.storage && typeof navigator.storage.getDirectory === 'function', 'on-device OPFS storage is unavailable in this browser');
   const root = await navigator.storage.getDirectory();
@@ -275,6 +293,8 @@ export async function assembleMovie(job, settings, progress = () => {}, cancelle
   const front = createFront(desc, index, entries.map(e => ({...e, offset:e.offset + frontLength})), Number(frames), durationUs);
   expect(front.byteLength === placeholder.byteLength, 'seek front changed size');
   expect(frontLength + bytes <= BigInt(FAT32_LIMIT), FAT32_MESSAGE);
+  if(settings.maxMB!=null)
+    expect(Number(frontLength+bytes)<=Math.floor(settings.maxMB*1e6), 'assembled movie exceeds the requested maximum size');
   const estimate=await globalThis.navigator?.storage?.estimate?.();
   if(estimate?.quota&&Number.isFinite(estimate.usage))expect(estimate.quota-estimate.usage>Number(frontLength+bytes), 'not enough free browser storage to assemble the movie; free space and retry');
   const handle = await job.work.getFileHandle(job.outputName, { create:true });

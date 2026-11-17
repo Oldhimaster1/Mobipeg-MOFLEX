@@ -1,8 +1,36 @@
 import {test,expect} from '@playwright/test';
 import {execFileSync} from 'node:child_process';
-import {resolve} from 'node:path';
-import {readFileSync} from 'node:fs';
+import {join,resolve} from 'node:path';
+import {mkdtempSync,readFileSync,rmSync,statSync} from 'node:fs';
+import {tmpdir} from 'node:os';
 const fixture=process.env.MOBIPEG_BROWSER_FIXTURE;
+for(const workers of [1,2])test(`whole-movie size target with ${workers} workers`,async({page},testInfo)=>{
+ const work=mkdtempSync(join(tmpdir(),'mobipeg-target-'));
+ const ff=resolve('native/local/bin/ffmpeg');
+ try{
+   const source=join(work,'source.mkv');
+   execFileSync(ff,['-v','error','-f','lavfi','-i','testsrc2=s=320x240:r=24:d=9',
+     '-f','lavfi','-i','sine=f=880:r=48000:d=9','-c:v','ffv1','-c:a','pcm_s16le',source]);
+   await page.goto('/');
+   await page.locator('#file').setInputFiles(source);
+   await page.locator('#longMovie').check();
+   await page.locator('#workers').fill(String(workers));
+   await page.locator('#resolution').selectOption('320x240');
+   await page.locator('#preset').selectOption('balanced');
+   await page.locator('#speed').selectOption('fast');
+   await page.locator('#maxMB').evaluate(el=>el.closest('details').open=true);
+   await page.locator('#maxMB').fill('0.85');
+   await page.locator('#convert').click();
+   await expect(page.locator('#stage')).toHaveText('Your MOFLEX is ready.',{timeout:120000});
+   await expect(page.locator('#resultmeta')).toContainText('216 coded frames');
+   const pending=page.waitForEvent('download');
+   await page.locator('#download').click();
+   const output=testInfo.outputPath('target.moflex');
+   await (await pending).saveAs(output);
+   expect(statSync(output).size).toBeLessThanOrEqual(850000);
+   execFileSync(ff,['-v','error','-xerror','-i',output,'-map','0:v:0','-map','0:a:0','-f','null','-']);
+ }finally{rmSync(work,{recursive:true,force:true});}
+});
 test('OPFS recovery ignores a damaged range and protects a job open in another tab',async({page})=>{
  await page.goto('/');
  const result=await page.evaluate(async()=>{
