@@ -21,6 +21,8 @@ import tempfile
 import threading
 from typing import Callable
 
+from parallel_encode import encode_parallel
+
 
 ROOT = Path(__file__).resolve().parent
 EXE_SUFFIX = '.exe' if os.name == 'nt' else ''
@@ -54,6 +56,21 @@ def rate_value(rate: str) -> float:
         top,bottom=map(int,rate.split('/'))
         return top/bottom
     return float(rate)
+
+
+def estimate_storage(duration, resolution, fps, mode, q, audio, workers=1):
+    """Rough storage budget, never a promise of the final compressed size."""
+    width,height=map(int,resolution.split('x'))
+    eyes=1 if mode=='2d' else 2
+    video_bits=width*height*rate_value(fps)*eyes*.20*2**((30-q)/8)
+    audio_bits=384000 if audio else 0
+    center=(video_bits+audio_bits)*duration/8
+    low=max(4096,math.floor(center*.55));high=max(low,math.ceil(center*1.8))
+    if workers>1:
+        max_range=high/max(1,math.ceil(duration/30))
+        temporary=math.ceil(2.15*high+workers*max_range)
+    else:temporary=math.ceil(high*2.15)
+    return {'minimum':low,'maximum':high,'temporary':temporary}
 
 
 def coded_rate_label(fps: str, mode: str) -> str:
@@ -160,7 +177,8 @@ def probe_coded_rate(probe:Path, movie:Path) -> float:
     return float(Fraction(value))
 
 
-def encode(args: argparse.Namespace, callback: Callable[[str],None]=print) -> Path:
+def encode(args: argparse.Namespace, callback: Callable[[str],None]=print,
+           progress: Callable[[int,float],None] | None=None) -> Path:
     inp=Path(args.input).expanduser().resolve()
     if not inp.is_file():raise FileNotFoundError(inp)
     encoder=pick_encoder(args.ffmpeg)
@@ -188,6 +206,9 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print) -> Pa
     if out==inp:raise ValueError('Input and output cannot be the same file')
     if out.is_file() and not args.overwrite:raise FileExistsError(f'Will not overwrite: {out}')
     if not out.parent.is_dir():raise FileNotFoundError(f'Output folder does not exist: {out.parent}')
+    available_cores=os.cpu_count() or 1
+    if not 1<=args.workers<=available_cores:
+        raise ValueError(f'Worker count must be 1–{available_cores} on this device')
     filters,layout=video_filters(args.mode,width,height,args.fps,args.filter)
     stereo=args.mode!='2d'
     coded_fps_label=coded_rate_label(args.fps,args.mode)
@@ -204,9 +225,41 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print) -> Pa
                  'motion_refinement':args.motion_refinement,
                  'coded_fps':coded_fps_label,'layout':layout,
                  'maximum_bytes':target_bytes,'audio':media['audio'],
-                 'ffmpeg':str(encoder)}
+                 'ffmpeg':str(encoder),'workers':args.workers}
     callback(json.dumps(description,indent=2))
+    estimate=estimate_storage(media['duration'],args.resolution,args.fps,args.mode,
+                              base_q,media['audio'],args.workers)
+    available=shutil.disk_usage(out.parent).free
+    callback(f"Storage estimate (rough): output {estimate['minimum']/1e6:.1f}–{estimate['maximum']/1e6:.1f} MB; "
+             f"up to {estimate['temporary']/1e6:.1f} MB temporary; {available/1e6:.1f} MB free on destination disk")
+    if available<estimate['temporary']:
+        callback('WARNING: Estimated temporary usage exceeds free disk space. Encoding may fail.')
     if args.dry_run:return out
+
+    if args.workers>1:
+        with tempfile.TemporaryDirectory(prefix='mobipeg-v15-parallel-',dir=out.parent) as scratch:
+            final,frames,parts=encode_parallel(
+                args=args,inp=inp,out=out,encoder=encoder,probe=probe,media=media,
+                filters=filters,layout_options=layout_options,base_q=base_q,
+                coded_fps_label=coded_fps_label,callback=callback,
+                progress=progress or (lambda lane,fraction:None),
+                invoke=invoke,verified_frame_count=verified_frame_count,
+                probe_coded_rate=probe_coded_rate,q_flags=q_flags,
+                presets=PRESETS,scratch=scratch)
+            callback('Verifying complete parallel movie video decode...')
+            invoke([encoder,'-hide_banner','-nostdin','-v','error','-xerror',
+                    '-i',final,'-map','0:v:0','-f','null','-'])
+            if media['audio']:
+                callback('Verifying complete parallel movie audio decode...')
+                invoke([encoder,'-hide_banner','-nostdin','-v','error','-xerror',
+                        '-i',final,'-map','0:a:0','-f','null','-'])
+            if verified_frame_count(probe,final)!=frames:
+                raise RuntimeError('Joined movie frame count differs from encoded ranges')
+            if out.exists() and not args.overwrite:
+                raise FileExistsError(f'Output appeared during conversion: {out}')
+            os.replace(final,out)
+            callback(f'PASS: {out} ({out.stat().st_size:,} bytes, {parts} parallel parts)')
+            return out
 
     search=PRESETS[args.preset]['search']
     me=PRESETS[args.preset]['me']
@@ -310,7 +363,7 @@ def gui():
         raise RuntimeError('Tkinter is not installed. Use CLI mode instead.') from error
     app=tk.Tk()
     app.title('MobiPEG Studio V15 — Nintendo 3DS Video Converter')
-    app.geometry('760x530')
+    app.geometry('760x590')
     app.columnconfigure(1,weight=1)
     paths={k:tk.StringVar() for k in ('input','output')}
     choices={'mode':tk.StringVar(value='2d'),
@@ -321,6 +374,8 @@ def gui():
              'fps':tk.StringVar(value='24'),
              'audio_track':tk.StringVar(value='0 — First audio track'),
              'max_size_mb':tk.StringVar(value='')}
+    cpu_count=os.cpu_count() or 1
+    cpu_workers=tk.IntVar(value=min(2,cpu_count))
     def add_row(num,label,var,kind='text',values=(),action=None):
         ttk.Label(app,text=label).grid(row=num,column=0,sticky='w',padx=12,pady=6)
         if kind=='select':widget=ttk.Combobox(app,textvariable=var,values=values,state='readonly')
@@ -351,11 +406,29 @@ def gui():
     audio_box=ttk.Combobox(app,textvariable=choices['audio_track'],values=['0 — First audio track'],state='readonly')
     ttk.Label(app,text='Audio language / track').grid(row=9,column=0,sticky='w',padx=12)
     audio_box.grid(row=9,column=1,sticky='ew',padx=6)
+    ttk.Label(app,text='Parallel encoders (logical CPUs)').grid(row=10,column=0,sticky='w',padx=12,pady=4)
+    cpu_scale=ttk.Scale(app,from_=1,to=cpu_count,orient='horizontal',
+                        command=lambda value:cpu_workers.set(max(1,round(float(value)))))
+    cpu_scale.set(cpu_workers.get());cpu_scale.grid(row=10,column=1,sticky='ew',padx=6)
+    ttk.Label(app,textvariable=cpu_workers).grid(row=10,column=2,padx=8)
+    timeline=tk.Canvas(app,height=18,bg='#e1e4dc',highlightthickness=0)
+    timeline.grid(row=11,column=0,columnspan=3,sticky='ew',padx=12,pady=5)
+    lane_state={}
+    def update_timeline(lane,fraction):
+        if lane<0:return
+        lane_state[lane]=max(lane_state.get(lane,0),max(0,min(1,fraction)))
+        def render():
+            timeline.delete('all');width=max(1,timeline.winfo_width());count=max(1,int(cpu_workers.get()))
+            for i in range(count):
+                left=width*i/count;right=width*(i+1)/count-3
+                timeline.create_rectangle(left,0,right,18,fill='#d5d9d4',outline='')
+                timeline.create_rectangle(left,0,left+(right-left)*lane_state.get(i,0),18,fill='#44745b',outline='')
+        app.after(0,render)
     status=tk.StringVar(value='Ready. Your source file is never modified.')
-    ttk.Label(app,textvariable=status).grid(row=11,column=0,columnspan=3,sticky='w',padx=12,pady=4)
+    ttk.Label(app,textvariable=status).grid(row=13,column=0,columnspan=3,sticky='w',padx=12,pady=4)
     log=tk.Text(app,height=12,state='disabled',wrap='word')
-    log.grid(row=12,column=0,columnspan=3,sticky='nsew',padx=12,pady=8)
-    app.rowconfigure(12,weight=1)
+    log.grid(row=14,column=0,columnspan=3,sticky='nsew',padx=12,pady=8)
+    app.rowconfigure(14,weight=1)
     def write(message):
         def update():
             log.configure(state='normal')
@@ -367,8 +440,13 @@ def gui():
         if not paths['input'].get():
             messagebox.showerror('Missing file','Choose an input video first.')
             return
+        if choices['max_size_mb'].get() and cpu_workers.get()>1:
+            messagebox.showerror('Size limit with parallel encoding',
+                'A strict maximum output size is supported only with one encoder. Move the worker slider to 1 or remove the size limit.')
+            return
         start.configure(state='disabled')
         status.set('Encoding and verifying…')
+        lane_state.clear()
         # Tk variables are read only on Tk's own thread. Worker threads only
         # run the encoder and return UI updates via app.after(...).
         arguments=['--input',paths['input'].get(),
@@ -378,12 +456,13 @@ def gui():
                    '--filter',choices['filter'].get(),
                    '--motion-refinement',choices['motion_refinement'].get(),
                    '--resolution',choices['resolution'].get(),
-                   '--fps',choices['fps'].get()]
+                   '--fps',choices['fps'].get(),
+                   '--workers',str(cpu_workers.get())]
         if paths['output'].get():arguments+=['--output',paths['output'].get()]
         if choices['max_size_mb'].get():arguments+=['--max-size-mb',choices['max_size_mb'].get()]
         def worker():
             try:
-                result=encode(parser().parse_args(arguments),callback=write)
+                result=encode(parser().parse_args(arguments),callback=write,progress=update_timeline)
                 app.after(0,lambda:status.set('Success: '+str(result)))
             except Exception as error:
                 write('ERROR: '+str(error))
@@ -391,7 +470,7 @@ def gui():
             finally:app.after(0,lambda:start.configure(state='normal'))
         threading.Thread(target=worker,daemon=True).start()
     start=ttk.Button(app,text='Convert and verify MOFLEX',command=convert)
-    start.grid(row=10,column=1,pady=10)
+    start.grid(row=12,column=1,pady=10)
     app.mainloop()
 
 
@@ -411,6 +490,8 @@ def parser():
     p.add_argument('--max-size-mb',type=float,default=None,
                    help='Hard decimal-MB final file-size limit; trials may be slow')
     p.add_argument('--audio-track',type=int,default=0,help='Audio track number, starting at 0; use --list-audio-tracks to inspect languages')
+    p.add_argument('--workers',type=int,default=1,
+                   help='Parallel encoders for movie-sized inputs, 1 up to logical CPU count; disables hard size limit')
     p.add_argument('--list-audio-tracks',action='store_true',help='List audio languages/titles for --input and exit')
     p.add_argument('--ffmpeg',help='Path to the patched MobiPEG ffmpeg')
     p.add_argument('--overwrite',action='store_true',help='Replace existing exact output path')

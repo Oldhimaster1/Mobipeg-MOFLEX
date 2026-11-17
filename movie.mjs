@@ -185,6 +185,29 @@ export function nextMovieClip(frameCount, seconds, fps, targetSeconds = 30) {
   const frames=Math.max(quantum,Math.floor(targetSeconds*fps.num/fps.den/quantum)*quantum);
   return { start: duration, seconds:Math.min(frames*fps.den/fps.num, left) };
 }
+// A clip is an encoder work unit, NOT a chapter in the source video.  This
+// schedule is deterministic even if the input has no chapters or keyframes.
+export function planMovieClips(seconds, settings, targetSeconds = 30) {
+  expect(Number.isFinite(seconds) && seconds > 0, 'invalid movie duration');
+  const fps = getCodedRate(settings);
+  const eyes=settings.mode==='2d'?1:2;
+  const result = [];
+  let frames = 0;
+  const limit = Math.ceil(seconds / 5) + 4;
+  for (;;) {
+    const clip = nextMovieClip(frames, seconds, fps, targetSeconds);
+    if (!clip) break;
+    // Stereo encoder gets one whole L/R pair per displayed frame. The tail
+    // must never request an odd number of coded frames.
+    const codedFrames = Math.round(clip.seconds * fps.num / fps.den /eyes)*eyes;
+    if(codedFrames===0)break; // sub-half-frame trailer of a fractional movie
+    expect(result.length < limit, 'movie work schedule did not advance');
+    result.push({ ...clip, index:result.length, codedFrames });
+    frames += codedFrames;
+  }
+  expect(result.length > 0, 'movie has no encodable frames');
+  return result;
+}
 export async function createMovieJob() {
   expect(navigator.storage && typeof navigator.storage.getDirectory === 'function', 'on-device OPFS storage is unavailable in this browser');
   const root = await navigator.storage.getDirectory();
@@ -193,20 +216,23 @@ export async function createMovieJob() {
   const work = await dir.getDirectoryHandle(id, { create:true });
   return { root:dir, work, id, segments:[], outputName:'movie.moflex' };
 }
-export async function appendMovieSegment(job, blob, frameCount) {
+export async function appendMovieSegment(job, blob, frameCount, index = job.segments.length) {
   expect(blob && blob.size && frameCount > 0, 'empty movie segment');
+  expect(Number.isSafeInteger(index) && index >= 0 && index < MAX_INDEX_ENTRIES, 'invalid segment index');
+  expect(!job.segments[index], 'segment index already saved');
   expect(job.segments.reduce((n,p)=>n+p.file.size,0)+blob.size<4292870144, 'movie is approaching the FAT32 4 GiB limit; use a smaller quality setting');
-  const name = 'part-' + String(job.segments.length).padStart(4, '0') + '.moflex';
+  const name = 'part-' + String(index).padStart(5, '0') + '.moflex';
   const handle = await job.work.getFileHandle(name, { create:true });
   const writable = await handle.createWritable();
   try { await writable.write(blob); await writable.close(); }
   catch (err) { await writable.abort().catch(() => {}); throw err; }
   const file = await handle.getFile();
-  job.segments.push({ name, file, frames:frameCount });
+  job.segments[index] = { name, file, frames:frameCount };
   return file;
 }
 export async function assembleMovie(job, settings, progress = () => {}, cancelled = () => false) {
   expect(job.segments.length > 0, 'no chapters to join');
+  expect(job.segments.every(Boolean), 'missing encoded segment in movie timeline');
   const fps = getCodedRate(settings), parts = [];
   let count = 0, bytes = 0n, frames = 0n;
   for (const part of job.segments) {
@@ -295,7 +321,7 @@ export async function assembleMovie(job, settings, progress = () => {}, cancelle
 }
 export async function cleanupMovieJob(job, keepResult = false) {
   if (!job) return;
-  for (const part of job.segments) {
+  for (const part of job.segments.filter(Boolean)) {
     try { await job.work.removeEntry(part.name); } catch {}
   }
   if (!keepResult) {

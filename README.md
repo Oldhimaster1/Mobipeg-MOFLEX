@@ -9,6 +9,8 @@ Convert videos to MobiClip video in `.moflex` containers for Nintendo 3DS playba
 - **3DS-sized output:** select 400×240, 400×224, or 320×240 per eye, with integer and fractional frame rates.
 - **Audio conversion and verification:** convert audio to MOFLEX ADPCM and check the completed output by decoding it.
 - **Local processing:** use the native tools on your computer or convert in a browser without uploading your video.
+- **Parallel movie conversion:** split a movie timeline into independent aligned ranges (the input does **not** need chapters), show per-worker progress, and join the MOFLEX seek index in playback order. Choose between 1 and your device's advertised logical CPU count.
+- **MOFLEX player:** open and decode a local `.moflex` using the included browser player, including video seeking, stereo eye selection and ADPCM audio playback where supported.
 
 3D conversion requires a source with separate left and right views; it does not generate depth from a 2D video.
 
@@ -44,9 +46,13 @@ python3 native/MobiPEG_Studio_V15.py --gui
 
 Choose your input, output mode, quality, resolution per eye, and frame rate, then select **Convert and verify MOFLEX**. Existing output files are preserved by default.
 
+For desktop movie encoding, the **Parallel encoders** slider (or `--workers N`) starts independent custom FFmpeg processes for aligned video ranges, without looking for source chapters. One worker retains the original single-pass encoder path. Multiple workers are an experimental movie path: final video and audio are fully decoded for verification, but long-film playback on a physical 3DS remains unverified. A maximum-size target is not currently supported with multiple desktop workers. More workers require proportionally more memory and temporary disk space.
+
 The Web Studio also accepts several videos at once. Each queue item keeps its own settings and can be reordered or removed before conversion. Files are encoded one at a time, and the queue deliberately pauses after each completed output until you start its download and continue; this keeps multiple completed movies from accumulating in browser memory. The queue is local to the current tab and is not restored after a reload.
 
 Before encoding, the queue shows a broad output-size range and its estimated peak temporary browser-storage requirement. This is a planning estimate, not a promised file size: motion, detail, audio, and advanced encoder settings can substantially change the result. If the browser exposes storage quota information, MobiPEG also shows the currently available browser storage. Downloaded files use your device's normal download storage and are not included in that quota.
+
+The estimate also displays an approximate peak RAM budget for concurrent browser encoders. It is intentionally conservative and cannot predict how much memory Safari or another browser will actually allow. On phones and tablets, keep the worker slider at **1** unless you have tested higher settings on your device.
 
 ### Command-line usage
 
@@ -62,6 +68,13 @@ Convert a half-side-by-side 3D video:
 ```sh
 python3 native/MobiPEG_Studio_V15.py \
   --input "stereo.mp4" --mode half-sbs --resolution 400x224 --fps 24
+```
+
+Use several CPU cores to encode a long 2D movie without source chapter markers:
+
+```sh
+python3 native/MobiPEG_Studio_V15.py \
+  --input "movie.mp4" --mode 2d --workers 4
 ```
 
 Use `--mode full-sbs` for full-width side-by-side sources. Add `--max-size-mb 20` to set a 20 MB final output limit. Size-limited conversions can take longer because they try multiple encodes; the job fails if the requested limit cannot be met.
@@ -93,6 +106,8 @@ node scripts/dev-server.mjs
 
 Open **http://localhost:4173** in a modern browser. Use the HTTP server rather than opening `index.html` directly. Automatic engine selection uses SIMD when supported; Compatibility selects the scalar engine.
 
+Open **http://localhost:4173/player.html** for the separate **MOFLEX Player**. Pick a local `.moflex` file to display video with the actual MobiClip decoder; audio is decoded to short PCM buffers and played through WebAudio when available. The player only keeps short decoded frame batches in RAM, so a long movie does not have to be expanded into full uncompressed video. Seeking, playback rate and audio synchronization depend on browser performance and should be tested on the target device.
+
 The browser build requires **SharedArrayBuffer and cross-origin isolation**, including when using the scalar engine. The local server supplies the required headers. For phone access or public hosting, use HTTPS; plain HTTP on a LAN does not provide the required secure context.
 
 ### Hosting the web version
@@ -115,7 +130,7 @@ The included `_headers` file works on hosts that support that format. GitHub Pag
 
 This version is a development preview. Native/WASM comparison reports and Chrome conversion tests are included. On November 16, 2026, a user completed browser conversions in iPhone Safari, including a decode-verified five-minute 2D video; one shorter 2D output was confirmed playing on a physical Nintendo 3DS. Long-movie joining, stereo playback, and extended-duration seeking on 3DS hardware remain unverified. Successful software decoding does not by itself establish console compatibility.
 
-For long videos, the browser offers an **experimental Long movie mode**. It encodes chapters of at most 30 seconds separately, stores them on-device using the browser's origin-private file system (OPFS), rebuilds a single MOFLEX with a front seek index, and checks the complete video/audio decode. This avoids keeping the entire encoded movie in WebAssembly memory, but a full-length movie is **not yet tested on a physical 3DS**; seeking beyond 71 minutes is particularly uncertain because the historical seek-table duration field is 32-bit. This mode requires plenty of free local storage, may take hours, and does not support the maximum-size target. Clear the temporary movie copy using the Web Studio button once it has been downloaded. Your source video is never uploaded.
+For long videos, the browser offers an **experimental Long movie mode**. It encodes independent timeline ranges of at most 30 seconds, stores them on-device using the browser's origin-private file system (OPFS), rebuilds a single MOFLEX with a front seek index, and checks the complete video/audio decode. No source chapter information is required. Selecting two or more workers divides the timeline into roughly equally sized lanes, with separate green progress indicators. This avoids keeping the entire encoded movie in WebAssembly memory, but concurrent WASM encoders can still exceed browser memory limits, particularly on mobile. A full-length movie is **not yet tested on a physical 3DS**; seeking beyond 71 minutes is particularly uncertain because the historical seek-table duration field is 32-bit. This mode requires plenty of free local storage, may take hours, and does not support the maximum-size target. Clear the temporary movie copy using the Web Studio button once it has been downloaded. Your source video is never uploaded.
 
 Ordinary browser conversions still buffer each output in memory. The WASM engine's configured 2 GiB limit does not mean that much total tab memory is available. Keep the page open and visible; pause/resume and recovery after closing it are not supported. Browser previews may recognize fewer input formats than the encoder.
 

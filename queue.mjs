@@ -14,8 +14,15 @@ export function estimateConversion({fileBytes,duration,settings,audio=true}){
   const center=(videoBitsPerSecond+audioBitsPerSecond)*duration/8;
   const minimum=Math.max(4096,Math.floor(center*.55));
   const maximum=Math.max(minimum,Math.ceil(center*1.8));
-  const temporaryBytes=settings.movieAudio?Math.ceil(maximum*2.15):maximum;
-  return {known:true,inputBytes:fileBytes,minimum,maximum,temporaryBytes,duration};
+  const workers=settings.movieAudio?Math.max(1,Math.floor(settings.workers||1)):1;
+  const segmentBytes=Math.ceil(maximum/Math.max(1,Math.ceil(duration/30)));
+  // Segments + final file coexist in OPFS; each concurrently completed
+  // output also occupies transient memory before it has been flushed.
+  const temporaryBytes=settings.movieAudio?Math.ceil(maximum*2.15+workers*segmentBytes):maximum;
+  // Budget only, not a guarantee: native WASM heaps, FFmpeg buffers, loaded
+  // module bytes and browser process overhead vary dramatically by device.
+  const peakMemoryBytes=workers*160*1048576+96*1048576+workers*Math.min(segmentBytes,64*1048576);
+  return {known:true,inputBytes:fileBytes,minimum,maximum,temporaryBytes,peakMemoryBytes,workers,duration};
 }
 
 export function totalEstimate(items){
@@ -27,6 +34,7 @@ export function totalEstimate(items){
     minimum:known.reduce((sum,item)=>sum+item.estimate.minimum,0),
     maximum:known.reduce((sum,item)=>sum+item.estimate.maximum,0),
     peakTemporary:known.reduce((max,item)=>Math.max(max,item.estimate.temporaryBytes),0),
+    peakMemory:known.reduce((max,item)=>Math.max(max,item.estimate.peakMemoryBytes||0),0),
   };
 }
 

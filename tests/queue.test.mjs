@@ -30,7 +30,14 @@ test('queue totals sum outputs but use peak per-item temporary storage',()=>{
   const a={file:{size:100},estimate:{known:true,minimum:10,maximum:20,temporaryBytes:40}};
   const b={file:{size:200},estimate:{known:true,minimum:30,maximum:50,temporaryBytes:60}};
   const c={file:{size:300},estimate:{known:false}};
-  assert.deepEqual(totalEstimate([a,b,c]),{known:2,unknown:1,inputBytes:600,minimum:40,maximum:70,peakTemporary:60});
+  assert.deepEqual(totalEstimate([a,b,c]),{known:2,unknown:1,inputBytes:600,minimum:40,maximum:70,peakTemporary:60,peakMemory:0});
+});
+
+test('additional movie workers raise estimated peak RAM and disk usage',()=>{
+  const one=estimateConversion({fileBytes:30_000_000,duration:600,settings:{...settings,movieAudio:true,workers:1}});
+  const four=estimateConversion({fileBytes:30_000_000,duration:600,settings:{...settings,movieAudio:true,workers:4}});
+  assert.ok(four.peakMemoryBytes>one.peakMemoryBytes*2);
+  assert.ok(four.temporaryBytes>one.temporaryBytes);
 });
 
 test('byte formatting stays readable across units',()=>{

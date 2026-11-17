@@ -1,10 +1,44 @@
 import{initLanguage,translateText}from'./i18n.mjs?v=20261117f';
 import{createUsage}from'./usage.mjs?v=20261117a';
-import{validate,rate,PRESETS,ADVANCED_NUMBERS,ADVANCED_ENUMS,encodeArgs,encodeClipArgs,audioArgs,environment}from'./core.mjs?v=20261117d';
-import{createMovieJob,appendMovieSegment,assembleMovie,cleanupMovieJob,getCodedRate,nextMovieClip}from'./movie.mjs?v=20261116d';
-import{estimateConversion,totalEstimate,formatBytes}from'./queue.mjs?v=20261117f';
-const $=id=>document.getElementById(id),form=$('settings');let file=null,worker=null,previewURL=null,outputURL=null,started=0,stageStarted=0,ticker=null,report=null,wake=null,busy=false,runToken=0,stallMonitor=null,movieJob=null,completedMovieJob=null,sampleWorker=null,sampleToken=0,sampleData=null,audioInspector=null;
+import{validate,rate,PRESETS,ADVANCED_NUMBERS,ADVANCED_ENUMS,encodeArgs,encodeClipArgs,audioArgs,environment}from'./core.mjs?v=20261117g';
+import{createMovieJob,appendMovieSegment,assembleMovie,cleanupMovieJob,getCodedRate,nextMovieClip}from'./movie.mjs?v=20261117g';
+import{estimateConversion,totalEstimate,formatBytes}from'./queue.mjs?v=20261117g';
+import{runParallelMovie}from'./parallel.mjs?v=20261117g';
+const $=id=>document.getElementById(id),form=$('settings');let file=null,worker=null,previewURL=null,outputURL=null,started=0,stageStarted=0,ticker=null,report=null,wake=null,busy=false,runToken=0,stallMonitor=null,movieJob=null,completedMovieJob=null,sampleWorker=null,sampleToken=0,sampleData=null,audioInspector=null,parallelAbort=null;
 let queue=[],activeQueueId=null,queueRunning=false,queueCurrent=null,queueDownloaded=false,originStorage=null,nextQueueId=1,restoringSettings=false;
+// Hardware concurrency is a *logical* upper bound, not a RAM guarantee.
+// Phones default to one encoder to avoid exhausting their browser process.
+const coreMax=Math.max(1,Math.floor(Number(navigator.hardwareConcurrency)||1));
+const workerField=document.createElement('div');workerField.className='field workers-field';
+workerField.innerHTML='<label for="workers">Parallel movie encoders: <strong id="workerValue"></strong></label><input id="workers" name="workers" type="range" min="1" step="1"><p class="hint">Independent 30-second timeline ranges—not source chapters. More workers can speed up long movies but each uses another WASM codec and additional RAM. Phones start at one; reduce this setting if conversion runs out of memory.</p>';
+const workerSlider=workerField.querySelector('input');workerSlider.max=String(coreMax);
+workerSlider.value=String(/iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent)?1:Math.min(2,coreMax));
+workerSlider.defaultValue=workerSlider.value;
+workerField.querySelector('#workerValue').textContent=workerSlider.value+' / '+coreMax+' logical cores';
+$('longMovie').closest('.field').after(workerField);
+const timeline=document.createElement('div');timeline.id='parallelTimeline';timeline.className='parallel-timeline';timeline.hidden=true;timeline.setAttribute('aria-label','Parallel encoder timelines');
+$('progress').after(timeline);
+const playerLink=document.createElement('a');playerLink.href='player.html';playerLink.className='secondary';playerLink.textContent='Open MOFLEX player ↗';playerLink.style.marginTop='1rem';
+$('result').append(playerLink);
+const navPlayer=document.createElement('a');navPlayer.href='player.html';navPlayer.textContent='MOFLEX Player ↗';
+document.querySelector('.header-right')?.append(navPlayer);
+const renderWorkerCount=()=>{workerField.querySelector('#workerValue').textContent=workerSlider.value+' / '+coreMax+' logical cores';};
+workerSlider.addEventListener('input',renderWorkerCount);
+function renderParallelProgress(update){
+  if(update.log){log(update.log);return;}
+  if(!update.fractions)return;
+  if(timeline.children.length!==update.workers){
+    timeline.replaceChildren(...Array.from({length:update.workers},(_,i)=>{
+      const shard=document.createElement('span');shard.className='parallel-shard';shard.title=`Encoder ${i+1}`;
+      const fill=document.createElement('i');shard.append(fill);return shard;
+    }));
+  }
+  timeline.hidden=false;
+  [...timeline.children].forEach((item,i)=>{item.firstChild.style.width=(100*update.fractions[i]).toFixed(1)+'%';item.setAttribute('aria-label',`Worker ${i+1}: ${Math.round(100*update.fractions[i])}%`);});
+  $('progress').value=update.overall;
+  $('stage').textContent=`Parallel encoding · ${update.workers} workers · ${update.clips} timeline ranges`;
+  $('eta').textContent=`${Math.round(update.overall*100)}% of movie encoded · assembling and verification follow`;
+}
 const usage=createUsage();
 const usageOptOut=$('usageOptOut');
 usageOptOut.checked=!usage.enabled();
@@ -33,15 +67,15 @@ function advancedPreview(){
     const quote=v=>"'"+String(v).replaceAll("'","'\\''")+"'";
     $('advancedCommand').textContent=Object.entries(environment(s)).map(([k,v])=>k+'='+v).join(' ')+'\nffmpeg '+args.map(quote).join(' ')+
       '\n\nffmpeg '+audioArgs(s,seconds).map(quote).join(' ')+
-      '\n\n'+(s.movieAudio?'First chapter; repeated with aligned seeks. ':'')+'Audio invocation runs only when an audio stream exists. Duration uses source metadata (1 s placeholder before a file is selected). Size-limited trials may change Q.';
+      '\n\n'+(s.movieAudio?'First timeline range; repeated with aligned seeks. ':'')+'Audio invocation runs only when an audio stream exists. Duration uses source metadata (1 s placeholder before a file is selected). Size-limited trials may change Q.';
   }catch(e){$('advancedCommand').textContent=e.message;}
 }
-function settings(){const d=new FormData(form);return validate({mode:d.get('mode'),engine:d.get('engine')||'auto',preset:d.get('preset'),resolution:d.get('resolution'),fps:d.get('fps'),filter:d.get('filter'),motion:d.get('motion'),q:d.get('q')===''?null:Number(d.get('q')),audioTrack:Number(d.get('audioTrack')||0),maxMB:d.get('maxMB')===''?null:Number(d.get('maxMB')),speed:d.get('speed')||'original',advanced:readAdvanced(d),crop:{fit:d.get('fit'),aspect:d.get('aspect')||'source',...Object.fromEntries(['left','right','top','bottom'].map(k=>[k,Number(d.get('crop-'+k))]))}});}
+function settings(){const d=new FormData(form);return validate({mode:d.get('mode'),engine:d.get('engine')||'auto',preset:d.get('preset'),resolution:d.get('resolution'),fps:d.get('fps'),filter:d.get('filter'),motion:d.get('motion'),q:d.get('q')===''?null:Number(d.get('q')),audioTrack:Number(d.get('audioTrack')||0),maxMB:d.get('maxMB')===''?null:Number(d.get('maxMB')),speed:d.get('speed')||'original',workers:Number(d.get('workers')||1),advanced:readAdvanced(d),crop:{fit:d.get('fit'),aspect:d.get('aspect')||'source',...Object.fromEntries(['left','right','top','bottom'].map(k=>[k,Number(d.get('crop-'+k))]))}});}
 function snapshotSettings(){const value=structuredClone(settings());value.movieAudio=$('longMovie').checked;return value;}
 function applySettings(value){
   restoringSettings=true;
   const set=(name,value)=>{const control=form.elements.namedItem(name);if(!control)return;if(control instanceof RadioNodeList){for(const el of control)el.checked=el.value===String(value);}else control.value=value??'';};
-  for(const key of ['mode','engine','preset','resolution','fps','filter','motion','q','audioTrack','maxMB','speed'])set(key,value[key]);
+  for(const key of ['mode','engine','preset','resolution','fps','filter','motion','q','audioTrack','maxMB','speed','workers'])set(key,value[key]);renderWorkerCount();
   set('longMovie',value.movieAudio?'on':'');$('longMovie').checked=!!value.movieAudio;
   set('fit',value.crop?.fit??'fit');set('aspect',value.crop?.aspect??'source');for(const edge of ['left','right','top','bottom'])set('crop-'+edge,value.crop?.[edge]??0);
   $('advancedEnabled').checked=value.advanced!==null;
@@ -57,7 +91,7 @@ function select(f,item=null){
 $('preview').onloadedmetadata=()=>{const item=queue.find(x=>x.id===activeQueueId);if(item){item.duration=$('preview').duration;item.audio=true;if(navigator.storage?.getDirectory&&item.duration>180&&!item.settings.movieAudio){item.settings.movieAudio=true;$('longMovie').checked=true;}refreshEstimates();}$('filemeta').textContent=`${$('preview').videoWidth} × ${$('preview').videoHeight} · ${time($('preview').duration)}`;advancedPreview();};
 $('file').onchange=e=>{addFiles(e.target.files);e.target.value='';};$('replace').onclick=()=>$('file').click();for(const type of ['dragenter','dragover'])$('drop').addEventListener(type,e=>{e.preventDefault();if(!busy)$('drop').classList.add('over');});for(const type of ['dragleave','drop'])$('drop').addEventListener(type,e=>{e.preventDefault();$('drop').classList.remove('over');if(type==='drop')addFiles(e.dataTransfer.files);});
 form.oninput=()=>{advancedPreview();invalidateSample();saveActiveSettings();};
-form.onchange=()=>{advancedPreview();invalidateSample();saveActiveSettings();const stereo=new FormData(form).get('mode')!=='2d';$('modehint').textContent=stereo?`True 3D · layout 0 · ${ (rate($('fps').value)*2).toFixed(3).replace(/\.000$/,'')} coded eye frames/sec`:'Standard 2D · MOFLEX layout 6';};$('reset').onclick=()=>{if(!busy){form.reset();form.dispatchEvent(new Event('change'));}};
+form.onchange=()=>{renderWorkerCount();advancedPreview();invalidateSample();saveActiveSettings();const stereo=new FormData(form).get('mode')!=='2d';$('modehint').textContent=stereo?`True 3D · layout 0 · ${ (rate($('fps').value)*2).toFixed(3).replace(/\.000$/,'')} coded eye frames/sec`:'Standard 2D · MOFLEX layout 6';};$('reset').onclick=()=>{if(!busy){form.reset();form.dispatchEvent(new Event('change'));}};
 function saveActiveSettings(){
   if(restoringSettings||busy)return;const item=queue.find(x=>x.id===activeQueueId);if(!item)return;
   try{item.settings=snapshotSettings();refreshEstimates();}catch{}
@@ -99,7 +133,7 @@ function refreshEstimates(){
   for(const item of queue)item.estimate=estimateConversion({fileBytes:item.file.size,duration:item.duration,settings:item.settings,audio:item.audio});
   const totals=totalEstimate(queue),free=originStorage?.quota&&Number.isFinite(originStorage.usage)?Math.max(0,originStorage.quota-originStorage.usage):null;
   const output=totals.known?`${formatBytes(totals.minimum)}–${formatBytes(totals.maximum)}`:'waiting for durations';
-  $('estimateSummary').textContent=`${queue.length} video${queue.length===1?'':'s'} · ${formatBytes(totals.inputBytes)} input · ${output} estimated output · up to ${formatBytes(totals.peakTemporary)} temporary per item · ${free===null?'browser storage unavailable':formatBytes(free)+' browser storage free'}`+(totals.unknown?` · ${totals.unknown} duration${totals.unknown===1?'':'s'} unavailable`:'');
+  $('estimateSummary').textContent=`${queue.length} video${queue.length===1?'':'s'} · ${formatBytes(totals.inputBytes)} input · ${output} estimated output · ${totals.known?'up to '+formatBytes(totals.peakTemporary)+' temporary disk per item':'temporary disk unknown'} · rough peak RAM ${totals.known?formatBytes(totals.peakMemory):'unknown'} · ${free===null?'browser storage unavailable':formatBytes(free)+' browser storage free'}`+(totals.unknown?` · ${totals.unknown} duration${totals.unknown===1?'':'s'} unavailable`:'');
   const ratio=free&&totals.peakTemporary?Math.min(1,totals.peakTemporary/free):0;$('estimateMeter').style.width=(ratio*100).toFixed(1)+'%';$('estimateMeter').classList.toggle('warning',ratio>.8);renderQueue();
 }
 function beginNextQueuedItem(){
@@ -117,7 +151,7 @@ $('queueNext').onclick=async()=>{
   if(queueCurrent.status==='ready')queueCurrent.status='done';queueCurrent=null;$('queueNext').hidden=true;$('queueNext').disabled=true;beginNextQueuedItem();
 };
 function lock(v){busy=v;if(v&&audioInspector){audioInspector.terminate();audioInspector=null;}for(const el of form.elements)el.disabled=v;$('convert').disabled=v||!file;$('reset').disabled=v;$('replace').disabled=v;$('file').disabled=v;$('makeSample').disabled=v||!file;$('samplePosition').disabled=v||!file;$('sampleStart').disabled=v;advancedPreview();renderQueue();}
-function finish(){runToken++;worker?.terminate();worker=null;clearInterval(ticker);clearInterval(stallMonitor);stallMonitor=null;lock(false);$('cancel').hidden=true;wake?.release().catch(()=>{});wake=null;if(movieJob){const saved=movieJob;movieJob=null;const keep=!!outputURL;if(keep){completedMovieJob=saved;$('clearMovieData').hidden=false;}cleanupMovieJob(saved,keep).catch(e=>log('Local cleanup warning: '+e.message));}}
+function finish(){runToken++;parallelAbort?.abort();parallelAbort=null;worker?.terminate();worker=null;clearInterval(ticker);clearInterval(stallMonitor);stallMonitor=null;lock(false);$('cancel').hidden=true;wake?.release().catch(()=>{});wake=null;if(movieJob){const saved=movieJob;movieJob=null;const keep=!!outputURL;if(keep){completedMovieJob=saved;$('clearMovieData').hidden=false;}cleanupMovieJob(saved,keep).catch(e=>log('Local cleanup warning: '+e.message));}}
 function fail(message){$('stage').textContent='Conversion stopped';$('error').hidden=false;$('error').textContent=message;log(message);$('progress').value=0;if(queueRunning&&queueCurrent?.status==='encoding')queueCurrent.status='failed';finish();if(queueRunning&&queueCurrent){$('queueNext').hidden=false;$('queueNext').disabled=false;$('queueNext').textContent='Skip item & continue';renderQueue();}}
 $('cancel').onclick=()=>{if(queueRunning&&queueCurrent)queueCurrent.status='cancelled';fail('Cancelled. Your original file is untouched.');};
 $('clearMovieData').onclick=async()=>{
@@ -127,29 +161,20 @@ $('clearMovieData').onclick=async()=>{
   try{await cleanupMovieJob(saved,false);$('clearMovieData').hidden=true;log('Temporary movie storage removed.');}
   catch(e){log('Could not clear local storage: '+e.message);}
 };
-form.onsubmit=async e=>{e.preventDefault();if(!file||busy)return;let s;try{s=settings();}catch(e){showAlert(e.message);stopQueueBeforeEncoding();return;}const movieMode=$('longMovie').checked;s.movieAudio=movieMode;if(movieMode&&s.maxMB!==null){showAlert('Movie mode currently requires No limit for maximum size. The short chapters are combined into one final MOFLEX.');stopQueueBeforeEncoding();return;}if(movieMode&&!navigator.storage?.getDirectory){showAlert('Long-movie mode requires on-device private file storage (OPFS), which is unavailable in this browser.');stopQueueBeforeEncoding();return;}const item=queue.find(value=>value.id===activeQueueId),free=originStorage?.quota&&Number.isFinite(originStorage.usage)?originStorage.quota-originStorage.usage:null;if(movieMode&&item?.estimate?.known&&free!==null&&item.estimate.temporaryBytes>free&&!askConfirm('The estimated temporary storage exceeds the browser storage currently available. Continue anyway?')){stopQueueBeforeEncoding();return;}if(file.size>512*1024*1024&&!askConfirm('This is a large input. Browser memory may be insufficient, especially on mobile. Continue?')){stopQueueBeforeEncoding();return;}lock(true);const token=++runToken;if(outputURL){URL.revokeObjectURL(outputURL);outputURL=null;}if(completedMovieJob){const old=completedMovieJob;completedMovieJob=null;$('clearMovieData').hidden=true;cleanupMovieJob(old,false).catch(e=>log('Old movie cleanup warning: '+e.message));}$('job').hidden=false;$('result').hidden=true;$('error').hidden=true;$('cancel').hidden=false;$('stage').textContent='Loading native WASM encoder…';$('joblabel').textContent=queueRunning?`QUEUE · ${queue.indexOf(queueCurrent)+1}/${queue.length}`:'CONVERSION';$('logs').textContent='MobiPEG V15 · fixed layout-0 source\nNo media upload. WebAssembly · FFmpeg scheduler threads, single codec thread.';$('memory').textContent='';$('eta').textContent='Estimating time…';$('progress').removeAttribute('value');started=stageStarted=performance.now();ticker=setInterval(()=>$('elapsed').textContent=time((performance.now()-started)/1000)+' elapsed',1000);$('job').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'nearest'});try{const requestedWake=await navigator.wakeLock?.request('screen');if(token!==runToken){requestedWake?.release().catch(()=>{});return;}wake=requestedWake;}catch{}if(token!==runToken)return;
+form.onsubmit=async e=>{e.preventDefault();if(!file||busy)return;let s;try{s=settings();}catch(e){showAlert(e.message);stopQueueBeforeEncoding();return;}const movieMode=$('longMovie').checked;s.movieAudio=movieMode;if(movieMode&&s.maxMB!==null){showAlert('Movie mode currently requires No limit for maximum size. The short timeline ranges are combined into one final MOFLEX.');stopQueueBeforeEncoding();return;}if(movieMode&&!navigator.storage?.getDirectory){showAlert('Long-movie mode requires on-device private file storage (OPFS), which is unavailable in this browser.');stopQueueBeforeEncoding();return;}const item=queue.find(value=>value.id===activeQueueId),free=originStorage?.quota&&Number.isFinite(originStorage.usage)?originStorage.quota-originStorage.usage:null;if(movieMode&&item?.estimate?.known&&free!==null&&item.estimate.temporaryBytes>free&&!askConfirm('The estimated temporary storage exceeds the browser storage currently available. Continue anyway?')){stopQueueBeforeEncoding();return;}if(movieMode&&s.workers>1&&/iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent)&&!askConfirm(`${s.workers} concurrent native WASM encoders may exhaust mobile browser memory and terminate this tab. Use one worker for reliability. Continue with ${s.workers}?`)){stopQueueBeforeEncoding();return;}if(file.size>512*1024*1024&&!askConfirm('This is a large input. Browser memory may be insufficient, especially on mobile. Continue?')){stopQueueBeforeEncoding();return;}lock(true);const token=++runToken;if(outputURL){URL.revokeObjectURL(outputURL);outputURL=null;}if(completedMovieJob){const old=completedMovieJob;completedMovieJob=null;$('clearMovieData').hidden=true;cleanupMovieJob(old,false).catch(e=>log('Old movie cleanup warning: '+e.message));}$('job').hidden=false;$('result').hidden=true;$('error').hidden=true;$('cancel').hidden=false;timeline.hidden=true;timeline.replaceChildren();$('stage').textContent='Loading native WASM encoder…';$('joblabel').textContent=queueRunning?`QUEUE · ${queue.indexOf(queueCurrent)+1}/${queue.length}`:'CONVERSION';$('logs').textContent='MobiPEG V15 · fixed layout-0 source\nNo media upload. WebAssembly · independent timeline encoders when enabled.';$('memory').textContent='';$('eta').textContent='Estimating time…';$('progress').removeAttribute('value');started=stageStarted=performance.now();ticker=setInterval(()=>$('elapsed').textContent=time((performance.now()-started)/1000)+' elapsed',1000);$('job').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'nearest'});try{const requestedWake=await navigator.wakeLock?.request('screen');if(token!==runToken){requestedWake?.release().catch(()=>{});return;}wake=requestedWake;}catch{}if(token!==runToken)return;
 let candidate=null;
 let movieDuration=0,movieAudio=false,movieFrames=0,movieParts=0;
 const movieFPS=getCodedRate(s);
-const beginMoviePart=async()=>{
+const joinMovie=async()=>{
   if(token!==runToken)return;
-  const clip=nextMovieClip(movieFrames,movieDuration,movieFPS,30);
-  if(clip){
-    if(movieParts>Math.ceil(movieDuration/20)+4)throw Error('Movie timeline did not advance; conversion stopped to avoid repeated chapters.');
-    movieParts++;
-    $('joblabel').textContent='LONG MOVIE · CHAPTER '+movieParts;
-    log('Encoding chapter '+movieParts+' starting '+time(clip.start)+', length '+time(clip.seconds)+'.');
-    switchWorker('segment',{type:'segment',file,settings:s,clip,media:{duration:movieDuration,audio:movieAudio}});
-    return;
-  }
   expectMovieParts();
   $('joblabel').textContent='LONG MOVIE · ASSEMBLING';
   $('stage').textContent='Building complete movie and seek index';
   $('eta').textContent='Writing one MOFLEX to local storage…';
-  $('progress').value=0;
+  timeline.hidden=true;$('progress').value=0;
   const merged=await assembleMovie(movieJob,s,v=>{
     if(token!==runToken)return;
-    $('stage').textContent='Assembling movie · chapter '+v.chapter+'/'+v.chapters;
+    $('stage').textContent='Assembling movie · part '+v.chapter+'/'+v.chapters;
     $('progress').value=v.total?v.written/v.total:0;
   },()=>token!==runToken);
   if(token!==runToken)return;
@@ -157,6 +182,19 @@ const beginMoviePart=async()=>{
   log('One indexed MOFLEX assembled: '+(merged.file.size/1e6).toFixed(2)+' MB, '+merged.frames+' frames.');
   if(merged.durationFieldSaturated)log('Warning: movie exceeds the legacy 32-bit duration field (71m35s); timestamps and frame index use wider fields. Physical 3DS playback and seeking must be tested.');
   switchWorker('verify',{type:'verify',kind:'video',blob:merged.file,frames:merged.frames,seconds:merged.seconds,settings:s});
+};
+const beginMoviePart=async()=>{
+  if(token!==runToken)return;
+  const clip=nextMovieClip(movieFrames,movieDuration,movieFPS,30);
+  if(clip){
+    if(movieParts>Math.ceil(movieDuration/20)+4)throw Error('Movie timeline did not advance; conversion stopped to avoid repeated chapters.');
+    movieParts++;
+    $('joblabel').textContent='LONG MOVIE · RANGE '+movieParts;
+    log('Encoding range '+movieParts+' starting '+time(clip.start)+', length '+time(clip.seconds)+'.');
+    switchWorker('segment',{type:'segment',file,settings:s,clip,media:{duration:movieDuration,audio:movieAudio}});
+    return;
+  }
+  await joinMovie();
 };
 const expectMovieParts=()=>{if(!movieParts||!movieFrames)throw Error('No movie chapters were encoded.');};
 const continueMovie=()=>beginMoviePart().catch(e=>{if(token===runToken)fail(e.message||String(e));});
@@ -197,7 +235,7 @@ const publishCandidate=(verified,reason='')=>{
 };
 const startWorker=(type,payload)=>{
   if(token!==runToken)return;
-  currentWorkerType=type;lastActivity=performance.now();idleWarningShown=false;const w=new Worker('worker.js?v=20261117d');worker=w;
+  currentWorkerType=type;lastActivity=performance.now();idleWarningShown=false;const w=new Worker('worker.js?v=20261117g');worker=w;
   w.onerror=e=>{
     if(token!==runToken||worker!==w)return;
     const message=`Encoder worker failed: ${e.message||'unknown error'}`;
@@ -224,7 +262,20 @@ const startWorker=(type,payload)=>{
        worker?.terminate();worker=null;
        movieDuration=d.media.duration;movieAudio=d.media.audio;movieJob.audio=movieAudio;
        log('Movie duration '+time(movieDuration)+'; audio '+(movieAudio?'included':'not present')+'.');
-       continueMovie();
+       if(s.workers>1){
+         currentWorkerType='segment';parallelAbort=new AbortController();
+         $('joblabel').textContent='LONG MOVIE · PARALLEL';
+         log('Starting '+s.workers+' independent encoding lanes. These are timeline ranges, not source chapters.');
+         runParallelMovie({file,settings:s,media:{duration:movieDuration,audio:movieAudio},job:movieJob,
+           workers:s.workers,signal:parallelAbort.signal,onUpdate:update=>{
+             if(token===runToken)renderParallelProgress(update);
+           }}).then(result=>{
+             if(token!==runToken)return;
+             movieParts=result.parts;movieFrames=result.frames;
+             log('All '+movieParts+' parallel timeline parts saved; starting ordered assembly.');
+             return joinMovie();
+           }).catch(error=>{if(token===runToken)fail('Parallel movie conversion stopped: '+(error.message||String(error)));});
+       }else continueMovie();
      }else if(d.type==='segment'){
        worker?.terminate();worker=null;
        if(d.empty){
@@ -239,7 +290,7 @@ const startWorker=(type,payload)=>{
          movieFrames+=d.frames;
          const expected=Math.round(payload.clip.seconds*rate(s.fps))*(s.mode==='2d'?1:2);
          if(d.frames<expected)movieDuration=movieFrames*movieFPS.den/movieFPS.num;
-         log('Chapter '+movieParts+' saved to local storage: '+(d.blob.size/1e6).toFixed(2)+' MB, '+d.frames+' frames.');
+         log('Range '+movieParts+' saved to local storage: '+(d.blob.size/1e6).toFixed(2)+' MB, '+d.frames+' frames.');
          continueMovie();
        }catch(err){if(token===runToken)fail('Could not save movie chapter: '+(err.message||String(err))+'. Check free device storage.');}
      }else if(d.type==='candidate'){
@@ -271,7 +322,7 @@ window.addEventListener('beforeunload',e=>{if(busy||queueRunning){e.preventDefau
 $('inspectAudio').onclick=()=>{
   if(!file||busy)return;
   let s;try{s=settings();}catch(e){log(e.message);return;}
-  const selected=file,w=new Worker('worker.js?v=20261117d');audioInspector=w;
+  const selected=file,w=new Worker('worker.js?v=20261117g');audioInspector=w;
   $('inspectAudio').disabled=true;
   const end=()=>{w.terminate();if(audioInspector===w)audioInspector=null;$('inspectAudio').disabled=busy;};
   w.onerror=e=>{log('Audio inspection failed: '+e.message);end();};
@@ -308,7 +359,7 @@ $('makeSample').onclick=()=>{
   try{s=settings();start=Number($('sampleStart').value);if(!Number.isFinite(start)||start<0||Number.isFinite($('preview').duration)&&start>=$('preview').duration)throw Error('Choose a preview position within the video.');}
   catch(e){$('sampleStatus').textContent=e.message;return;}
   invalidateSample();lock(true);const token=++sampleToken;let w;
-  try{w=new Worker('worker.js?v=20261117d');sampleWorker=w;}catch(e){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();return;}
+  try{w=new Worker('worker.js?v=20261117g');sampleWorker=w;}catch(e){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();return;}
   $('cancelSample').hidden=false;$('sampleStatus').textContent='Loading preview encoder…';
   w.onerror=e=>{if(token===sampleToken){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();}};
   w.onmessage=async({data:d})=>{
