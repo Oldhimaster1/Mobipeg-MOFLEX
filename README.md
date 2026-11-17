@@ -174,3 +174,25 @@ support larger sources or their statistics will be rejected. Never rerun a schem
 containing `DROP TABLE` against existing counters.
 
 Reporting checks: `node --test tests/usage.test.mjs` (mocked network only).
+
+### Advanced browser parameters
+
+The optional **Advanced → Parameter overrides** section exposes 16 validated
+controls using native parameter names: motion estimation, subpel search, keyframe
+interval, skip SAD threshold, motion-vector refinement/penalty/diagonal search,
+scaler flags and input range, spatial/temporal hqdn3d coefficients, and audio
+gain/highpass/lowpass filters. Empty fields inherit the profile. An invocation
+preview displays video/audio argument vectors and codec environment values.
+Disabling overrides ignores all their values; Reset clears them. Active values
+are saved in the existing local conversion report, never in usage telemetry.
+
+Arbitrary FFmpeg arguments are not accepted. Codec, pixel format, stereo layout,
+sample rates, and movie timestamp/frame alignment remain controlled by the
+existing conversion pipeline. Known desynchronizing subme 1 is rejected. No
+native or WASM binary change is needed for these supported parameters.
+
+Validation: `node --test tests/core.test.mjs tests/movie.test.mjs tests/advanced.test.mjs tests/usage.test.mjs`;
+`node tests/advanced-wasm.mjs` generates tiny fixtures and completely decodes
+advanced output for both WASM engines and all three video modes;
+`playwright test --config tests/browser/advanced.config.mjs` checks mobile form
+submission, overrides, validation, cancel and reset with a mocked conversion worker.
