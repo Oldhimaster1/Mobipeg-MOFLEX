@@ -12,12 +12,28 @@ import subprocess
 from moflex_join import join
 
 
-def plan_ranges(seconds, fps, target=30, eyes=1):
+def plan_ranges(seconds, fps, target=30, eyes=1, workers=1):
     """Schedule aligned coded-frame ranges; no source chapters are required."""
     rate=Fraction(fps)
     if seconds<=0 or rate<=0:raise ValueError('Invalid duration or frame rate')
     quantum=256*rate.numerator//math.gcd(48000*rate.denominator,256*rate.numerator)
     target_frames=max(quantum,int(Fraction(target)*rate/quantum)*quantum)
+    if workers>1:
+        # Balance whole-movie coded frames across independent CPU processes.
+        lanes=min(int(workers),max(1,int(seconds//4)))
+        total=int(Fraction(str(seconds))*rate/eyes)*eyes
+        quantum=math.lcm(quantum,eyes)
+        units=total//quantum
+        count=min(max(lanes,math.ceil(seconds/(29*lanes))*lanes),max(1,units))
+        lengths=[(units//count+(1 if i<units%count else 0))*quantum
+                 for i in range(count)]
+        lengths[-1]+=total-units*quantum
+        ranges=[];frames=0
+        for amount in lengths:
+            start=Fraction(frames,1)/rate
+            ranges.append((float(start),float(Fraction(amount,1)/rate),amount))
+            frames+=amount
+        return ranges
     ranges=[];frames=0
     while float(Fraction(frames,1)/rate)+float(Fraction(1,2)/rate)<seconds:
         start=Fraction(frames,1)/rate
@@ -54,7 +70,7 @@ def encode_parallel(*, args, inp, out, encoder, probe, media, filters, layout_op
     """Write to a temporary assembled file; caller performs full verification."""
     workers=args.workers
     rate=Fraction(coded_fps_label)
-    ranges=plan_ranges(media['duration'],rate,eyes=1 if args.mode=='2d' else 2)
+    ranges=plan_ranges(media['duration'],rate,eyes=1 if args.mode=='2d' else 2,workers=workers)
     workers=min(workers,len(ranges))
     if args.max_size_mb is not None:
         raise ValueError('Parallel desktop mode currently requires no hard maximum file size')

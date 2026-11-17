@@ -1,11 +1,32 @@
-import {appendMovieSegment, planMovieClips} from './movie.mjs';
+import {appendMovieSegment, getCodedRate} from './movie.mjs';
 
-// The input need not contain chapters: equal-sized *timeline shards* each
-// encode short, independently seekable clips. A fresh WASM worker is used for
-// each clip so native codec state and memory are released between clips.
+// Balanced, frame-aligned timeline parts require no source chapters.
+// A bounded worker pool reuses compiled WASM and recycles memory every four parts.
+export function planBalancedMovieClips(seconds, settings, wanted=1) {
+  if(!Number.isFinite(seconds)||seconds<=0)throw Error('Invalid duration');
+  const fps=getCodedRate(settings),eyes=settings.mode==='2d'?1:2;
+  const gcd=(a,b)=>b?gcd(b,a%b):a;
+  const raw=256*fps.num/gcd(48000*fps.den,256*fps.num);
+  const quantum=raw/gcd(raw,eyes)*eyes;
+  const lanes=Math.min(Math.max(1,Math.floor(wanted)),Math.max(1,Math.floor(seconds/4)));
+  const frames=Math.floor(seconds*fps.num/(fps.den*eyes)+1e-7)*eyes;
+  if(frames<eyes)throw Error('No complete video frame');
+  const units=Math.floor(frames/quantum);
+  const desired=Math.max(lanes,Math.ceil(seconds/(29*lanes))*lanes);
+  const count=Math.min(desired,Math.max(1,units));
+  const each=Math.floor(units/count),extra=units%count;
+  let at=0;const clips=[];
+  for(let i=0;i<count;i++){
+    const n=(each+(i<extra?1:0))*quantum+(i===count-1?frames%quantum:0);
+    if(n<eyes||n%eyes)throw Error('Incomplete stereo pair');
+    clips.push({index:i,start:at*fps.den/fps.num,seconds:n*fps.den/fps.num,codedFrames:n});
+    at+=n;
+  }
+  return clips;
+}
 export async function runParallelMovie({file, settings, media, job, workers, onUpdate=()=>{},
-  signal, createWorker=()=>new Worker('worker.js?v=20261117g'), save=appendMovieSegment}) {
-  const clips=planMovieClips(media.duration,settings);
+  signal, createWorker=()=>new Worker('worker.js?v=20261117h'), save=appendMovieSegment}) {
+  const clips=planBalancedMovieClips(media.duration,settings,workers);
   const count=Math.min(Math.max(1,Math.floor(workers)),clips.length);
   const live=new Set();
   const stopper=new AbortController();
@@ -15,12 +36,9 @@ export async function runParallelMovie({file, settings, media, job, workers, onU
   const aborted=()=>signal?.aborted||stopper.signal.aborted;
   const abort=()=>{stopper.abort();for(const w of live)w.terminate();};
   signal?.addEventListener('abort',abort,{once:true});
-  async function encode(clip, slot){
+  async function encode(clip, slot, w){
     if(aborted())throw Error('Cancelled');
-    let w;
-    try{
-      w=createWorker();live.add(w);
-      return await new Promise((resolve,reject)=>{
+    return await new Promise((resolve,reject)=>{
         let settled=false;
         const cancel=()=>done(Error('Cancelled'));
         const done=(error,result)=>{if(settled)return;settled=true;signal?.removeEventListener('abort',cancel);stopper.signal.removeEventListener('abort',cancel);error?reject(error):resolve(result);};
@@ -41,7 +59,6 @@ export async function runParallelMovie({file, settings, media, job, workers, onU
         try{w.postMessage({type:'segment',file,settings,clip:{start:clip.start,seconds:clip.seconds},media});}
         catch(e){done(e);}
       });
-    }finally{if(w){w.terminate();live.delete(w);}}
   }
   try{
     notify();
@@ -50,8 +67,11 @@ export async function runParallelMovie({file, settings, media, job, workers, onU
       return clips.slice(start,end).map((clip,j)=>({...clip,shardIndex:j,shardLength:end-start}));
     });
     const jobs=chunks.map(async(chunk,slot)=>{
-      for(const clip of chunk){
-        const d=await encode(clip,slot);
+      let w=null,used=0;
+      try{for(const clip of chunk){
+        if(aborted())throw Error('Cancelled');
+        if(!w){w=createWorker();live.add(w);used=0;}
+        const d=await encode(clip,slot,w);
         if(aborted())throw Error('Cancelled');
         if(d.empty){
           if(clip.index!==clips.length-1)throw Error('Input video ended before the scheduled timeline; try one worker.');
@@ -64,7 +84,8 @@ export async function runParallelMovie({file, settings, media, job, workers, onU
         }
         progress[slot]=(clip.shardIndex+1)/clip.shardLength;
         notify();
-      }
+        if(++used>=4){w.terminate();live.delete(w);w=null;}
+      }}finally{if(w){w.terminate();live.delete(w);}}
     });
     const results=await Promise.allSettled(jobs.map(p=>p.catch(error=>{abort();throw error;})));
     const failure=results.find(r=>r.status==='rejected'&&r.reason?.message!=='Cancelled')??results.find(r=>r.status==='rejected');

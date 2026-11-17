@@ -6,7 +6,7 @@ const time=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
 let file=null,metadata=null,decoder=null,serial=0,inFlight=false,nextFrame=0,buffer=[];
 let playing=false,currentTime=0,clockStart=0,audioContext=null,audioBase=0,audioSources=[];
 let lastFrame=-1,failed=false;
-const BATCH_FRAMES=24;
+const BATCH_FRAMES=48;
 const status=s=>$('playerStatus').textContent=s;
 
 function stopAudio(){
@@ -22,10 +22,11 @@ function resetDecoder(){
   serial++;decoder?.terminate();decoder=null;inFlight=false;buffer=[];lastFrame=-1;failed=false;
   if(!metadata)return;
   const incarnation=serial;
-  decoder=new Worker('player-worker.js?v=20261117g');
+  decoder=new Worker('player-worker.js?v=20261117h');
   decoder.onerror=error=>{if(incarnation!==serial)return;inFlight=false;failed=true;pause();status('Decoder failed: '+(error.message||'unknown error'));};
   decoder.onmessage=({data:d})=>{
     if(incarnation!==serial||d.request!==incarnation)return;
+    if(d.type==='ready')return;
     inFlight=false;
     if(d.type==='error'){
       failed=true;pause();status('Cannot decode this MOFLEX: '+d.message);return;
@@ -47,6 +48,7 @@ function resetDecoder(){
       requestMore();
     }
   };
+  decoder.postMessage({type:'warm',request:incarnation});
 }
 function startPosition(seconds){
   currentTime=Math.max(0,Math.min(seconds,Math.max(0,(metadata?.duration??0)-.001)));
@@ -78,8 +80,9 @@ function scheduleAudio(){for(const batch of buffer)audibleBatch(batch);}
 function requestMore(){
   if(!metadata||!decoder||inFlight||failed||nextFrame>=metadata.frames)return;
   const displayed=Math.floor(currentTime*metadata.displayFPS)*metadata.eyes;
-  if(nextFrame-displayed>=metadata.codedFPS*1.8)return;
-  const frames=Math.min(BATCH_FRAMES,metadata.frames-nextFrame);
+  if(nextFrame-displayed>=metadata.codedFPS*2.4)return;
+  const safeFrames=Math.max(1,Math.floor(24*1048576/(metadata.width*metadata.height*4)));
+  const frames=Math.min(BATCH_FRAMES,safeFrames,metadata.frames-nextFrame);
   if(frames<1)return;
   inFlight=true;
   decoder.postMessage({type:'decode',request:serial,file,startFrame:nextFrame,

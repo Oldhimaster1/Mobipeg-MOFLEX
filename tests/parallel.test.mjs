@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {planMovieClips} from '../dist/movie.mjs';
-import {runParallelMovie} from '../dist/parallel.mjs';
+import {runParallelMovie,planBalancedMovieClips} from '../dist/parallel.mjs';
 
 const settings={mode:'2d',fps:'30'};
 
@@ -28,6 +29,25 @@ test('fractional stereo timeline work maintains frame and audio alignment',()=>{
   }
 });
 
+test('56 second clip balances eight independent workers',()=>{
+  const clips=planBalancedMovieClips(56,{mode:'2d',fps:'30'},8);
+  assert.equal(clips.length,8);
+  assert.equal(clips.reduce((n,x)=>n+x.codedFrames,0),1680);
+  assert.ok(Math.max(...clips.map(x=>x.seconds))-Math.min(...clips.map(x=>x.seconds))<.2);
+});
+test('fractional stereo ranges preserve eye pairing and ADPCM alignment',()=>{
+  for(const mode of ['full-sbs','half-sbs'])for(const fps of ['24000/1001','30000/1001']){
+    const clips=planBalancedMovieClips(56,{mode,fps},8);
+    clips.forEach((x,i)=>{
+      assert.equal(x.codedFrames%2,0);
+      if(i<clips.length-1)assert.ok(Math.abs(x.seconds*48000/256-Math.round(x.seconds*48000/256))<1e-6);
+    });
+  }
+});
+test('parallel encoding requires no Long Movie toggle when workers exceed one',()=>{
+  const app=readFileSync(new URL('../dist/app.mjs',import.meta.url),'utf8');
+  assert.ok(app.includes("const movieMode=$('longMovie').checked||s.workers>1;"));
+});
 function fakeFactory({emptyLast=false,failAt=-1,created=[]}={}){
   return ()=>{
     const w={terminated:false,terminate(){this.terminated=true;},postMessage(message){
@@ -75,4 +95,14 @@ test('cancel interrupts pending workers and leaves no encoder active',async()=>{
   await new Promise(r=>setTimeout(r,0));controller.abort();
   await assert.rejects(task,/Cancelled/);
   assert.ok(created.every(w=>w.stopped));
+});
+
+test('worker hosts get reused, then recycled in a long encode',async()=>{
+  const created=[],job={segments:[]};
+  const result=await runParallelMovie({file:new Blob(['input']),settings,media:{duration:601,audio:false},
+    job,workers:2,createWorker:fakeFactory({created}),save:async(job,blob,frames,index)=>{
+      job.segments[index]={file:blob,frames};
+    }});
+  assert.ok(result.parts>10&&created.length<result.parts);
+  assert.ok(created.every(w=>w.terminated));
 });

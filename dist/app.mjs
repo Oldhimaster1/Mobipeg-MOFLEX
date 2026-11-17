@@ -1,16 +1,16 @@
 import{initLanguage,translateText}from'./i18n.mjs?v=20261117f';
 import{createUsage}from'./usage.mjs?v=20261117a';
-import{validate,rate,PRESETS,ADVANCED_NUMBERS,ADVANCED_ENUMS,encodeArgs,encodeClipArgs,audioArgs,environment}from'./core.mjs?v=20261117g';
-import{createMovieJob,appendMovieSegment,assembleMovie,cleanupMovieJob,getCodedRate,nextMovieClip}from'./movie.mjs?v=20261117g';
-import{estimateConversion,totalEstimate,formatBytes}from'./queue.mjs?v=20261117g';
-import{runParallelMovie}from'./parallel.mjs?v=20261117g';
+import{validate,rate,PRESETS,ADVANCED_NUMBERS,ADVANCED_ENUMS,encodeArgs,encodeClipArgs,audioArgs,environment}from'./core.mjs?v=20261117h';
+import{createMovieJob,appendMovieSegment,assembleMovie,cleanupMovieJob,getCodedRate,nextMovieClip}from'./movie.mjs?v=20261117h';
+import{estimateConversion,totalEstimate,formatBytes}from'./queue.mjs?v=20261117h';
+import{runParallelMovie}from'./parallel.mjs?v=20261117h';
 const $=id=>document.getElementById(id),form=$('settings');let file=null,worker=null,previewURL=null,outputURL=null,started=0,stageStarted=0,ticker=null,report=null,wake=null,busy=false,runToken=0,stallMonitor=null,movieJob=null,completedMovieJob=null,sampleWorker=null,sampleToken=0,sampleData=null,audioInspector=null,parallelAbort=null;
 let queue=[],activeQueueId=null,queueRunning=false,queueCurrent=null,queueDownloaded=false,originStorage=null,nextQueueId=1,restoringSettings=false;
 // Hardware concurrency is a *logical* upper bound, not a RAM guarantee.
 // Phones default to one encoder to avoid exhausting their browser process.
 const coreMax=Math.max(1,Math.floor(Number(navigator.hardwareConcurrency)||1));
 const workerField=document.createElement('div');workerField.className='field workers-field';
-workerField.innerHTML='<label for="workers">Parallel movie encoders: <strong id="workerValue"></strong></label><input id="workers" name="workers" type="range" min="1" step="1"><p class="hint">Independent 30-second timeline ranges—not source chapters. More workers can speed up long movies but each uses another WASM codec and additional RAM. Phones start at one; reduce this setting if conversion runs out of memory.</p>';
+workerField.innerHTML='<label for="workers">Parallel movie encoders: <strong id="workerValue"></strong></label><input id="workers" name="workers" type="range" min="1" step="1"><p class="hint">Balanced timeline ranges, not source chapters. More than one worker also enables parallel encoding for short videos. Each worker uses extra RAM and temporary local storage; phones start at one.</p>';
 const workerSlider=workerField.querySelector('input');workerSlider.max=String(coreMax);
 workerSlider.value=String(/iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent)?1:Math.min(2,coreMax));
 workerSlider.defaultValue=workerSlider.value;
@@ -130,7 +130,7 @@ function clearSelectedFile(){file=null;if(previewURL)URL.revokeObjectURL(preview
 $('clearQueue').onclick=()=>{if(busy||queueRunning)return;queue=[];activeQueueId=null;clearSelectedFile();renderQueue();refreshEstimates();};
 async function refreshStorage(){try{originStorage=await navigator.storage?.estimate?.()??null;}catch{originStorage=null;}refreshEstimates();}
 function refreshEstimates(){
-  for(const item of queue)item.estimate=estimateConversion({fileBytes:item.file.size,duration:item.duration,settings:item.settings,audio:item.audio});
+  for(const item of queue)item.estimate=estimateConversion({fileBytes:item.file.size,duration:item.duration,settings:{...item.settings,movieAudio:item.settings.movieAudio||item.settings.workers>1},audio:item.audio});
   const totals=totalEstimate(queue),free=originStorage?.quota&&Number.isFinite(originStorage.usage)?Math.max(0,originStorage.quota-originStorage.usage):null;
   const output=totals.known?`${formatBytes(totals.minimum)}–${formatBytes(totals.maximum)}`:'waiting for durations';
   $('estimateSummary').textContent=`${queue.length} video${queue.length===1?'':'s'} · ${formatBytes(totals.inputBytes)} input · ${output} estimated output · ${totals.known?'up to '+formatBytes(totals.peakTemporary)+' temporary disk per item':'temporary disk unknown'} · rough peak RAM ${totals.known?formatBytes(totals.peakMemory):'unknown'} · ${free===null?'browser storage unavailable':formatBytes(free)+' browser storage free'}`+(totals.unknown?` · ${totals.unknown} duration${totals.unknown===1?'':'s'} unavailable`:'');
@@ -161,7 +161,7 @@ $('clearMovieData').onclick=async()=>{
   try{await cleanupMovieJob(saved,false);$('clearMovieData').hidden=true;log('Temporary movie storage removed.');}
   catch(e){log('Could not clear local storage: '+e.message);}
 };
-form.onsubmit=async e=>{e.preventDefault();if(!file||busy)return;let s;try{s=settings();}catch(e){showAlert(e.message);stopQueueBeforeEncoding();return;}const movieMode=$('longMovie').checked;s.movieAudio=movieMode;if(movieMode&&s.maxMB!==null){showAlert('Movie mode currently requires No limit for maximum size. The short timeline ranges are combined into one final MOFLEX.');stopQueueBeforeEncoding();return;}if(movieMode&&!navigator.storage?.getDirectory){showAlert('Long-movie mode requires on-device private file storage (OPFS), which is unavailable in this browser.');stopQueueBeforeEncoding();return;}const item=queue.find(value=>value.id===activeQueueId),free=originStorage?.quota&&Number.isFinite(originStorage.usage)?originStorage.quota-originStorage.usage:null;if(movieMode&&item?.estimate?.known&&free!==null&&item.estimate.temporaryBytes>free&&!askConfirm('The estimated temporary storage exceeds the browser storage currently available. Continue anyway?')){stopQueueBeforeEncoding();return;}if(movieMode&&s.workers>1&&/iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent)&&!askConfirm(`${s.workers} concurrent native WASM encoders may exhaust mobile browser memory and terminate this tab. Use one worker for reliability. Continue with ${s.workers}?`)){stopQueueBeforeEncoding();return;}if(file.size>512*1024*1024&&!askConfirm('This is a large input. Browser memory may be insufficient, especially on mobile. Continue?')){stopQueueBeforeEncoding();return;}lock(true);const token=++runToken;if(outputURL){URL.revokeObjectURL(outputURL);outputURL=null;}if(completedMovieJob){const old=completedMovieJob;completedMovieJob=null;$('clearMovieData').hidden=true;cleanupMovieJob(old,false).catch(e=>log('Old movie cleanup warning: '+e.message));}$('job').hidden=false;$('result').hidden=true;$('error').hidden=true;$('cancel').hidden=false;timeline.hidden=true;timeline.replaceChildren();$('stage').textContent='Loading native WASM encoder…';$('joblabel').textContent=queueRunning?`QUEUE · ${queue.indexOf(queueCurrent)+1}/${queue.length}`:'CONVERSION';$('logs').textContent='MobiPEG V15 · fixed layout-0 source\nNo media upload. WebAssembly · independent timeline encoders when enabled.';$('memory').textContent='';$('eta').textContent='Estimating time…';$('progress').removeAttribute('value');started=stageStarted=performance.now();ticker=setInterval(()=>$('elapsed').textContent=time((performance.now()-started)/1000)+' elapsed',1000);$('job').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'nearest'});try{const requestedWake=await navigator.wakeLock?.request('screen');if(token!==runToken){requestedWake?.release().catch(()=>{});return;}wake=requestedWake;}catch{}if(token!==runToken)return;
+form.onsubmit=async e=>{e.preventDefault();if(!file||busy)return;let s;try{s=settings();}catch(e){showAlert(e.message);stopQueueBeforeEncoding();return;}const movieMode=$('longMovie').checked||s.workers>1;s.movieAudio=movieMode;if(movieMode&&s.maxMB!==null){showAlert('Parallel/long-movie encoding currently requires No limit for maximum size. The short timeline ranges are combined into one final MOFLEX.');stopQueueBeforeEncoding();return;}if(movieMode&&!navigator.storage?.getDirectory){showAlert('Parallel encoding requires on-device private file storage (OPFS), which is unavailable in this browser.');stopQueueBeforeEncoding();return;}const item=queue.find(value=>value.id===activeQueueId),free=originStorage?.quota&&Number.isFinite(originStorage.usage)?originStorage.quota-originStorage.usage:null;if(movieMode&&item?.estimate?.known&&free!==null&&item.estimate.temporaryBytes>free&&!askConfirm('The estimated temporary storage exceeds the browser storage currently available. Continue anyway?')){stopQueueBeforeEncoding();return;}if(movieMode&&s.workers>1&&/iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent)&&!askConfirm(`${s.workers} concurrent native WASM encoders may exhaust mobile browser memory and terminate this tab. Use one worker for reliability. Continue with ${s.workers}?`)){stopQueueBeforeEncoding();return;}if(file.size>512*1024*1024&&!askConfirm('This is a large input. Browser memory may be insufficient, especially on mobile. Continue?')){stopQueueBeforeEncoding();return;}lock(true);const token=++runToken;if(outputURL){URL.revokeObjectURL(outputURL);outputURL=null;}if(completedMovieJob){const old=completedMovieJob;completedMovieJob=null;$('clearMovieData').hidden=true;cleanupMovieJob(old,false).catch(e=>log('Old movie cleanup warning: '+e.message));}$('job').hidden=false;$('result').hidden=true;$('error').hidden=true;$('cancel').hidden=false;timeline.hidden=true;timeline.replaceChildren();$('stage').textContent='Loading native WASM encoder…';$('joblabel').textContent=queueRunning?`QUEUE · ${queue.indexOf(queueCurrent)+1}/${queue.length}`:'CONVERSION';$('logs').textContent='MobiPEG V15 · fixed layout-0 source\nNo media upload. WebAssembly · independent timeline encoders when enabled.';$('memory').textContent='';$('eta').textContent='Estimating time…';$('progress').removeAttribute('value');started=stageStarted=performance.now();ticker=setInterval(()=>$('elapsed').textContent=time((performance.now()-started)/1000)+' elapsed',1000);$('job').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'nearest'});try{const requestedWake=await navigator.wakeLock?.request('screen');if(token!==runToken){requestedWake?.release().catch(()=>{});return;}wake=requestedWake;}catch{}if(token!==runToken)return;
 let candidate=null;
 let movieDuration=0,movieAudio=false,movieFrames=0,movieParts=0;
 const movieFPS=getCodedRate(s);
@@ -235,7 +235,7 @@ const publishCandidate=(verified,reason='')=>{
 };
 const startWorker=(type,payload)=>{
   if(token!==runToken)return;
-  currentWorkerType=type;lastActivity=performance.now();idleWarningShown=false;const w=new Worker('worker.js?v=20261117g');worker=w;
+  currentWorkerType=type;lastActivity=performance.now();idleWarningShown=false;const w=new Worker('worker.js?v=20261117h');worker=w;
   w.onerror=e=>{
     if(token!==runToken||worker!==w)return;
     const message=`Encoder worker failed: ${e.message||'unknown error'}`;
@@ -264,7 +264,7 @@ const startWorker=(type,payload)=>{
        log('Movie duration '+time(movieDuration)+'; audio '+(movieAudio?'included':'not present')+'.');
        if(s.workers>1){
          currentWorkerType='segment';parallelAbort=new AbortController();
-         $('joblabel').textContent='LONG MOVIE · PARALLEL';
+         $('joblabel').textContent=$('longMovie').checked?'LONG MOVIE · PARALLEL':'PARALLEL ENCODING';
          log('Starting '+s.workers+' independent encoding lanes. These are timeline ranges, not source chapters.');
          runParallelMovie({file,settings:s,media:{duration:movieDuration,audio:movieAudio},job:movieJob,
            workers:s.workers,signal:parallelAbort.signal,onUpdate:update=>{
@@ -322,7 +322,7 @@ window.addEventListener('beforeunload',e=>{if(busy||queueRunning){e.preventDefau
 $('inspectAudio').onclick=()=>{
   if(!file||busy)return;
   let s;try{s=settings();}catch(e){log(e.message);return;}
-  const selected=file,w=new Worker('worker.js?v=20261117g');audioInspector=w;
+  const selected=file,w=new Worker('worker.js?v=20261117h');audioInspector=w;
   $('inspectAudio').disabled=true;
   const end=()=>{w.terminate();if(audioInspector===w)audioInspector=null;$('inspectAudio').disabled=busy;};
   w.onerror=e=>{log('Audio inspection failed: '+e.message);end();};
@@ -359,7 +359,7 @@ $('makeSample').onclick=()=>{
   try{s=settings();start=Number($('sampleStart').value);if(!Number.isFinite(start)||start<0||Number.isFinite($('preview').duration)&&start>=$('preview').duration)throw Error('Choose a preview position within the video.');}
   catch(e){$('sampleStatus').textContent=e.message;return;}
   invalidateSample();lock(true);const token=++sampleToken;let w;
-  try{w=new Worker('worker.js?v=20261117g');sampleWorker=w;}catch(e){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();return;}
+  try{w=new Worker('worker.js?v=20261117h');sampleWorker=w;}catch(e){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();return;}
   $('cancelSample').hidden=false;$('sampleStatus').textContent='Loading preview encoder…';
   w.onerror=e=>{if(token===sampleToken){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();}};
   w.onmessage=async({data:d})=>{

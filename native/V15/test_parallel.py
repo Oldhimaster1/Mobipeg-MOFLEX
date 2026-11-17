@@ -41,6 +41,12 @@ class ParallelMovieTests(unittest.TestCase):
                 if clips[-1]!=(start,duration,coded_frames):
                     self.assertAlmostEqual(duration*48000/256,round(duration*48000/256),places=6)
 
+    def test_balanced_56_second_video_uses_eight_processors(self):
+        clips=plan_ranges(56.0,Fraction(30),workers=8)
+        self.assertEqual(len(clips),8)
+        self.assertEqual(sum(x[2] for x in clips),1680)
+        self.assertLess(max(x[1] for x in clips)-min(x[1] for x in clips),.2)
+
     def test_stereo_final_range_has_complete_eye_pairs(self):
         for fps in (Fraction(48),Fraction(60000,1001)):
             clips=plan_ranges(61.037,fps,eyes=2)
