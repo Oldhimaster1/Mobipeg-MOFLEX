@@ -1,4 +1,15 @@
 const PROFILE_Q={best:27,quality:30,balanced:32,small:36};
+export const FAT32_LIMIT = 0xffffffff;
+export const FAT32_MESSAGE = 'This output exceeds the FAT32 limit of 4,294,967,295 bytes. Increase compression, lower the resolution or frame rate, or split the movie.';
+export function fitsFat32(bytes) {
+  return Number.isSafeInteger(bytes) && bytes >= 0 && bytes <= FAT32_LIMIT;
+}
+export function fat32Estimate({maximum}) {
+  const remaining = FAT32_LIMIT - maximum;
+  return remaining < 0
+    ? `FAT32: the estimated upper bound exceeds the file limit by ${formatBytes(-remaining)}.`
+    : `FAT32: at least ${formatBytes(remaining)} of estimated headroom per file.`;
+}
 
 export function estimateConversion({fileBytes,duration,settings,audio=true}){
   if(!Number.isFinite(fileBytes)||fileBytes<=0)throw Error('Invalid input size');
@@ -10,8 +21,9 @@ export function estimateConversion({fileBytes,duration,settings,audio=true}){
   // A deliberately broad range. MobiClip size depends heavily on source motion
   // and detail, so the UI must never present this as a promised final size.
   const videoBitsPerSecond=width*height*fps*eyes*.20*2**((30-q)/8);
-  const audioBitsPerSecond=audio?(settings.movieAudio?384000:352800):0;
-  const center=(videoBitsPerSecond+audioBitsPerSecond)*duration/8;
+  const audioBitsPerSecond=audio?(settings.audioCodec==='fastaudio'?120000:384000):0;
+  const containerBudget=4096*(1+Math.ceil(duration));
+  const center=(videoBitsPerSecond+audioBitsPerSecond)*duration/8+containerBudget;
   const minimum=Math.max(4096,Math.floor(center*.55));
   const maximum=Math.max(minimum,Math.ceil(center*1.8));
   const workers=settings.movieAudio?Math.max(1,Math.floor(settings.workers||1)):1;

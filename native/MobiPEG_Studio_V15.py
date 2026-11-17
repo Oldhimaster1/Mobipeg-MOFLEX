@@ -22,6 +22,7 @@ import threading
 from typing import Callable
 
 from parallel_encode import encode_parallel
+from moflex_join import FAT32_LIMIT, FAT32_MESSAGE
 
 
 ROOT = Path(__file__).resolve().parent
@@ -244,6 +245,12 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print,
              f"up to {estimate['temporary']/1e6:.1f} MB temporary; {available/1e6:.1f} MB free on destination disk")
     if available<estimate['temporary']:
         callback('WARNING: Estimated temporary usage exceeds free disk space. Encoding may fail.')
+    if estimate['maximum']>FAT32_LIMIT:
+        callback(f"WARNING: Estimated output may exceed the FAT32 per-file limit by "
+                 f"{estimate['maximum']-FAT32_LIMIT:,} bytes. {FAT32_MESSAGE}")
+    else:
+        callback(f"FAT32 file limit: {FAT32_LIMIT:,} bytes. Estimated headroom: "
+                 f"{FAT32_LIMIT-estimate['maximum']:,} bytes.")
     if args.dry_run:return out
 
     if args.workers>1:
@@ -267,6 +274,7 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print,
                 raise RuntimeError('Joined movie frame count differs from encoded ranges')
             if out.exists() and not args.overwrite:
                 raise FileExistsError(f'Output appeared during conversion: {out}')
+            if final.stat().st_size>FAT32_LIMIT:raise ValueError(FAT32_MESSAGE)
             os.replace(final,out)
             callback(f'PASS: {out} ({out.stat().st_size:,} bytes, {parts} parallel parts)')
             return out
@@ -366,6 +374,7 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print,
             raise RuntimeError('Encoded output unexpectedly exceeded the hard size cap')
         if out.exists() and not args.overwrite:
             raise FileExistsError(f'File appeared during encoding; preserving it: {out}')
+        if final.stat().st_size>FAT32_LIMIT:raise ValueError(FAT32_MESSAGE)
         os.replace(final,out)
         callback(f'PASS: {out} ({out.stat().st_size:,} bytes, Q={chosen_q})')
     return out

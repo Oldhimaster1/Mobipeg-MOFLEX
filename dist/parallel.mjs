@@ -1,4 +1,4 @@
-import {appendMovieSegment, getCodedRate} from './movie.mjs';
+import {appendMovieSegment, getCodedRate} from './movie.mjs?v=20261117j';
 
 // Balanced, frame-aligned timeline parts require no source chapters.
 // A bounded worker pool reuses compiled WASM and recycles memory every four parts.
@@ -25,7 +25,7 @@ export function planBalancedMovieClips(seconds, settings, wanted=1) {
   return clips;
 }
 export async function runParallelMovie({file, settings, media, job, workers, onUpdate=()=>{},
-  signal, createWorker=()=>new Worker('worker.js?v=20261117i'), save=appendMovieSegment}) {
+  signal, createWorker=()=>new Worker('worker.js?v=20261117j'), save=appendMovieSegment}) {
   const clips=planBalancedMovieClips(media.duration,settings,workers);
   const count=Math.min(Math.max(1,Math.floor(workers)),clips.length);
   const live=new Set();

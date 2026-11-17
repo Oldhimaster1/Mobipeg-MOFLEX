@@ -14,6 +14,9 @@ import struct
 
 BLOCK=4096
 MAX_INDEX_ENTRIES=50000
+FAT32_LIMIT=0xffffffff
+FAT32_MESSAGE=('Output exceeds the FAT32 limit of 4,294,967,295 bytes. '
+               'Increase compression, lower the resolution or frame rate, or split the movie.')
 
 
 def require(ok, reason):
@@ -202,7 +205,7 @@ def join(parts,frames_per_second:Fraction,output:Path,callback=lambda fraction:N
     front_size=len(placeholder)
     front=create_front(first.descriptors,first.data_stream,[(f,t,o+front_size) for f,t,o in entries],frames,duration_us)
     require(len(front)==front_size,'seek table changed size')
-    require(front_size+media_offset<4294967296,'movie exceeds FAT32 4GiB limit')
+    require(front_size+media_offset<=FAT32_LIMIT,FAT32_MESSAGE)
     output=Path(output)
     with output.open('wb') as dest:
         dest.write(front)
@@ -218,13 +221,21 @@ def join(parts,frames_per_second:Fraction,output:Path,callback=lambda fraction:N
                     for local in range(0,len(data),BLOCK):
                         absolute=position+local
                         block=memoryview(data)[local:local+BLOCK]
-                        sync=read_sync(block) if absolute in seeks else None
+                        is_sync=absolute in seeks
+                        if not is_sync and block[:2]==b'L2':
+                            _,check,stamp,block_size=struct.unpack_from('>HHQH',block)
+                            require(block_size!=BLOCK-1 or check!=checksum(stamp),'media sync is absent from seek index')
+                        sync=read_sync(block) if is_sync else None
+                        if sync:require(sync['descriptors']==part.descriptors,'media stream descriptors changed')
                         flag=sync['flag'] if sync else 0
                         original=block[flag]>>2
                         if first_block:
                             require(sync is not None,'missing first media sync')
                             shift=(last_counter+1-original+64)%64
                             first_block=False
+                        else:
+                            require(original==((previous_original+int(is_sync))&63),'invalid media block continuity counter')
+                        previous_original=original
                         patched=(original+shift)&63
                         block[flag]=(patched<<2)|(block[flag]&3)
                         last_counter=patched

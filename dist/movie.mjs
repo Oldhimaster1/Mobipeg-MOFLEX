@@ -1,6 +1,8 @@
 // Movie assembly for independent, seek-indexed MOFLEX segments.
 // Works with the existing unmodified V15 WASM encoder, keeping each trial small.
 // All temporary files and the final output stay in the browser's private storage.
+import {FAT32_LIMIT, FAT32_MESSAGE} from './queue.mjs?v=20261117j';
+
 const BLOCK = 4096;
 const MAX_INDEX_ENTRIES = 50000;
 const expect = (ok, reason) => { if (!ok) throw Error('Movie assembly: ' + reason); };
@@ -220,7 +222,7 @@ export async function appendMovieSegment(job, blob, frameCount, index = job.segm
   expect(blob && blob.size && frameCount > 0, 'empty movie segment');
   expect(Number.isSafeInteger(index) && index >= 0 && index < MAX_INDEX_ENTRIES, 'invalid segment index');
   expect(!job.segments[index], 'segment index already saved');
-  expect(job.segments.reduce((n,p)=>n+p.file.size,0)+blob.size<4292870144, 'movie is approaching the FAT32 4 GiB limit; use a smaller quality setting');
+  expect(blob.size <= FAT32_LIMIT, FAT32_MESSAGE);
   const name = 'part-' + String(index).padStart(5, '0') + '.moflex';
   const handle = await job.work.getFileHandle(name, { create:true });
   const writable = await handle.createWritable();
@@ -232,7 +234,7 @@ export async function appendMovieSegment(job, blob, frameCount, index = job.segm
 }
 export async function assembleMovie(job, settings, progress = () => {}, cancelled = () => false) {
   expect(job.segments.length > 0, 'no chapters to join');
-  expect(job.segments.every(Boolean), 'missing encoded segment in movie timeline');
+  expect(Array.from(job.segments).every(Boolean), 'missing encoded segment in movie timeline');
   const fps = getCodedRate(settings), parts = [];
   let count = 0, bytes = 0n, frames = 0n;
   for (const part of job.segments) {
@@ -265,7 +267,7 @@ export async function assembleMovie(job, settings, progress = () => {}, cancelle
   const frontLength = BigInt(placeholder.byteLength);
   const front = createFront(desc, index, entries.map(e => ({...e, offset:e.offset + frontLength})), Number(frames), durationUs);
   expect(front.byteLength === placeholder.byteLength, 'seek front changed size');
-  expect(frontLength + bytes < 4294967296n, 'final movie exceeds the FAT32 4 GiB file limit; choose a smaller quality setting or split the film');
+  expect(frontLength + bytes <= BigInt(FAT32_LIMIT), FAT32_MESSAGE);
   const estimate=await globalThis.navigator?.storage?.estimate?.();
   if(estimate?.quota&&Number.isFinite(estimate.usage))expect(estimate.quota-estimate.usage>Number(frontLength+bytes), 'not enough free browser storage to assemble the movie; free space and retry');
   const handle = await job.work.getFileHandle(job.outputName, { create:true });
@@ -276,7 +278,7 @@ export async function assembleMovie(job, settings, progress = () => {}, cancelle
     let written = 0n;
     for (let chapter = 0; chapter < parts.length; chapter++) {
       const part = parts[chapter], seekOffsets = new Map(part.entries.map(e => [toNumber(e.offset - BigInt(part.frontSize)), e.time]));
-      let shift = 0, first = true;
+      let shift = 0, first = true, previousOriginal;
       for (let off = 0; off < part.mediaSize; off += 128 * BLOCK) {
         if (cancelled()) throw Error('Cancelled');
         const size = Math.min(128 * BLOCK, part.mediaSize - off);
@@ -286,14 +288,21 @@ export async function assembleMovie(job, settings, progress = () => {}, cancelle
           const block = chunk.subarray(local, local + BLOCK);
           const absolute = off + local;
           const isSync = seekOffsets.has(absolute);
+          const unindexedSync = !isSync && u16(block, 0) === 0x4c32 &&
+            u16(block, 12) === BLOCK - 1 && u16(block, 2) === checksum(view(block).getBigUint64(4));
+          expect(!unindexedSync, 'media sync is absent from seek index');
           const hdr = isSync ? syncHeader(block) : null;
+          if (hdr) expect(bytesEqual(hdr.descriptors, part.descriptors), 'media stream descriptors changed');
           const flag = hdr ? hdr.flagAt : 0;
           const original = block[flag] >> 2;
           if (first) {
             expect(isSync, 'chapter lacks first sync');
             shift = (previousCounter + 1 - original + 64) % 64;
             first = false;
+          } else {
+            expect(original === ((previousOriginal + Number(isSync)) & 63), 'media block continuity counter is invalid');
           }
+          previousOriginal = original;
           const patched = (original + shift) & 63;
           block[flag] = (patched << 2) | (block[flag] & 3);
           previousCounter = patched;

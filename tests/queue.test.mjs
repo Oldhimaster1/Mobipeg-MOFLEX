@@ -8,7 +8,10 @@ test('estimate is a bounded range and scales with duration, pixels, eyes and qua
   const base=estimateConversion({fileBytes:1_000_000,duration:60,settings,audio:true});
   assert.equal(base.known,true);assert.ok(base.minimum>0);assert.ok(base.maximum>base.minimum);assert.equal(base.temporaryBytes,base.maximum);
   const longer=estimateConversion({fileBytes:1_000_000,duration:120,settings,audio:true});
-  assert.equal(longer.minimum,base.minimum*2);assert.equal(longer.maximum,base.maximum*2);
+  assert.ok(Math.abs(longer.minimum-base.minimum*2)<4096);
+  assert.ok(Math.abs(longer.maximum-base.maximum*2)<8192);
+  const fast=estimateConversion({fileBytes:1_000_000,duration:60,settings:{...settings,audioCodec:'fastaudio'}});
+  assert.ok(fast.maximum<base.maximum);
   const stereo=estimateConversion({fileBytes:1_000_000,duration:60,settings:{...settings,mode:'full-sbs'},audio:true});
   assert.ok(stereo.maximum>base.maximum);
   const best=estimateConversion({fileBytes:1_000_000,duration:60,settings:{...settings,preset:'best'},audio:true});

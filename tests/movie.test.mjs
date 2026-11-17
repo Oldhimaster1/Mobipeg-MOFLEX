@@ -4,6 +4,7 @@ import {
   createFront, inspectMovieSegment, assembleMovie,
   getCodedRate, nextMovieClip,
 } from '../dist/movie.mjs';
+import {FAT32_LIMIT, fitsFat32, fat32Estimate} from '../dist/queue.mjs';
 
 const BLOCK=4096;
 const descriptors=Uint8Array.from([
@@ -51,6 +52,23 @@ test('seek table parses a complete indexed MOFLEX segment',async()=>{
   const info=await inspectMovieSegment(segment(1),30);
   assert.equal(info.frontSize,BLOCK);
   assert.equal(info.entries[0].offset,BigInt(BLOCK));
+});
+test('FAT32 checks the exact per-file boundary and distinguishes a risky estimate',()=>{
+  assert.equal(fitsFat32(FAT32_LIMIT),true);
+  assert.equal(fitsFat32(FAT32_LIMIT+1),false);
+  assert.match(fat32Estimate({maximum:FAT32_LIMIT+1000}),/exceeds.*1.0 KB/);
+  assert.match(fat32Estimate({maximum:FAT32_LIMIT}),/0 B.*headroom/);
+});
+test('assembly rejects missing segments and corrupt media counters',async()=>{
+  const output=new MemoryFileHandle();
+  const job={segments:[, {file:segment(),frames:30}],work:{async getFileHandle(){return output;}}};
+  const settings={mode:'2d',fps:'30'};
+  await assert.rejects(assembleMovie(job,settings),/missing encoded segment/);
+  const bytes=new Uint8Array(await segment(2).arrayBuffer());
+  bytes[2*BLOCK+14+descriptors.length]=15<<2;
+  job.segments=[{file:new Blob([bytes]),frames:60}];
+  await assert.rejects(assembleMovie(job,settings),/continuity counter/);
+  assert.equal((await output.getFile()).size,0);
 });
 test('seek table may occupy several 4096-byte front blocks',async()=>{
   const info=await inspectMovieSegment(segment(230),6900);
