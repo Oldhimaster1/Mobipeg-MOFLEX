@@ -86,6 +86,29 @@ test('worker failure aborts conversion and releases all WASM workers',async()=>{
   assert.ok(created.every(w=>w.terminated));
 });
 
+test('a free worker takes the next timeline range while the first range is still running',{timeout:2000},async()=>{
+  const job={segments:[]};
+  const media={duration:121,audio:false};
+  const clips=planBalancedMovieClips(media.duration,settings,2);
+  const started=[];
+  let finishFirst;
+  await runParallelMovie({file:new Blob(['input']),settings,media,job,workers:2,createWorker:()=>({
+    terminate(){},
+    postMessage({clip}){
+      const index=clips.findIndex(part=>part.start===clip.start);
+      started.push(index);
+      const done=()=>this.onmessage({data:{type:'segment',frames:clips[index].codedFrames,blob:new Blob(['part'])}});
+      if(index===0)finishFirst=done;
+      else{
+        if(index===1)queueMicrotask(finishFirst);
+        queueMicrotask(done);
+      }
+    },
+  }),save:async(target,file,frames,index)=>{target.segments[index]={file,frames};}});
+  assert.deepEqual(started,clips.map(clip=>clip.index));
+  assert.equal(job.segments.length,clips.length);
+});
+
 test('cancel interrupts pending workers and leaves no encoder active',async()=>{
   const controller=new AbortController(),created=[];
   const task=runParallelMovie({file:new Blob(['input']),settings,media:{duration:120,audio:false},job:{segments:[]},

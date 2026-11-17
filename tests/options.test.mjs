@@ -35,6 +35,17 @@ test('known movie metadata skips only the redundant inspection, not encoding or 
  assert.equal(calls.some(x=>x.args.length===3),false);assert.equal(calls.filter(x=>x.args.includes('null')).length,2);
  for(const media of [{duration:0,audio:true},{duration:Infinity,audio:false},{duration:1,audio:'yes'}])await assert.rejects(()=>convert({settings:base,source:new Blob(),clip:{start:0,seconds:1},media,run:()=>assert.fail('must reject before executing')}));
 });
+
+test('ordinary conversions accept a prior inspection for FAT32 preflight',async()=>{
+ const commands=[];
+ const result=await convert({source:new Blob(['source']),settings:base,media:{duration:1,audio:false},verify:false,
+   run:async(args,files,output)=>{
+     commands.push(output);
+     return {frames:24,blob:new Blob(['video'])};
+   }});
+ assert.equal(result.frames,24);
+ assert.deepEqual(commands,['/video.moflex']);
+});
 test('all interface languages have complete catalog rows and safe locale fallback',()=>{
  const seen=new Set();for(const row of rows){assert.equal(row.length,LANGUAGES.length);assert.equal(seen.has(row[0]),false);seen.add(row[0]);for(const text of row)assert.ok(typeof text==='string'&&text.length>0);}
  assert.equal(normalizeLanguage('es-MX'),'es');assert.equal(normalizeLanguage('pt-BR'),'pt');assert.equal(normalizeLanguage('zh-CN'),'zh-Hans');assert.equal(normalizeLanguage('zh-Hans-SG'),'zh-Hans');assert.equal(normalizeLanguage('zh-TW'),'en');assert.equal(normalizeLanguage('invalid'),'en');

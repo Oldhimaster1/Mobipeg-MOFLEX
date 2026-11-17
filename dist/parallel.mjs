@@ -1,5 +1,5 @@
-import {appendMovieSegment, getCodedRate} from './movie.mjs?v=20261117k';
-import {persistRange} from './checkpoints.mjs?v=20261117k';
+import {appendMovieSegment, getCodedRate} from './movie.mjs?v=20261117l';
+import {persistRange} from './checkpoints.mjs?v=20261117l';
 
 // Balanced, frame-aligned timeline parts require no source chapters.
 // A bounded worker pool reuses compiled WASM and recycles memory every four parts.
@@ -26,14 +26,22 @@ export function planBalancedMovieClips(seconds, settings, wanted=1) {
   return clips;
 }
 export async function runParallelMovie({file, settings, media, job, workers, onUpdate=()=>{},
-  signal, createWorker=()=>new Worker('worker.js?v=20261117k'), save=appendMovieSegment}) {
+  signal, createWorker=()=>new Worker('worker.js?v=20261117l'), save=appendMovieSegment}) {
   const clips=planBalancedMovieClips(media.duration,settings,workers);
   const count=Math.min(Math.max(1,Math.floor(workers)),clips.length);
   const live=new Set();
   const stopper=new AbortController();
   const progress=Array.from({length:count},()=>0);
-  const notify=()=>onUpdate({fractions:[...progress], overall:progress.reduce((a,b)=>a+b,0)/count,
-    workers:count, clips:clips.length});
+  const active=Array.from({length:count},()=>null);
+  const pending=clips.filter(clip=>!job.segments[clip.index]);
+  const totalFrames=clips.reduce((sum,clip)=>sum+clip.codedFrames,0);
+  let completed=totalFrames-pending.reduce((sum,clip)=>sum+clip.codedFrames,0);
+  let next=0;
+  const notify=()=>{
+    const inProgress=active.reduce((sum,clip,slot)=>sum+(clip?clip.codedFrames*progress[slot]:0),0);
+    onUpdate({fractions:[...progress],overall:(completed+inProgress)/totalFrames,
+      workers:count,clips:clips.length});
+  };
   const aborted=()=>signal?.aborted||stopper.signal.aborted;
   const abort=()=>{stopper.abort();for(const w of live)w.terminate();};
   signal?.addEventListener('abort',abort,{once:true});
@@ -53,7 +61,7 @@ export async function runParallelMovie({file, settings, media, job, workers, onU
           else if(d.type==='progress'&&Number.isFinite(d.fraction)){
             // The audio stage can reset its local fraction; do not make the
             // total timeline jump backwards. Completion is authoritative.
-            progress[slot]=Math.max(progress[slot],(clip.shardIndex+Math.min(.95,Math.max(0,d.fraction)))/clip.shardLength);
+            progress[slot]=Math.max(progress[slot],Math.min(.95,Math.max(0,d.fraction)));
             notify();
           }else if(d.type==='log'&&/error|failed/i.test(d.line))onUpdate({log:d.line});
         };
@@ -63,19 +71,14 @@ export async function runParallelMovie({file, settings, media, job, workers, onU
   }
   try{
     notify();
-    const chunks=Array.from({length:count},(_,i)=>{
-      const start=Math.floor(i*clips.length/count),end=Math.floor((i+1)*clips.length/count);
-      return clips.slice(start,end).map((clip,j)=>({...clip,shardIndex:j,shardLength:end-start}));
-    });
-    const jobs=chunks.map(async(chunk,slot)=>{
+    const jobs=Array.from({length:count},async(_,slot)=>{
       let w=null,used=0;
-      try{for(const clip of chunk){
+      try{while(next<pending.length){
         if(aborted())throw Error('Cancelled');
-        if(job.segments[clip.index]){
-          progress[slot]=(clip.shardIndex+1)/clip.shardLength;
-          notify();
-          continue;
-        }
+        const clip=pending[next++];
+        active[slot]=clip;
+        progress[slot]=0;
+        notify();
         if(!w){w=createWorker();live.add(w);used=0;}
         const d=await encode(clip,slot,w);
         if(aborted())throw Error('Cancelled');
@@ -93,7 +96,9 @@ export async function runParallelMovie({file, settings, media, job, workers, onU
           }else await save(job,d.blob,d.frames,clip.index);
           if(aborted())throw Error('Cancelled');
         }
-        progress[slot]=(clip.shardIndex+1)/clip.shardLength;
+        active[slot]=null;
+        completed+=clip.codedFrames;
+        progress[slot]=1;
         notify();
         if(++used>=4){w.terminate();live.delete(w);w=null;}
       }}finally{if(w){w.terminate();live.delete(w);}}

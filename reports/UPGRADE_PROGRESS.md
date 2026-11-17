@@ -20,6 +20,14 @@ Chromium SIMD encoded a generated 65-second half-SBS fixture on two workers in 4
 
 The Chromium scalar run reloaded after saving range one, selected the same source and settings, reused that range, and finished with 3,120 coded frames and 43,339,776 bytes. The resumed attempt took 50.3 seconds from restart to verification. Both browser runs decoded the selected audio track and checked the downloaded file.
 
-Remaining Stage 1 work includes packet-level and A/V boundary validation, a checkpoint browser and management controls, and estimates for future container features. Stages 2–6 cover whole-movie size targets, dynamic scheduling, audio, animated previews and HDR, then SUPER MOFLEX and metadata, CIA building, offline installation, automatic batch workflows, presentation, and final verification. CIA and trailer estimates depend on those format stages.
+Recovery commit: `d843dfd2d8`. Remaining Stage 1 work includes packet-level and A/V boundary validation, a saved-job browser and storage management controls, and estimates for future container features.
+
+## Stage 2
+
+- The browser's bounded worker pool and desktop Studio now take the next range as soon as a worker is free. Range boundaries, bitstream settings, and ordered assembly stay the same. Browser movie progress is weighted by coded frames and accounts for restored ranges.
+- Desktop FastAudio capability checks now confirm the actual encoder and muxer option. FFmpeg's help command can return success for an unknown encoder. Single-file browser conversion reuses inspected metadata to warn about potential oversize when the browser's built-in player cannot determine source duration.
+- The uneven-work test confirms that an idle worker continues while range one is still running. The real two-worker scalar WASM regression generated, joined, and fully decoded 975 frames and 3,473,408 bytes in 12.5 seconds on the test host. The native interruption/corruption test still passes. The host exposes five logical CPUs with a four-CPU quota. Eight workers are covered by schedule tests, with physical throughput testing pending.
+- The full Node suite passed 306 tests. Four recent Chromium UI tests passed, including serial conversion, export, and full decode of two short videos.
+- Next: add a measured movie-wide target-size allocator and hard final-budget tests, then verify exact audio boundaries and configurable offsets, replace still previews with animated ones, and add HDR-to-SDR processing. Later stages cover SUPER MOFLEX and metadata, CIA building, offline installation, automatic batch workflows, presentation, and final verification. CIA and trailer estimates depend on those format stages.
 
 Physical 3DS and iOS device testing remain pending. Prior short ADPCM hardware evidence is recorded in the README. This milestone supplies software verification only.

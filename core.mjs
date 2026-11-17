@@ -77,7 +77,7 @@ export async function verifyCandidate({kind,blob,frames,seconds,run,notify=()=>{
 }
 export async function convert({settings:s,source,run,notify=()=>{},verify=true,clip=null,media:knownMedia=null}){validate(s);if(clip&&(!Number.isFinite(clip.start)||clip.start<0||!Number.isFinite(clip.seconds)||clip.seconds<=0))throw Error('Invalid movie clip');let media;
 if(knownMedia!==null){
-  if(!clip||typeof knownMedia!=='object'||!Number.isFinite(knownMedia.duration)||knownMedia.duration<=0||typeof knownMedia.audio!=='boolean')throw Error('Invalid inspected movie metadata');
+  if(typeof knownMedia!=='object'||!Number.isFinite(knownMedia.duration)||knownMedia.duration<=0||typeof knownMedia.audio!=='boolean')throw Error('Invalid inspected movie metadata');
   media={duration:knownMedia.duration,audio:knownMedia.audio};
 }else{notify({stage:'Inspecting video',fraction:null});const probe=await run(['-hide_banner','-i','/input/source'],{source},null,{},true);media=parseProbe(probe.log);}
 let q=s.q??PRESETS[s.preset].q,low=12,high=59,best=null,attempt=0;const cap=s.maxMB===null?null:Math.floor(s.maxMB*1e6),seen=new Set();

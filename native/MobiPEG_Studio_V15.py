@@ -198,7 +198,10 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print,
                 b'mo_interleave_input_double_rate' not in mux_help)):
         raise RuntimeError('Wrong FFmpeg build: custom Mobiclip/MOFLEX required')
     if args.audio_codec=='fastaudio':
-        try:invoke([encoder,'-hide_banner','-h','encoder=fastaudio'])
+        try:
+            help_text=invoke([encoder,'-hide_banner','-h','encoder=fastaudio'])
+            if b'Encoder fastaudio' not in help_text or b'fastaudio' not in mux_help:
+                raise RuntimeError('FastAudio encoder or muxer support is missing')
         except RuntimeError:
             callback('FastAudio is unavailable in this build; using ADPCM compatibility audio.')
             args.audio_codec='adpcm'

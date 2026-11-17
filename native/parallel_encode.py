@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from fractions import Fraction
 from pathlib import Path
+from queue import Empty, Queue
 import hashlib
 import json
 import math
@@ -12,6 +13,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+from threading import Event
 
 from moflex_join import inspect, join
 
@@ -158,15 +160,18 @@ def encode_parallel(*, args, inp, out, encoder, probe, media, filters, layout_op
     env.update({'MOBI_SUBME':str(search),'MOBI_SKIP':'0'})
     if improve:env.update({'MOBI_V11_MV_REFINE':'1','MOBI_V11_MV_PENALTY':'0'})
     results=[None]*len(ranges)
-    lanes=[ranges[math.floor(i*len(ranges)/workers):math.floor((i+1)*len(ranges)/workers)] for i in range(workers)]
-    offsets=[math.floor(i*len(ranges)/workers) for i in range(workers)]
+    pending=Queue()
+    for item in enumerate(ranges):
+        pending.put(item)
+    stopped=Event()
     output_dir=Path(scratch)
     callback(f'Parallel movie encoding: {workers} independent codec processes; {len(ranges)} timeline parts (source chapters not required)')
 
     def lane(slot):
-        group=lanes[slot]
-        for local,(start,length,expected) in enumerate(group):
-            index=offsets[slot]+local
+        while not stopped.is_set():
+            try:index,(start,length,expected)=pending.get_nowait()
+            except Empty:return
+            progress(slot,0)
             video=output_dir/f'video-{index:05d}.moflex'
             final=output_dir/f'part-{index:05d}.moflex'
             record=output_dir/f'part-{index:05d}.json'
@@ -175,7 +180,7 @@ def encode_parallel(*, args, inp, out, encoder, probe, media, filters, layout_op
                 if restored:
                     callback(f'Reusing verified range {index+1}/{len(ranges)}.')
                     results[index]=(final,restored)
-                    progress(slot,(local+1)/len(group))
+                    progress(slot,1)
                     continue
             callback(f'Worker {slot+1}/{workers}: part {index+1}/{len(ranges)} at {start:.3f}s')
             command=[encoder,'-hide_banner','-nostdin','-v','error','-y','-ss',f'{start:.8f}',
@@ -185,7 +190,7 @@ def encode_parallel(*, args, inp, out, encoder, probe, media, filters, layout_op
                      *(['-r',coded_fps_label] if args.mode!='2d' else []),
                      '-frames:v',str(expected),*layout_options,
                      '-progress','pipe:2','-stats_period','0.25','-f','moflex',video]
-            run_with_progress(command,env,expected,lambda f:progress(slot,(local+.92*f)/len(group)))
+            run_with_progress(command,env,expected,lambda f:progress(slot,.92*f))
             frames=verified_frame_count(probe,video)
             if frames!=expected and index!=len(ranges)-1:
                 raise RuntimeError('Input ended before an independently scheduled range; retry with 1 worker')
@@ -217,10 +222,16 @@ def encode_parallel(*, args, inp, out, encoder, probe, media, filters, layout_op
                 write_checkpoint(record,{'timeline':[start,length,expected],'frames':frames,
                                          'bytes':final.stat().st_size,'sha256':file_hash(final)})
             results[index]=(final,frames)
-            progress(slot,(local+1)/len(group))
+            progress(slot,1)
+
+    def encode_lane(slot):
+        try:lane(slot)
+        except Exception:
+            stopped.set()
+            raise
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures=[pool.submit(lane,i) for i in range(workers)]
+        futures=[pool.submit(encode_lane,i) for i in range(workers)]
         # Wait for *every* worker to finish before temporary-file cleanup,
         # including when an earlier worker throws an exception.
         errors=[]
