@@ -21,7 +21,7 @@ import tempfile
 import threading
 from typing import Callable
 
-from parallel_encode import encode_parallel, parallel_workspace
+from parallel_encode import audio_window, encode_parallel, parallel_workspace
 from moflex_join import FAT32_LIMIT, FAT32_MESSAGE
 
 
@@ -83,11 +83,6 @@ def coded_rate_label(fps: str, mode: str) -> str:
         top,bottom=map(int,fps.split('/'))
         return f'{top*2}/{bottom}'
     return str(int(fps)*2)
-
-def exact_audio_filter(seconds: float) -> str:
-    samples=round(seconds*48000)
-    return f'aresample=48000:async=0:first_pts=0,apad,atrim=end_sample={samples},asetpts=N/SR/TB'
-
 
 def scale_filter(width: int, height: int, sar: int=1,
                  clean: str | None=None) -> str:
@@ -217,6 +212,9 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print,
     media=probe_media(probe,inp)
     if media['audio'] and not 0 <= args.audio_track < len(media['tracks']):
         raise ValueError('Selected audio track does not exist')
+    audio_offset=getattr(args,'audio_offset_ms',0)
+    if not isinstance(audio_offset,int) or abs(audio_offset)>30000:
+        raise ValueError('Audio offset must be between -30000 and 30000 ms')
     width,height=map(int,args.resolution.split('x'))
     fps=rate_value(args.fps)
     if args.q is not None and not 12<=args.q<=59:
@@ -251,6 +249,7 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print,
                  'coded_fps':coded_fps_label,'layout':layout,
                  'maximum_bytes':target_bytes,'audio':media['audio'],
                  'audio_codec':args.audio_codec,
+                 'audio_offset_ms':audio_offset,
                  'ffmpeg':str(encoder),'workers':args.workers}
     callback(json.dumps(description,indent=2))
     estimate=estimate_storage(media['duration'],args.resolution,args.fps,args.mode,
@@ -348,11 +347,12 @@ def encode(args: argparse.Namespace, callback: Callable[[str],None]=print,
                         # Stream-copy output must advertise 2x coded FPS;
                         # muxer then writes the correct 1x display FPS.
                         remux_output=['-r',coded_fps_label]
+                    seek,audio_map=audio_window(None,seconds,args.audio_track,audio_offset)
                     audio_command=[encoder,'-hide_banner','-nostdin','-v','error','-y',
                             *remux_input,
-                            '-i',video,'-i',inp,'-map','0:v:0','-map',f'1:a:{args.audio_track}',
+                            '-i',video,*seek,'-i',inp,'-map','0:v:0',*audio_map,
                             '-c:v','copy','-c:a','pcm_s16le','-ar','48000',
-                            '-ac','2','-af',exact_audio_filter(seconds),'-mo_audio',args.audio_codec,
+                            '-ac','2','-mo_audio',args.audio_codec,
                             *remux_output,*layout_options,'-t',f'{seconds:.8f}',
                             '-f','moflex',final]
                     try:invoke(audio_command,timeout=None)
@@ -414,6 +414,7 @@ def gui():
              'fps':tk.StringVar(value='24'),
              'audio_track':tk.StringVar(value='0 — First audio track'),
              'max_size_mb':tk.StringVar(value=''),
+             'audio_offset_ms':tk.StringVar(value='0'),
              'audio_codec':tk.StringVar(value='adpcm')}
     cpu_count=os.cpu_count() or 1
     cpu_workers=tk.IntVar(value=min(2,cpu_count))
@@ -456,6 +457,7 @@ def gui():
     ttk.Label(app,textvariable=cpu_workers).grid(row=11,column=2,padx=8)
     timeline=tk.Canvas(app,height=18,bg='#e1e4dc',highlightthickness=0)
     timeline.grid(row=12,column=0,columnspan=3,sticky='ew',padx=12,pady=5)
+    add_row(13,'Audio offset (ms, + delays audio)',choices['audio_offset_ms'])
     lane_state={}
     def update_timeline(lane,fraction):
         if lane<0:return
@@ -468,10 +470,10 @@ def gui():
                 timeline.create_rectangle(left,0,left+(right-left)*lane_state.get(i,0),18,fill='#44745b',outline='')
         app.after(0,render)
     status=tk.StringVar(value='Ready. Your source file is never modified.')
-    ttk.Label(app,textvariable=status).grid(row=14,column=0,columnspan=3,sticky='w',padx=12,pady=4)
+    ttk.Label(app,textvariable=status).grid(row=15,column=0,columnspan=3,sticky='w',padx=12,pady=4)
     log=tk.Text(app,height=12,state='disabled',wrap='word')
-    log.grid(row=15,column=0,columnspan=3,sticky='nsew',padx=12,pady=8)
-    app.rowconfigure(15,weight=1)
+    log.grid(row=16,column=0,columnspan=3,sticky='nsew',padx=12,pady=8)
+    app.rowconfigure(16,weight=1)
     def write(message):
         def update():
             log.configure(state='normal')
@@ -483,6 +485,12 @@ def gui():
         if not paths['input'].get():
             messagebox.showerror('Missing file','Choose an input video first.')
             return
+        try:
+            offset=int(choices['audio_offset_ms'].get() or '0')
+            if abs(offset)>30000:raise ValueError()
+        except ValueError:
+            messagebox.showerror('Invalid audio offset','Enter an integer between -30,000 and 30,000 milliseconds.')
+            return
         start.configure(state='disabled')
         status.set('Encoding and verifying…')
         lane_state.clear()
@@ -490,6 +498,7 @@ def gui():
         # run the encoder and return UI updates via app.after(...).
         arguments=['--input',paths['input'].get(),
                    '--audio-track',choices['audio_track'].get().split()[0],
+                   '--audio-offset-ms',str(offset),
                    '--audio-codec',choices['audio_codec'].get(),
                    '--mode',choices['mode'].get(),
                    '--preset',choices['preset'].get(),
@@ -510,7 +519,7 @@ def gui():
             finally:app.after(0,lambda:start.configure(state='normal'))
         threading.Thread(target=worker,daemon=True).start()
     start=ttk.Button(app,text='Convert and verify MOFLEX',command=convert)
-    start.grid(row=13,column=1,pady=10)
+    start.grid(row=14,column=1,pady=10)
     app.mainloop()
 
 
@@ -530,6 +539,7 @@ def parser():
     p.add_argument('--max-size-mb',type=float,default=None,
                    help='Hard decimal-MB final file-size limit; trials may be slow')
     p.add_argument('--audio-track',type=int,default=0,help='Audio track number, starting at 0; use --list-audio-tracks to inspect languages')
+    p.add_argument('--audio-offset-ms',type=int,default=0,help='Shift audio by up to 30 seconds; positive delays audio')
     p.add_argument('--audio-codec',choices=('adpcm','fastaudio'),default='adpcm',help='ADPCM is the hardware-tested default; FastAudio is smaller but 3DS-unverified')
     p.add_argument('--workers',type=int,default=1,
                    help='Parallel encoders for movie-sized inputs, 1 up to logical CPU count')

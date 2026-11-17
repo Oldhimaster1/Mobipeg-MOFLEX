@@ -18,6 +18,7 @@ for(const workers of [1,2])test(`whole-movie size target with ${workers} workers
    await page.locator('#resolution').selectOption('320x240');
    await page.locator('#preset').selectOption('balanced');
    await page.locator('#speed').selectOption('fast');
+   await page.locator('#audioOffsetMs').fill('250');
    await page.locator('#maxMB').evaluate(el=>el.closest('details').open=true);
    await page.locator('#maxMB').fill('0.85');
    await page.locator('#convert').click();
@@ -29,6 +30,10 @@ for(const workers of [1,2])test(`whole-movie size target with ${workers} workers
    await (await pending).saveAs(output);
    expect(statSync(output).size).toBeLessThanOrEqual(850000);
    execFileSync(ff,['-v','error','-xerror','-i',output,'-map','0:v:0','-map','0:a:0','-f','null','-']);
+   const pcm=execFileSync(ff,['-v','error','-i',output,'-map','0:a:0','-ac','1','-f','s16le','-']);
+   let firstTone=0;
+   while(firstTone<pcm.length/2&&Math.abs(pcm.readInt16LE(firstTone*2))<600)firstTone++;
+   expect(Math.abs(firstTone-12000)).toBeLessThan(48);
  }finally{rmSync(work,{recursive:true,force:true});}
 });
 test('OPFS recovery ignores a damaged range and protects a job open in another tab',async({page})=>{

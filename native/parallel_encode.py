@@ -45,6 +45,8 @@ def parallel_workspace(args, inp, out, encoder, media, notify):
     fields=('mode','preset','filter','motion_refinement','resolution','fps','q','audio_track','audio_codec','workers')
     if args.max_size_mb is not None:
         fields+=('max_size_mb',)
+    if getattr(args,'audio_offset_ms',0):
+        fields+=('audio_offset_ms',)
     config={'version':1,'source':inp.name,'bytes':inp.stat().st_size,'source_sha256':file_hash(inp),
             'encoder_sha256':file_hash(encoder),'media':media,
             'settings':{key:getattr(args,key) for key in fields}}
@@ -140,9 +142,18 @@ def run_with_progress(argv, env, frames, notify):
         exit_code=process.wait()
     if exit_code:raise RuntimeError(f'FFmpeg failed (exit {exit_code}): '+ '\n'.join(errors[-20:]))
 
-def exact_audio_filter(seconds):
+def audio_window(start, seconds, track, offset_ms):
     samples=round(seconds*48000)
-    return f'aresample=48000:async=0:first_pts=0,apad,atrim=end_sample={samples},asetpts=N/SR/TB'
+    source_sample=round((start or 0)*48000)-offset_ms*48
+    seek=max(0,source_sample)/48000 if offset_ms else start
+    delay=max(0,-source_sample)
+    seek_args=[] if seek is None else ['-ss',f'{seek:.8f}']
+    if delay>=samples:
+        return seek_args,['-filter_complex',f'anullsrc=r=48000:cl=stereo,atrim=end_sample={samples}[audio]',
+                          '-map','[audio]']
+    pad=f'adelay={delay}S:all=1,' if delay else ''
+    audio_filter=f'aresample=48000:async=0:first_pts=0,{pad}apad,atrim=end_sample={samples},asetpts=N/SR/TB'
+    return seek_args,['-map',f'1:a:{track}','-af',audio_filter]
 
 
 def allocate_movie_budget(ranges, target_bytes):
@@ -224,10 +235,10 @@ def encode_parallel(*, args, inp, out, encoder, probe, media, filters, layout_op
                         elif not math.isclose(exposed,float(rate),rel_tol=.001):
                             raise RuntimeError(f'Unexpected stereoscopic stream rate {exposed}')
                         remux_output=['-r',coded_fps_label]
+                    seek,audio_map=audio_window(start,seconds,args.audio_track,getattr(args,'audio_offset_ms',0))
                     audio_command=[encoder,'-hide_banner','-nostdin','-v','error','-y',*remux_input,'-i',video,
-                            '-ss',f'{start:.8f}','-i',inp,'-map','0:v:0',
-                            '-map',f'1:a:{args.audio_track}','-c:v','copy',
-                            '-c:a','pcm_s16le','-ar','48000','-ac','2','-af',exact_audio_filter(seconds),
+                            *seek,'-i',inp,'-map','0:v:0',*audio_map,'-c:v','copy',
+                            '-c:a','pcm_s16le','-ar','48000','-ac','2',
                             '-mo_audio',args.audio_codec,*remux_output,*layout_options,
                             '-t',f'{seconds:.8f}','-f','moflex',final]
                     invoke(audio_command)

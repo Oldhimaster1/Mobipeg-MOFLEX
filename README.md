@@ -86,6 +86,12 @@ python3 native/MobiPEG_Studio_V15.py -i "movie.mkv" --list-audio-tracks
 python3 native/MobiPEG_Studio_V15.py -i "movie.mkv" --audio-track 1
 ```
 
+Use **Audio offset (ms)** in either Studio interface to correct sync. A positive
+value delays audio and a negative value starts it earlier. The desktop CLI
+equivalent is `--audio-offset-ms 250` for a quarter-second delay. The shift is
+applied on the movie timeline, including across parallel ranges. The output
+keeps the original video duration and fills uncovered parts with silence.
+
 For all options:
 
 ```sh

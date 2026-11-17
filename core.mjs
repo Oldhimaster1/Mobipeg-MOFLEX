@@ -21,7 +21,7 @@ export function validateAdvanced(a){
   }
   if(a.highpass!=null&&a.lowpass!=null&&a.highpass>=a.lowpass)throw Error('highpass must be below lowpass');
 }
-export function advancedAudioFilter(s,samples=null){const a=s.advanced??{};return [a.highpass!=null?`highpass=f=${a.highpass}`:null,a.lowpass!=null?`lowpass=f=${a.lowpass}`:null,a.volume!=null?`volume=${a.volume}dB`:null,'aresample=48000:async=0:first_pts=0','apad',samples!=null?`atrim=end_sample=${samples}`:null,'asetpts=N/SR/TB'].filter(Boolean).join(',');}
+export function advancedAudioFilter(s,samples=null,delay=0){const a=s.advanced??{};return [a.highpass!=null?`highpass=f=${a.highpass}`:null,a.lowpass!=null?`lowpass=f=${a.lowpass}`:null,a.volume!=null?`volume=${a.volume}dB`:null,'aresample=48000:async=0:first_pts=0',delay?`adelay=${delay}S:all=1`:null,'apad',samples!=null?`atrim=end_sample=${samples}`:null,'asetpts=N/SR/TB'].filter(Boolean).join(',');}
 export function rate(s){const [n,d=1]=String(s).split('/').map(Number);return n/d;}
 export function validateCrop(c){
   if(c==null)return;
@@ -30,7 +30,7 @@ export function validateCrop(c){
   for(const k of Object.keys(c))if(!['fit','aspect','left','right','top','bottom'].includes(k))throw Error('Unknown crop parameter');
   for(const k of ['left','right','top','bottom'])if(c[k]!=null&&(!Number.isInteger(c[k])||c[k]<0||c[k]>16384||c[k]%2))throw Error('Crop margins must be even input pixel counts from 0 to 16384');
 }
-export function validate(s){if(s.speed!=null&&!['original','fast'].includes(s.speed))throw Error('Unknown encoding speed');if(s.audioCodec!=null&&!['adpcm','fastaudio'].includes(s.audioCodec))throw Error('Unknown MOFLEX audio codec');validateCrop(s.crop);validateAdvanced(s.advanced);if(s.audioTrack!==undefined&&(!Number.isInteger(s.audioTrack)||s.audioTrack<0))throw Error('Invalid audio track');if(s.workers!==undefined&&(!Number.isInteger(s.workers)||s.workers<1||s.workers>256))throw Error('Parallel worker count must be an integer between 1 and 256');if(s.engine!==undefined&&!['auto','scalar','simd'].includes(s.engine))throw Error('Unknown WASM engine');if(!['2d','full-sbs','half-sbs'].includes(s.mode)||!PRESETS[s.preset]||!Object.hasOwn(FILTERS,s.filter)||!RATES.includes(s.fps)||!RESOLUTIONS.includes(s.resolution)||!['auto','on','off'].includes(s.motion))throw Error('Unsupported conversion setting');if(s.q!==null&&(!Number.isInteger(s.q)||s.q<12||s.q>59))throw Error('Quantizer must be 12–59');if(s.maxMB!==null&&(!Number.isFinite(s.maxMB)||s.maxMB<0.004096))throw Error('Maximum size must be at least 0.004096 MB');return s;}
+export function validate(s){if(s.speed!=null&&!['original','fast'].includes(s.speed))throw Error('Unknown encoding speed');if(s.audioCodec!=null&&!['adpcm','fastaudio'].includes(s.audioCodec))throw Error('Unknown MOFLEX audio codec');if(s.audioOffsetMs!=null&&(!Number.isInteger(s.audioOffsetMs)||Math.abs(s.audioOffsetMs)>30000))throw Error('Audio offset must be an integer between −30,000 and 30,000 ms');validateCrop(s.crop);validateAdvanced(s.advanced);if(s.audioTrack!==undefined&&(!Number.isInteger(s.audioTrack)||s.audioTrack<0))throw Error('Invalid audio track');if(s.workers!==undefined&&(!Number.isInteger(s.workers)||s.workers<1||s.workers>256))throw Error('Parallel worker count must be an integer between 1 and 256');if(s.engine!==undefined&&!['auto','scalar','simd'].includes(s.engine))throw Error('Unknown WASM engine');if(!['2d','full-sbs','half-sbs'].includes(s.mode)||!PRESETS[s.preset]||!Object.hasOwn(FILTERS,s.filter)||!RATES.includes(s.fps)||!RESOLUTIONS.includes(s.resolution)||!['auto','on','off'].includes(s.motion))throw Error('Unsupported conversion setting');if(s.q!==null&&(!Number.isInteger(s.q)||s.q<12||s.q>59))throw Error('Quantizer must be 12–59');if(s.maxMB!==null&&(!Number.isFinite(s.maxMB)||s.maxMB<0.004096))throw Error('Maximum size must be at least 0.004096 MB');return s;}
 export function codedRate(s){if(s.mode==='2d')return s.fps;const [n,d]=s.fps.split('/');return d?`${Number(n)*2}/${d}`:String(Number(n)*2);}
 export function scale(w,h,sar,clean,a={},crop={}){
   crop=crop??{};
@@ -56,12 +56,26 @@ export function encodeClipArgs(s,q,start,seconds){
 }
 export function audioClipArgs(s,start,seconds){
   if(!Number.isFinite(start)||start<0||!Number.isFinite(seconds)||seconds<=0)throw Error('Invalid movie audio segment');
-  const args=audioArgs(s,seconds);
-  const secondInput=args.indexOf('-i',args.indexOf('-i')+1);
-  args.splice(secondInput,0,'-ss',start.toFixed(8));
-  return args;
+  return audioMuxArgs(s,seconds,start);
 }
-export function audioArgs(s,seconds){const samples=Math.round(seconds*48000);return [...base,'-i','/input/video.moflex','-i','/input/source','-map','0:v:0','-map',`1:a:${s.audioTrack??0}`,'-c:v','copy','-c:a','pcm_s16le','-ar','48000','-ac','2','-af',advancedAudioFilter(s,samples), '-mo_audio',s.audioCodec??'adpcm',...(s.mode==='2d'?[]:['-r',codedRate(s)]),...layout(s),'-t',(samples/48000).toFixed(8),'-f','moflex','/final.moflex'];}
+export function audioArgs(s,seconds){
+  return audioMuxArgs(s,seconds,null);
+}
+function audioMuxArgs(s,seconds,start){
+  const samples=Math.round(seconds*48000);
+  const offset=(s.audioOffsetMs??0)*48;
+  const sourceSample=Math.round((start??0)*48000)-offset;
+  const seekSeconds=offset?Math.max(0,sourceSample)/48000:start;
+  const delay=Math.max(0,-sourceSample);
+  const sourceArgs=seekSeconds===null?[]:['-ss',seekSeconds.toFixed(8)];
+  const audioMap=delay>=samples
+    ? ['-filter_complex',`anullsrc=r=48000:cl=stereo,atrim=end_sample=${samples}[audio]`,'-map','[audio]']
+    : ['-map',`1:a:${s.audioTrack??0}`,'-af',advancedAudioFilter(s,samples,delay)];
+  return [...base,'-i','/input/video.moflex',...sourceArgs,'-i','/input/source','-map','0:v:0',
+    ...audioMap,'-c:v','copy','-c:a','pcm_s16le','-ar','48000','-ac','2',
+    '-mo_audio',s.audioCodec??'adpcm',...(s.mode==='2d'?[]:['-r',codedRate(s)]),...layout(s),
+    '-t',(samples/48000).toFixed(8),'-f','moflex','/final.moflex'];
+}
 export function parseProbe(log){const d=/Duration:\s*(\d+):(\d+):([\d.]+)/.exec(log);if(!/Video:/.test(log)||!d)throw Error('Cannot read video or duration. This format may not be supported.');const duration=Number(d[1])*3600+Number(d[2])*60+Number(d[3]);if(!Number.isFinite(duration)||duration<=0)throw Error('Video must have a known, positive duration');return {duration,audio:/Audio:/.test(log)};}
 export function progressLine(line){const m=/^(frame|out_time_us|total_size|speed|progress)=(.*)$/.exec(line.trim());return m?{key:m[1],value:m[2].trim()}:null;}
 

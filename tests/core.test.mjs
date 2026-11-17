@@ -54,6 +54,18 @@ test('audio languages and explicit stream selection',()=>{
  assert.ok(args.includes('1:a:1'));assert.equal(args[args.indexOf('-ar')+1],'48000');
  assert.throws(()=>validate({...defaults,audioTrack:-1}),/audio track/);
 });
+test('audio offsets change source seeks once on the global movie clock',()=>{
+ const delayed={...defaults,audioOffsetMs:250};
+ const first=audioArgs(delayed,1);
+ assert.match(first[first.indexOf('-af')+1],/adelay=12000S:all=1/);
+ const later=audioClipArgs(delayed,2,1);
+ assert.equal(later[later.indexOf('-ss')+1],'1.75000000');
+ assert.doesNotMatch(later[later.indexOf('-af')+1],/adelay/);
+ const earlier=audioArgs({...defaults,audioOffsetMs:-250},1);
+ assert.equal(earlier[earlier.indexOf('-ss')+1],'0.25000000');
+ assert.ok(audioClipArgs(delayed,0,.1).includes('anullsrc=r=48000:cl=stereo,atrim=end_sample=4800[audio]'));
+ assert.throws(()=>validate({...defaults,audioOffsetMs:30001}),/Audio offset/);
+});
 test('audio verification rejects accumulated chapter padding drift',async()=>{
  await assert.rejects(()=>verifyCandidate({kind:'audio',blob:new Blob(['x']),frames:24,seconds:1,run:async()=>({seconds:1.2})}),/audio duration/);
  await assert.rejects(()=>verifyCandidate({kind:'audio',blob:new Blob(['x']),frames:24,seconds:1,run:async()=>({seconds:1.008})}),/audio duration/);

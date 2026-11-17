@@ -86,6 +86,21 @@ class NativeResumeTest(unittest.TestCase):
             self.assertGreater(max(abs(x) for x in pcm[boundary+200:boundary+400]), 15000)
             self.assertLess(max(abs(x) for x in pcm[boundary-1000:boundary-700]), 1500)
             self.assertLess(max(abs(x) for x in pcm[boundary+700:boundary+1000]), 1500)
+            for offset in (-40,40,9000,-9000):
+                args.output=str(Path(work)/f'offset-{offset}.moflex')
+                args.audio_offset_ms=offset
+                result=studio.encode(args,callback=lambda message: None)
+                shifted=array('h',subprocess.check_output([str(studio.pick_encoder()),'-v','error',
+                    '-xerror','-i',str(result),'-map','0:a:0','-ac','1','-f','s16le','-']))
+                if sys.byteorder=='big':
+                    shifted.byteswap()
+                self.assertLessEqual(abs(len(shifted)-9*48000),256)
+                if abs(offset)==9000:
+                    self.assertLess(max(abs(sample) for sample in shifted),10)
+                else:
+                    active=next(index for index,sample in enumerate(shifted) if abs(sample)>1200)
+                    baseline=next(index for index,sample in enumerate(pcm) if abs(sample)>1200)
+                    self.assertLessEqual(abs(active-baseline-offset*48),48)
 
 
 if __name__ == '__main__':
