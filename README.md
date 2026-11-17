@@ -44,6 +44,10 @@ python3 native/MobiPEG_Studio_V15.py --gui
 
 Choose your input, output mode, quality, resolution per eye, and frame rate, then select **Convert and verify MOFLEX**. Existing output files are preserved by default.
 
+The Web Studio also accepts several videos at once. Each queue item keeps its own settings and can be reordered or removed before conversion. Files are encoded one at a time, and the queue deliberately pauses after each completed output until you start its download and continue; this keeps multiple completed movies from accumulating in browser memory. The queue is local to the current tab and is not restored after a reload.
+
+Before encoding, the queue shows a broad output-size range and its estimated peak temporary browser-storage requirement. This is a planning estimate, not a promised file size: motion, detail, audio, and advanced encoder settings can substantially change the result. If the browser exposes storage quota information, MobiPEG also shows the currently available browser storage. Downloaded files use your device's normal download storage and are not included in that quota.
+
 ### Command-line usage
 
 Convert a 2D video:

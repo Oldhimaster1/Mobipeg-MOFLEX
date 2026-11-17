@@ -16,7 +16,7 @@ test('eight local interface languages preserve controls, privacy preference and 
   await page.setViewportSize({width:390,height:844});
  }
  await page.locator('#interfaceLanguage').selectOption('es');
- await page.evaluate(()=>Object.defineProperty(document.getElementById('file').files[0],'size',{value:600*1024*1024}));
+ await page.evaluate(()=>{const input=document.getElementById('file'),transfer=new DataTransfer(),large=new File(['x'],'large.mp4',{type:'video/mp4'});Object.defineProperty(large,'size',{value:600*1024*1024});transfer.items.add(large);input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));});
  let prompt='';page.once('dialog',async d=>{prompt=d.message();await d.dismiss();});
  await page.locator('#convert').click();expect(prompt).toContain('Es un archivo grande.');
  await page.evaluate(()=>document.getElementById('sampleStatus').textContent='Preview cancelled.');

@@ -1,6 +1,7 @@
 import rows from './translations.mjs?v=20261117e';
+import queueRows from './queue-translations.mjs?v=20261117f';
 export const LANGUAGES=['en','es','fr','de','pt','ja','ko','zh-Hans'];
-const entries=new Map(rows.map(row=>[row[0],row]));
+const entries=new Map([...rows,...queueRows].map(row=>[row[0],row]));
 const KEY='mobipeg-interface-language';
 let language='en';
 export function normalizeLanguage(value){
