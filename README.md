@@ -28,3 +28,5 @@ Physical 3DS long-movie/stereo playback and seeking beyond the historical
 71m35s duration field, iPhone Safari long-duration memory limits, and Mac GUI
 execution remain unverified. No physical-device compatibility is claimed. All
 user media processing stays local; no video is uploaded.
+
+Additional regression checks: 261 JavaScript tests and 19 native tests passed. Both browser engines also handle audio extending beyond the video.
