@@ -1,3 +1,4 @@
+import {sha256BlobWasm} from './cia-sha256-wasm.mjs?v=20261118h';
 // Incremental SHA-256 for Blob contents. Each read is bounded to 1 MiB.
 const constants = [];
 const initial = [];
@@ -15,7 +16,7 @@ for (let candidate = 2; constants.length < 64; candidate++) {
   }
 }
 const rotate = (x, n) => (x >>> n) | (x << (32 - n));
-export async function sha256Blob(blob) {
+export async function sha256BlobJS(blob) {
   const state = initial.slice(),
     words = new Uint32Array(64);
   function compress(bytes, offset) {
@@ -78,4 +79,20 @@ export async function sha256Blob(blob) {
     output = new DataView(result.buffer);
   for (let i = 0; i < 8; i++) output.setUint32(i * 4, state[i], false);
   return result;
+}
+
+let modulePromise;
+async function loadCore(){
+  if(!modulePromise)modulePromise=(async()=>{
+    try{
+      const response=await fetch(new URL('./cia-sha256-core.wasm?v=20261118h',import.meta.url));
+      if(!response.ok)return null;
+      return await WebAssembly.compile(await response.arrayBuffer());
+    }catch{return null;}
+  })();
+  return modulePromise;
+}
+export async function sha256Blob(blob){
+  const module=await loadCore();
+  return module?sha256BlobWasm(blob,module):sha256BlobJS(blob);
 }

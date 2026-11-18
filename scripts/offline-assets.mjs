@@ -3,7 +3,7 @@ import {createHash} from 'node:crypto';
 import {readFile,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 
-const common=['index.html','player.html','guide.html','cia.html','cia.mjs','cia-project.mjs','cia-project-import.mjs','cia-packager.mjs','cia-sha256.mjs','cia-romfs.mjs','cia-artwork.mjs','cia-output.mjs','cia-banner.mjs','cia-banner-audio.mjs','hdr-lut.mjs','app.mjs','core.mjs','movie.mjs','parallel.mjs',
+const common=['index.html','player.html','guide.html','cia.html','cia.mjs','cia-project.mjs','cia-project-import.mjs','cia-packager.mjs','cia-sha256.mjs','cia-sha256-wasm.mjs','cia-sha256-core.wasm','cia-romfs.mjs','cia-artwork.mjs','cia-output.mjs','cia-banner.mjs','cia-banner-audio.mjs','hdr-lut.mjs','app.mjs','core.mjs','movie.mjs','parallel.mjs',
   'queue.mjs','checkpoints.mjs','checkpoint-manager.mjs','i18n.mjs','translations.mjs','queue-translations.mjs','usage.mjs',
   'worker.js','wasm-runtime.mjs','player-worker.js','player.mjs','player-core.mjs','super-moflex.mjs','trailer-editor.mjs','subtitle-timing.mjs',
   'batch-output.mjs','queue-state.mjs','style.css','player.css',

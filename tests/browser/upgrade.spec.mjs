@@ -1,5 +1,6 @@
 import {expect,test} from '@playwright/test';
-import {execFileSync} from 'node:child_process';
+import {execFileSync,spawn} from 'node:child_process';
+import {once} from 'node:events';
 import {copyFileSync,mkdtempSync,readFileSync,rmSync,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
@@ -72,12 +73,27 @@ test('browser edits SUPER MOFLEX, plays subtitles and exports tracks to MKV',asy
   expect(streams.map(track=>track.codec_type)).toEqual(['video','audio','audio','subtitle']);
 });
 
-test('offline cache runs a real conversion and opens the player',async({page,context},testInfo)=>{
-  await page.goto('/');
-  await page.locator('#offlineSetup').click();
-  await expect(page.locator('#offlineStatus')).toContainText('Ready offline',{timeout:90000});
-  await context.setOffline(true);
+test('offline cache runs a real conversion and opens the player',async({page},testInfo)=>{
+  // Stop a separate real HTTP server. WebKit's automation offline toggle can
+  // fail before consulting service workers, so it cannot prove offline caching.
+  const server=spawn(process.execPath,['scripts/dev-server.mjs'],{env:{...process.env,PORT:'0'},stdio:['ignore','pipe','pipe']});
+  let errors='';server.stderr.on('data',chunk=>errors+=chunk);
   try{
+    const port=await new Promise((resolve,reject)=>{
+      const timer=setTimeout(()=>reject(Error('Offline test server failed to start: '+errors)),10000);
+      server.once('error',error=>{clearTimeout(timer);reject(error);});
+      server.once('exit',()=>{clearTimeout(timer);reject(Error('Offline test server exited: '+errors));});
+      let output='';server.stdout.on('data',chunk=>{
+        output+=chunk;const match=/MobiPEG ready on (\d+)/.exec(output);
+        if(match){clearTimeout(timer);resolve(Number(match[1]));}
+      });
+    });
+    const origin='http://127.0.0.1:'+port;
+    await page.goto(origin+'/');
+    await page.locator('#offlineSetup').click();
+    await expect(page.locator('#offlineStatus')).toContainText('Ready offline',{timeout:90000});
+    const stopped=once(server,'exit');server.kill();await stopped;
+    expect(await page.evaluate(async()=>{try{await fetch('/uncached-network-probe');return false;}catch{return true;}})).toBe(true);
     await page.reload();
     expect(await page.evaluate(()=>crossOriginIsolated)).toBe(true);
     await page.locator('#file').setInputFiles(source);
@@ -86,12 +102,28 @@ test('offline cache runs a real conversion and opens the player',async({page,con
     await page.locator('#speed').selectOption('fast');
     await page.locator('#convert').click();
     await expect(page.locator('#stage')).toHaveText('Your MOFLEX is ready.',{timeout:90000});
-    await page.goto('/player.html');
+    await page.goto(origin+'/player.html');
     await page.locator('#movieFile').setInputFiles(movie);
     await expect(page.locator('#play')).toBeEnabled();
     await page.locator('#play').click();
     await expect(page.locator('#playerStatus')).toContainText('Playing locally',{timeout:30000});
-  }finally{await context.setOffline(false);}
+    await page.goto(origin+'/cia.html');
+    await expect(page.locator('#ciaOpen')).toBeVisible();
+    expect(await page.evaluate(async()=>{const response=await fetch('/cia-sha256-core.wasm');return response.ok;})).toBe(true);
+    const template=process.env.MOBIPEG_TEST_CIA_TEMPLATE;
+    if(template){
+      await page.locator('#ciaFiles').setInputFiles(movie);
+      await expect(page.locator('#ciaEpisodes > li')).toHaveCount(1);
+      await page.locator('#ciaTitle').fill('Offline movie');
+      await page.locator('#ciaPublisher').fill('Local test');
+      await page.locator('#ciaId').fill('C3456');
+      await page.locator('#ciaTemplate').setInputFiles(template);
+      const download=page.waitForEvent('download');await page.locator('#ciaBuild').click();
+      const output=testInfo.outputPath('offline.cia');await (await download).saveAs(output);
+      const verified=JSON.parse(execFileSync('python3',['native/cia_builder.py','verify',output],{encoding:'utf8'}));
+      expect(verified.title_id).toBe('000400000C345600');
+    }
+  }finally{if(server.exitCode===null)server.kill();}
 });
 
 test('queue saves and continues automatically, with downloads still available after reload',async({page})=>{
@@ -281,4 +313,33 @@ test('CIA editor uses saved batch conversions directly from OPFS',async({page})=
   await page.locator('#ciaAddSaved').click();
   await expect(page.locator('#ciaEpisodes > li')).toHaveCount(2);
   await expect(page.locator('#ciaStatus')).toContainText('Duplicate filename');
+});
+
+test('verified CIA remains downloadable when optional browser storage fails',async({page},testInfo)=>{
+  const template=process.env.MOBIPEG_TEST_CIA_TEMPLATE;
+  test.skip(!template,'Provide a compatible local CIA template.');
+  await page.addInitScript(()=>{
+    const storage=navigator.storage||{};
+    if(!navigator.storage)Object.defineProperty(navigator,'storage',{value:storage});
+    Object.defineProperty(storage,'estimate',{value:async()=>({quota:1024**3,usage:0})});
+    Object.defineProperty(storage,'getDirectory',{value:async()=>({getDirectoryHandle:async()=>({
+      async *entries(){},getFileHandle:async()=>({createWritable:async()=>{throw new DOMException('Storage is full','QuotaExceededError');}}),
+      removeEntry:async()=>{window.partialCiaRemoved=true;}
+    })})});
+  });
+  await page.goto('/cia.html');
+  await page.locator('#ciaFiles').setInputFiles(movie);
+  await expect(page.locator('#ciaEpisodes > li')).toHaveCount(1);
+  await page.locator('#ciaTitle').fill('Storage recovery');
+  await page.locator('#ciaPublisher').fill('Local test');
+  await page.locator('#ciaId').fill('C2468');
+  await page.locator('#ciaTemplate').setInputFiles(template);
+  await page.locator('#ciaStage').check();
+  const pending=page.waitForEvent('download');await page.locator('#ciaBuild').click();
+  const output=testInfo.outputPath('recovered.cia');await (await pending).saveAs(output);
+  const verified=JSON.parse(execFileSync('python3',['native/cia_builder.py','verify',output],{encoding:'utf8'}));
+  expect(verified.title_id).toBe('000400000C246800');
+  await expect(page.locator('#ciaStatus')).toContainText('Storage is full');
+  await expect(page.locator('#ciaStatus')).toContainText('offered for download');
+  expect(await page.evaluate(()=>window.partialCiaRemoved)).toBe(true);
 });

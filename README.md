@@ -481,3 +481,10 @@ template separately when building.
 MobiPEG on the same browser and website. This avoids downloading and reselecting
 those movies. Browser storage can be cleared or evicted, so retain your own copies.
 If saving a finished CIA fails, MobiPEG still offers the completed CIA for download.
+
+CIA content hashing uses a small, fixed-memory WASM core with a JavaScript
+fallback. Both read files in chunks of at most 1 MiB. The optional stress tools
+are `scripts/stress-cia-hash.mjs`, `scripts/stress-long-movie.py`, and
+`tests/browser/stress.config.mjs`; see the progress report for measured results
+and their scope. Private browsing may provide too little storage to retain a
+large CIA, even when the finished download itself is valid.

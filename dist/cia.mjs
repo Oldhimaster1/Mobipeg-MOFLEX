@@ -1,7 +1,7 @@
 import {batchStorage} from './batch-output.mjs?v=20261118g';
 import {parseCiaProject,resolveCiaProjectFiles} from './cia-project-import.mjs?v=20261118g';
 import {prepareCiaDownload,ciaOutputDirectory} from './cia-output.mjs?v=20261118g';
-import {buildCia} from './cia-packager.mjs?v=20261118g';
+import {buildCia} from './cia-packager.mjs?v=20261118h';
 import {createCiaProject,ciaSizeEstimate,MAX_CIA_MOVIES,planCiaParts} from './cia-project.mjs?v=20261118g';
 import {readSuperMoflex} from './super-moflex.mjs?v=20261117r';
 import {inspectPlayableMoflex} from './player-core.mjs?v=20261118g';
@@ -168,6 +168,7 @@ $('ciaBuild').onclick=async()=>{
 
 async function showSavedCias(){
   const list=$('ciaSaved');list.replaceChildren();
+  if(!navigator.storage?.getDirectory){list.textContent='Browser storage is unavailable. Finished CIAs can still be downloaded.';return;}
   try{
     const directory=await ciaOutputDirectory();
     for await(const [name,handle] of directory.entries()){

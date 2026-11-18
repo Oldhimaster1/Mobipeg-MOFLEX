@@ -1,16 +1,19 @@
-import {readFileSync} from 'node:fs';
+import {readFileSync,createReadStream,statSync,writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+const fileHash=async path=>{const hash=createHash('sha256');for await(const bytes of createReadStream(path))hash.update(bytes);return hash.digest('hex');};
 import {join} from 'node:path';
 import { test, expect } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 const template = process.env.MOBIPEG_TEST_CIA_TEMPLATE;
 const movies = JSON.parse(process.env.MOBIPEG_TEST_CIA_MOVIES || "[]");
 for(const count of [1,2,5,10,20,27])test("browser builds a collection of "+count+" episodes", async ({
-  page,
+  page,browser,
 }, testInfo) => {
   test.skip(
     !template || movies.length<count,
     "Provide a local compatible CIA template and its movie inputs",
   );
+  test.setTimeout(Number(process.env.MOBIPEG_TEST_CIA_TIMEOUT||180000));
   await page.goto("/cia.html");
   await page.locator("#ciaFiles").setInputFiles(movies.slice(0,count));
   await expect(page.locator("#ciaEpisodes > li")).toHaveCount(count);
@@ -25,13 +28,33 @@ for(const count of [1,2,5,10,20,27])test("browser builds a collection of "+count
   await page.locator("#ciaTitle").fill("Browser integration");
   await page.locator("#ciaPublisher").fill("Local test");
   await page.locator("#ciaId").fill("C2468");
-  const stored=await page.locator("#ciaStage").isEnabled();
+  let stored=await page.locator("#ciaStage").isEnabled();
+  if(stored&&process.env.MOBIPEG_TEST_CIA_PROFILE){
+    const capacity=await page.evaluate(async()=>{const e=await navigator.storage.estimate();return e.quota-e.usage;});
+    if(capacity<movies.slice(0,count).reduce((n,path)=>n+statSync(path).size,0)+statSync(template).size+64*1024**2)stored=false;
+  }
   if(stored)await page.locator("#ciaStage").check();
+  let peakRSS=0,timer,session;
+  if(process.env.MOBIPEG_TEST_CIA_PROFILE&&browser.browserType().name()==='chromium'){
+    session=await browser.newBrowserCDPSession();
+    timer=setInterval(async()=>{
+      try{
+        const {processInfo}=await session.send('SystemInfo.getProcessInfo');
+        let rss=0;for(const process of processInfo){try{rss+=Number(/VmRSS:\s+(\d+)/.exec(readFileSync('/proc/'+process.id+'/status','utf8'))?.[1]||0)*1024;}catch{}}
+        peakRSS=Math.max(peakRSS,rss);
+      }catch{}
+    },1000);timer.unref();
+  }
+  const started=performance.now();
   const download = page.waitForEvent("download");
   await page.locator("#ciaBuild").click();
   const file = await download,
     path = testInfo.outputPath("browser.cia");
-  await file.saveAs(path);
+  try{await file.saveAs(path);}finally{clearInterval(timer);await session?.detach();}
+  if(process.env.MOBIPEG_TEST_CIA_PROFILE){
+    const report={episodes:count,bytes:statSync(path).size,seconds:(performance.now()-started)/1000,peakAggregateBrowserRSS:peakRSS,persistenceRequested:stored};
+    writeFileSync(testInfo.outputPath('memory.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report));
+  }
   const result = JSON.parse(
     execFileSync("python3", ["native/cia_builder.py", "verify", path], {
       encoding: "utf8",
@@ -41,7 +64,7 @@ for(const count of [1,2,5,10,20,27])test("browser builds a collection of "+count
   if(process.env.MOBIPEG_CIA_BACKEND){
     const extracted=testInfo.outputPath('extracted');
     execFileSync(process.env.MOBIPEG_CIA_BACKEND,['-ec',path,extracted]);
-    for(let i=0;i<count;i++)expect(readFileSync(join(extracted,'romfs/movie/movie_'+i+'.moflex'))).toEqual(readFileSync(movies[i]));
+    for(let i=0;i<count;i++){const actual=join(extracted,'romfs/movie/movie_'+i+'.moflex');expect(statSync(actual).size).toBe(statSync(movies[i]).size);expect(await fileHash(actual)).toBe(await fileHash(movies[i]));}
     const rows=readFileSync(join(extracted,'romfs/movie/movie_title.csv')).toString('utf16le').replace(/^\ufeff/,'').trim().split(/\r?\n/).slice(1);
     if(process.env.MOBIPEG_TEST_CIA_ARTWORK){
       const icon=readFileSync(join(extracted,'exefs/icon.bin'));
@@ -60,7 +83,7 @@ for(const count of [1,2,5,10,20,27])test("browser builds a collection of "+count
   await expect(page.locator("#ciaStatus")).toContainText(
     "content hash verified",
   );
-  if(!stored)return; // This WebKit build has no OPFS API; packaging is still verified.
+  if(!stored)return; // OPFS is absent or the optional benchmark exceeds its available quota.
   await page.reload();
   await expect(page.locator("#ciaSaved")).toContainText("Download movie-");
   page.once('dialog',dialog=>dialog.accept());

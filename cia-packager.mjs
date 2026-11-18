@@ -2,7 +2,7 @@ import {bannerWithWav} from './cia-banner-audio.mjs';
 import {makeHomeBanner} from './cia-banner.mjs';
 import {isArtworkImage,makeSmdhArtwork,makeEpisodeArtwork} from './cia-artwork.mjs';
 import { rebuildRomfsMetadata } from "./cia-romfs.mjs";
-import { sha256Blob } from "./cia-sha256.mjs";
+import { sha256Blob } from "./cia-sha256.mjs?v=20261118h";
 // Template-preserving CIA rebuild. No executable or template is distributed.
 import { ciaTitleID, updateCiaLocaleSettings } from "./cia-project.mjs?v=20261118f";
 const align = (n, b = 64) => Math.ceil(n / b) * b;
