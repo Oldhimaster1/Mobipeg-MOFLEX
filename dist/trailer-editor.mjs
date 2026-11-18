@@ -1,4 +1,5 @@
 import {languageHeader, metadataSection, readSuperMoflex, writeSuperMoflex} from './super-moflex.mjs?v=20261117r';
+import {shiftSubtitleTiming} from './subtitle-timing.mjs?v=20261117t';
 
 const fields={title:'Movie or series title',year:'Release year',genres:'Genres',category:'Category',
   runtime:'Runtime (minutes)',date:'Release date',desc:'Movie or episode synopsis',showdesc:'Series synopsis',
@@ -63,14 +64,21 @@ export function openTrailerEditor(file, original, duration){
     label.append(name,input);
     controls.append(label);
   }
-  const toRemove=new Set();
+  const toRemove=new Set(),existingEdits=[];
   existing.replaceChildren();
   for(const track of original.subtitles){
-    const label=document.createElement('label'), check=document.createElement('input');
+    const removeLabel=document.createElement('label'),check=document.createElement('input');
     check.type='checkbox';
     check.onchange=()=>check.checked?toRemove.add(track.section):toRemove.delete(track.section);
-    label.append(check,' Remove '+track.language+' subtitles');
-    existing.append(label);
+    removeLabel.append(check,' Remove '+track.language+' subtitles');
+    const languageLabel=document.createElement('label'),language=document.createElement('input');
+    language.maxLength=3;language.required=true;language.value=track.language||'SUB';
+    languageLabel.append('Subtitle language',language);
+    const offsetLabel=document.createElement('label'),offset=document.createElement('input');
+    offset.type='number';offset.min='-300000';offset.max='300000';offset.step='1';offset.value='0';
+    offsetLabel.append('Timing offset (ms)',offset);
+    existing.append(removeLabel,languageLabel,offsetLabel);
+    existingEdits.push({track,language,offset});
   }
   byId('trailerMainLanguage').value=original.primaryLanguage??'';
   byId('removeAltAudio').hidden=!original.alternateAudio;
@@ -87,8 +95,11 @@ export function openTrailerEditor(file, original, duration){
       input.required=true;input.maxLength=3;
       input.value=/\.([a-z]{2,3})\.(srt|ass|ssa)$/i.exec(subtitle.name)?.[1]?.toUpperCase()??'SUB';
       label.append(subtitle.name+' language',input);
-      list.append(label);
-      tracks.push({file:subtitle,language:input});
+      const offsetLabel=document.createElement('label'),offset=document.createElement('input');
+      offset.type='number';offset.min='-300000';offset.max='300000';offset.step='1';offset.value='0';
+      offsetLabel.append('Timing offset (ms)',offset);
+      list.append(label,offsetLabel);
+      tracks.push({file:subtitle,language:input,offset});
     }
   };
   const status=byId('trailerStatus');
@@ -102,7 +113,7 @@ export function openTrailerEditor(file, original, duration){
     const values=new FormData(form);
     const poster=byId('newPoster').files[0], alternate=byId('newAltAudio').files[0];
     const mainLanguage=byId('trailerMainLanguage').value.trim();
-    const langs=tracks.map(track=>[track.file,track.language.value]);
+    const langs=tracks.map(track=>[track.file,track.language.value,Number(track.offset.value)]);
     const save=byId('writeTrailer');
     save.disabled=true;
     byId('movieFile').disabled=true;
@@ -113,12 +124,21 @@ export function openTrailerEditor(file, original, duration){
         if(value)metadata[key]=value;else delete metadata[key];
       }
       removeTags(['NFO0','LNG0']);
+      for(const {track,language,offset} of existingEdits){
+        if(remove.has(track.section))continue;
+        const label=language.value.trim(),milliseconds=Number(offset.value);
+        languageHeader(label);
+        if(label.toUpperCase()===track.language.toUpperCase()&&!milliseconds)continue;
+        remove.add(track.section);
+        additions.push({tag:'SUB1',body:new Blob([
+          languageHeader(label),shiftSubtitleTiming(await track.text.text(),milliseconds)])});
+      }
       if(Object.keys(metadata).length)additions.push({tag:'NFO0',body:new Blob([metadataSection(metadata)])});
       if(mainLanguage)additions.push({tag:'LNG0',body:new Blob([languageHeader(mainLanguage)])});
-      for(const [subtitle,language] of langs){
+      for(const [subtitle,language,offset] of langs){
         if(!/\.(srt|ass|ssa)$/i.test(subtitle.name)||!subtitle.size||subtitle.size>1048576)
           throw Error('Choose a nonempty SRT, ASS or SSA file under 1 MiB.');
-        const text=await subtitle.text();
+        const text=shiftSubtitleTiming(await subtitle.text(),offset);
         additions.push({tag:'SUB1',body:new Blob([languageHeader(language),text])});
       }
       if(poster||values.has('removePoster'))removeTags(['ART5']);

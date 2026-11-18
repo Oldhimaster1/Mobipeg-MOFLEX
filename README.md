@@ -188,7 +188,11 @@ them offline. On iPhone and iPad, Safari offers **Share → Add to Home Screen**
 While batch encoding, **Save in this browser** stores verified outputs locally
 and starts the next item automatically. A browser that offers a folder picker
 can save directly to a selected folder. Browser-saved outputs remain available
-after reload.
+after reload. Batch queue order and per-video settings are also saved locally;
+reselect the original files after reopening the app to continue unfinished items.
+This restores the queue, not the source video bytes.
+If an old or damaged queue cannot be read, MobiPEG leaves its saved data alone
+and asks before discarding it.
 
 The browser build requires **SharedArrayBuffer and cross-origin isolation**, including when using the scalar engine. The local server supplies the required headers. For phone access or public hosting, use HTTPS; plain HTTP on a LAN does not provide the required secure context.
 
@@ -222,7 +226,7 @@ size is checked before writing the final file. A complex range may run out of it
 share while simpler ranges have room left. In that case, raise the size limit,
 lower the resolution or frame rate, or split the movie.
 
-Long Movie Mode and parallel browser conversions can save verified ranges when OPFS and Web Locks are available. To continue after pausing, reloading, or reopening the site, select the same original file with the same settings and start the conversion again. MobiPEG checks the source contents and verifies the integrity of stored ranges before reuse. A range interrupted before it can be saved is encoded again. Browser storage eviction can remove checkpoints. Completed downloads and the queue still belong to the current tab.
+Long Movie Mode and parallel browser conversions can save verified ranges when OPFS and Web Locks are available. To continue after pausing, reloading, or reopening the site, select the same original file with the same settings and start the conversion again. MobiPEG checks the source contents and verifies the integrity of stored ranges before reuse. A range interrupted before it can be saved is encoded again. Browser storage eviction can remove checkpoints. The **Saved movie recoveries** panel shows unfinished jobs. Damaged checkpoints are marked clearly and can be deleted with confirmation; they are not treated as resumable. Downloaded files saved outside the browser remain yours, and outputs saved in private browser storage can be downloaded again until that storage is cleared or evicted.
 
 Desktop CLI users can add `--resume` to a parallel conversion (`--workers 2` or more). Run the same command to continue. Checkpoints are stored in a `.mobipeg-checkpoints` directory next to the destination. After abandoning a job, its checkpoint folder can be removed once all Studio processes using it have closed.
 

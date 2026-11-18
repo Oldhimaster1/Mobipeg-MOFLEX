@@ -114,3 +114,13 @@ When changing the web application, update the dependency version queries and the
 2. Finish browser MP4 subtitle support, large alternate audio editing/export with bounded temporary storage, full metadata and subtitle editing including timing/offsets and source stream extraction, and input stereo detection with ambiguous-case overrides.
 3. Persist pending browser batch state and source re-selection, add batch profile and format outputs, and expand scene-aware movie budgets beyond duration-weighted allocations.
 4. Execute Stage 6 device and compatibility matrix. Include Safari/iOS installation and resume, Old/New 3DS standard and 3D movie testing, a CIA installation/launch test, Clownsec/standard player behavior, long-seek tests, and measured working memory and playback rates. Finish presentation cleanup after feature parity.
+
+### Browser queue continuation — feature branch, pending integration review
+
+- Queue order, encoding settings, durations, and status are kept in a bounded versioned local-storage manifest. Unfinished jobs require users to reselect the original source files after reload; the site does not store source movie bytes. Reattached jobs keep their saved settings, can retry, and retain ordering.
+- Source selection compares filename, byte length and last-modified timestamp when available. This is a convenience check only; the existing checkpoint recovery independently hashes original media before reusing encoded ranges.
+- Seven queue unit tests passed in the available local Node runtime. Browser UI regression, integration and physical-device testing remain pending. Keep the branch separate from master pending those checks.
+
+- Follow-up: restored entries now retain correct input-byte estimates. Added a Chromium UI regression for restoring a two-file queue, reselecting both sources, and checking per-file presets. This Playwright test has not yet run in this session.
+
+- Browser checkpoint management lists recoverable OPFS jobs and stored-byte estimates, and offers confirmed deletion under the per-job Web Lock. It never loads video payload bytes for display. Four focused Node tests passed locally; browser UI verification is added but not run in this session.
