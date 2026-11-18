@@ -12,7 +12,12 @@ Convert videos to MobiClip video in `.moflex` containers for Nintendo 3DS playba
 - **Parallel movie conversion:** split a movie timeline into independent aligned ranges (the input does **not** need chapters), show per-worker progress, and join the MOFLEX seek index in playback order. Choose between 1 and your device's advertised logical CPU count.
 - **MOFLEX playback and export:** open a local `.moflex`, seek, select stereo eyes, play ADPCM or FastAudio, and export MP4/MKV without uploading it.
 
+- **Indexed movie seeking:** eligible MobiPEG movies now seek through validated sync/keyframe entries in native and scalar/SIMD browser decoders, with safe forward decoding for unsupported files. Generated 30–120-minute tests verify exact video and audio against reference decoding.
+- **Scene-aware size targeting:** multi-range movie jobs sample source texture and motion, allocate more video budget to difficult ranges, and reuse unused bytes as queued ranges start. Choose Scene-aware or Uniform in the browser; native parallel jobs accept `--budget-mode scene|uniform`. Equal-actual-size testing currently ties manually retuned uniform allocation; no general coding-efficiency gain is claimed. See [measurements and limitations](reports/INDEXED_SEEK_COMPRESSION.md).
+
 3D conversion requires a source with separate left and right views; it does not generate depth from a 2D video.
+
+Validated MobiPEG-indexed movies now support fast native and browser seeking, with conservative forward decoding for unsupported files. Generated 30–120-minute fixtures were checked against reference video and audio. Size-targeted multi-range movies can use **Scene-aware** texture/motion allocation or the previous **Uniform** allocation; native parallel jobs expose `--budget-mode scene|uniform`. The measured benefit is better use of the requested size budget; equal-actual-byte quality matched the manually retuned baseline. See [measurements and limitations](reports/INDEXED_SEEK_COMPRESSION.md).
 
 ## Use on your computer
 

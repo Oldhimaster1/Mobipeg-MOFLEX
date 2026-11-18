@@ -15,6 +15,8 @@ Generated 30/60/90/120-minute stress movies were tested at 10%, 50% and 95% of t
 - Linux WebKit scalar/SIMD workers: **1.139–6.295 seconds** under concurrent development load.
 - Actual player interface: selecting 6,846 seconds and resuming playback took **6.627 seconds**; the correct decoded red frame and displayed position were verified.
 
+A separate 120-minute interleaved stereo fixture was checked at 720.125, 3,600.125 and 6,840.125 seconds: native YUV/PCM and both browser engines matched reference eyes and samples exactly. Chromium stereo worker requests took 0.291–1.246 seconds.
+
 Native regressions compare complete output bytes for 2D, full-SBS, half-SBS, legacy interleaved layout 0, ADPCM, FastAudio, joined ranges, fractional rates, and non-frame-aligned requested times. Unindexed fallback and corrupt-sync rejection are tested. Physical iPhone behavior is not inferred from Linux WebKit.
 
 ## Source complexity and budgets
@@ -22,6 +24,8 @@ Native regressions compare complete output bytes for 2D, full-SBS, half-SBS, leg
 Multi-range browser size-target jobs and native parallel size-target jobs sample source luma at two short locations per range, using at most four 64×36 grayscale frames per sample. Spatial gradients measure texture; interframe absolute differences measure motion activity. This is real source analysis, not a duration/file-size proxy, optical flow or exhaustive shot detection. Both eyes contribute for packed SBS inputs. Native and browser measurements use the same formula, with cross-language tests.
 
 Available video bytes are weighted by measured complexity and coded frame counts, after reserving estimated fixed-codec audio and container floors. Completed ranges spend their actual bytes; unused bytes become available to queued ranges. In-flight caps remain reserved, preventing parallel workers from oversubscribing the target. Eye pairs remain indivisible, the quantizer/codec/quality presets are retained, and final output size checks remain authoritative. Completion order may affect later caps. Existing single-process short-video behavior is preserved.
+
+Choose Scene-aware or Uniform beside the browser size target; native parallel jobs accept `--budget-mode scene|uniform`. Uniform retains the previous static allocation and skips analysis/redistribution. Allocation mode is part of checkpoint identity.
 
 Analysis is skipped for single-range jobs and cached with resumable work. Cached measurements must match the actual schedule and valid metrics. Sampling is bounded near EOF; an audio-only tail is marked unmeasured instead of causing a valid conversion to fail. Explicit decoder/filter/output thread limits prevent exhausting the browser's fixed pthread pool during analysis.
 
@@ -41,10 +45,10 @@ The result demonstrates better automatic use of the requested cap and a **0.565 
 
 See `INDEXED_SEEK_COMPRESSION_VALIDATION.json` for exact measurements and hashes.
 
-- Node: full suite passed; final tail regression is also covered.
+- Node: final full suite **361 passed, zero skipped**, including real CIA backend integration, EOF/tail and allocation-mode regressions.
 - Native indexed tests: seven tests, including real encodes and byte comparisons; the existing 13 native regression tests also passed.
-- Chromium: 19 upgrade/CIA, 10 framing/options/queue, five long/parallel/recovery, eight worker-seek, actual slider, and two analysis/cache tests passed.
-- Linux WebKit: eight worker-seek and two analysis/cache tests passed. OPFS support remains unavailable in this Linux build; physical Safari/PWA/background behavior remains unverified.
+- Chromium: 19 upgrade/CIA, 10 framing/options/queue, five long/parallel/recovery, eight worker-seek, actual slider, and three analysis/cache/allocation-interface tests passed.
+- Linux WebKit: eight worker-seek and three analysis/cache/allocation-interface tests passed. OPFS support remains unavailable in this Linux build; physical Safari/PWA/background behavior remains unverified.
 - Both scalar/SIMD assets are rebuilt, source/deployment copies synchronized, offline manifests regenerated, and provenance includes the modified sources.
 - Linux portable smoke passed. Windows portable smoke under Wine passed 2D/full-SBS/half-SBS, selected audio, complete decoding and output protection. macOS binaries were cross-built and structurally checked, with ARM64 ad-hoc page hashes verified; macOS/GUI execution is unverified.
 - Cross packages now contain all local Python modules. The isolated launcher adds only the trusted application directory to import its modules, rather than the caller's working directory or `PYTHONPATH`.
@@ -66,3 +70,5 @@ Use the previously documented browser cache/library setup. Set `MOBIPEG_TEST_BRO
 For a demuxer-only change, `EMSDK=/path/to/emsdk bash scripts/relink-wasm.sh` rebuilds changed FFmpeg objects and relinks the already built scalar/SIMD codec archives, avoiding unnecessary codec reconfiguration. The full initial build remains a prerequisite.
 
 Rebuilt portable archives are local development artifacts. Existing published release assets have not been replaced. No sample videos, templates, credentials or private machine paths are committed. No new Azahar run was necessary for these decoder/allocation changes: the proprietary player, CIA format, muxer and codec are unchanged, and existing Azahar evidence remains the compatibility baseline. Physical 3DS compatibility is not newly claimed.
+
+The historical `scripts/validate-release.mjs` aggregate gate could not be rerun: its archived `eyes-full-24-native.moflex` fixture path no longer exists in this environment. This is not counted as a pass. Generated-fixture native/browser regression suites above were run instead. Work remains on the verified development branch rather than silently treating that historical release gate as complete.

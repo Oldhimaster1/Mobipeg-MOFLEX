@@ -97,7 +97,7 @@ function advancedPreview(){
       '\n\n'+(s.movieAudio?'First timeline range; repeated with aligned seeks. ':'')+'Audio invocation runs only when an audio stream exists. Duration uses source metadata (1 s placeholder before a file is selected). Size-limited trials may change Q.';
   }catch(e){$('advancedCommand').textContent=e.message;}
 }
-function settings(){const d=new FormData(form),audioOffsetMs=Number(d.get('audioOffsetMs')||0);return validate({mode:d.get('mode'),hdrMode:d.get('hdrMode')||'auto',hdrTransfer:d.get('hdrTransfer')||'auto',engine:d.get('engine')||'auto',preset:d.get('preset'),resolution:d.get('resolution'),fps:d.get('fps'),filter:d.get('filter'),motion:d.get('motion'),q:d.get('q')===''?null:Number(d.get('q')),audioTrack:Number(d.get('audioTrack')||0),...(d.has('normalizeAudio')?{normalizeAudio:true}:{}),...(audioOffsetMs?{audioOffsetMs}:{}),audioCodec:d.get('audioCodec')||'adpcm',maxMB:d.get('maxMB')===''?null:Number(d.get('maxMB')),speed:d.get('speed')||'original',workers:Number(d.get('workers')||1),advanced:readAdvanced(d),crop:{fit:d.get('fit'),aspect:d.get('aspect')||'source',...Object.fromEntries(['left','right','top','bottom'].map(k=>[k,Number(d.get('crop-'+k))]))}});}
+function settings(){const d=new FormData(form),audioOffsetMs=Number(d.get('audioOffsetMs')||0);return validate({mode:d.get('mode'),hdrMode:d.get('hdrMode')||'auto',hdrTransfer:d.get('hdrTransfer')||'auto',engine:d.get('engine')||'auto',preset:d.get('preset'),resolution:d.get('resolution'),fps:d.get('fps'),filter:d.get('filter'),motion:d.get('motion'),q:d.get('q')===''?null:Number(d.get('q')),audioTrack:Number(d.get('audioTrack')||0),...(d.has('normalizeAudio')?{normalizeAudio:true}:{}),...(audioOffsetMs?{audioOffsetMs}:{}),audioCodec:d.get('audioCodec')||'adpcm',maxMB:d.get('maxMB')===''?null:Number(d.get('maxMB')),...(d.get('maxMB')!==''?{budgetMode:d.get('budgetMode')||'scene'}:{}),speed:d.get('speed')||'original',workers:Number(d.get('workers')||1),advanced:readAdvanced(d),crop:{fit:d.get('fit'),aspect:d.get('aspect')||'source',...Object.fromEntries(['left','right','top','bottom'].map(k=>[k,Number(d.get('crop-'+k))]))}});}
 function snapshotSettings(){const value=structuredClone(settings());value.movieAudio=$('longMovie').checked;return value;}
 function applySettings(value){
   restoringSettings=true;
@@ -389,7 +389,7 @@ const beginMoviePart=async()=>{
   }
   if(clip){
     if(movieParts>Math.ceil(movieDuration/20)+4)throw Error('Movie timeline did not advance; conversion stopped to avoid repeated chapters.');
-    if(s.maxMB!==null)rangeBudgets=remainingMovieBudgets(sceneClips,Math.floor(s.maxMB*1e6),movieJob.segments,{},sceneAnalysis,movieAudio?audioBudgetRate(s.audioCodec):0);
+    if(s.maxMB!==null&&s.budgetMode!=='uniform')rangeBudgets=remainingMovieBudgets(sceneClips,Math.floor(s.maxMB*1e6),movieJob.segments,{},sceneAnalysis,movieAudio?audioBudgetRate(s.audioCodec):0);
     movieParts++;
     $('joblabel').textContent='LONG MOVIE · RANGE '+movieParts;
     log('Encoding range '+movieParts+' starting '+time(clip.start)+', length '+time(clip.seconds)+'.');
@@ -501,7 +501,7 @@ const startWorker=(type,payload)=>{
          const clips=s.workers>1?planBalancedMovieClips(movieDuration,s,s.workers):planMovieClips(movieDuration,s);
          sceneClips=clips;sceneAnalysis=d.media.complexity??null;
          if(s.maxMB!==null){
-           rangeBudgets=remainingMovieBudgets(clips,Math.floor(s.maxMB*1e6),movieJob.segments,{},sceneAnalysis,movieAudio?audioBudgetRate(s.audioCodec):0);
+           rangeBudgets=s.budgetMode==='uniform'?allocateMovieBudget(clips,Math.floor(s.maxMB*1e6)):remainingMovieBudgets(clips,Math.floor(s.maxMB*1e6),movieJob.segments,{},sceneAnalysis,movieAudio?audioBudgetRate(s.audioCodec):0);
            log('Maximum output size: '+formatBytes(s.maxMB*1e6)+'. Range budgets include audio and indexing.');
          }
          if(job.manifest){

@@ -730,7 +730,7 @@
     }
   ],
   "testResults": {
-    "nodePassed": 359,
+    "nodePassed": 361,
     "nativeIndexedPassed": 7,
     "otherNativePassed": 13,
     "scalarAndSIMDWasm": "included full Node suite and separate SIMD player test (1 passed)",
@@ -739,30 +739,33 @@
     "chromiumLongParallelRecoveryPassed": 5,
     "chromiumWorkerSeekingPassed": 8,
     "chromiumActualSliderPassed": 1,
-    "chromiumComplexityAndCachePassed": 2,
+    "chromiumComplexityAndCachePassed": 3,
     "linuxWebKitSeekingPassed": 8,
-    "linuxWebKitComplexityAndCachePassed": 2
+    "linuxWebKitComplexityAndCachePassed": 2,
+    "nodeSkipped": 0,
+    "chromiumTwoHourStereoPassed": 2,
+    "linuxWebKitOfflineSuperAndBothEnginesPassed": 4
   },
   "portablePackages": [
     {
-      "file": "MobiPEG-windows-x86_64.zip",
-      "bytes": 68615886,
-      "sha256": "4f912b459add03d91834066462310e58e6eebeb788f7704269fc872754a72047"
-    },
-    {
-      "file": "MobiPEG-macos-x86_64.tar.gz",
-      "bytes": 68242169,
-      "sha256": "96dfb090c1e5ea34008c86eff7ae7f5ae5b0419b46557d334bb2f41c36399d31"
+      "file": "MobiPEG-linux-x86_64.tar.gz",
+      "bytes": 63647969,
+      "sha256": "1164b044db90dfcd3d32f0860c3114ca3fee7b6468d84c2e87dd4cfb1695e1d0"
     },
     {
       "file": "MobiPEG-macos-arm64.tar.gz",
-      "bytes": 67467687,
-      "sha256": "d3d03413e3f8105af232820e28e42dd90aea47db28c9d956a1ed4ddd5c718e1c"
+      "bytes": 67468807,
+      "sha256": "e4148d695419bb5627ad85663130a85b40a0195f85efd52d343f15a3a6c53cbb"
     },
     {
-      "file": "MobiPEG-linux-x86_64.tar.gz",
-      "bytes": 63647128,
-      "sha256": "c2054dd3d2729453a2e5010ce605e4779c867f69448bbbf07e34a3132159e7b1"
+      "file": "MobiPEG-macos-x86_64.tar.gz",
+      "bytes": 68243104,
+      "sha256": "f7f834ec4368593e91912e286da41f6cb285a0130fd2d24b82e4530a1a1429f9"
+    },
+    {
+      "file": "MobiPEG-windows-x86_64.zip",
+      "bytes": 68616257,
+      "sha256": "6f59facbebf52e39f74bf36795c90b44c46d6b2bc0eabec9e4f920ccba37c413"
     }
   ],
   "packageExecution": {
@@ -781,5 +784,112 @@
     "Physical iPhone, physical 3DS and native macOS execution were not tested.",
     "No new Azahar run was needed: player executable, CIA format, muxer and codec implementations are unchanged. Existing Azahar evidence remains the baseline.",
     "Portable archives rebuilt locally; existing GitHub release assets have not been replaced."
-  ]
+  ],
+  "implementationCommit": "d8a4e879fae10f30c7bc7aed942d593c04c9809d",
+  "nativeTwoHourStereo": [
+    {
+      "targetSeconds": 720.125,
+      "kind": "video",
+      "bytes": 1728000,
+      "sha256": "a82014b107fdb002c09359fa3c78ef86ad8525882c13ec2ba1cb67bc7ec09798",
+      "verified": true
+    },
+    {
+      "targetSeconds": 720.125,
+      "kind": "audio",
+      "bytes": 48000,
+      "sha256": "5ed9f7f307784f35fae994e1f417fdba8d053ed0249f54421910594cfaee0709",
+      "verified": true
+    },
+    {
+      "targetSeconds": 3600.125,
+      "kind": "video",
+      "bytes": 1728000,
+      "sha256": "a82014b107fdb002c09359fa3c78ef86ad8525882c13ec2ba1cb67bc7ec09798",
+      "verified": true
+    },
+    {
+      "targetSeconds": 3600.125,
+      "kind": "audio",
+      "bytes": 48000,
+      "sha256": "5ed9f7f307784f35fae994e1f417fdba8d053ed0249f54421910594cfaee0709",
+      "verified": true
+    },
+    {
+      "targetSeconds": 6840.125,
+      "kind": "video",
+      "bytes": 1728000,
+      "sha256": "a82014b107fdb002c09359fa3c78ef86ad8525882c13ec2ba1cb67bc7ec09798",
+      "verified": true
+    },
+    {
+      "targetSeconds": 6840.125,
+      "kind": "audio",
+      "bytes": 48000,
+      "sha256": "5ed9f7f307784f35fae994e1f417fdba8d053ed0249f54421910594cfaee0709",
+      "verified": true
+    }
+  ],
+  "chromiumTwoHourStereo": [
+    {
+      "engine": "scalar",
+      "rows": [
+        {
+          "start": 720.125,
+          "seconds": 0.5221850000023842,
+          "frames": 12,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "start": 3600.125,
+          "seconds": 0.2905400000065565,
+          "frames": 12,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "start": 6840.125,
+          "seconds": 0.5006750000119209,
+          "frames": 12,
+          "equalVideo": true,
+          "equalAudio": true
+        }
+      ]
+    },
+    {
+      "engine": "simd",
+      "rows": [
+        {
+          "start": 720.125,
+          "seconds": 1.245984999999404,
+          "frames": 12,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "start": 3600.125,
+          "seconds": 0.5253149999976158,
+          "frames": 12,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "start": 6840.125,
+          "seconds": 0.4405049999952316,
+          "frames": 12,
+          "equalVideo": true,
+          "equalAudio": true
+        }
+      ]
+    }
+  ],
+  "allocationControls": {
+    "browser": "Scene-aware/Uniform selector; real uniform conversion and independent complete decode passed",
+    "native": "--budget-mode scene|uniform; public uniform parallel conversion and complete decode passed"
+  },
+  "historicalReleaseGate": {
+    "passed": false,
+    "reason": "Archived eyes-full-24-native.moflex referenced by validate-release.mjs is unavailable; generated-fixture suites ran instead."
+  }
 }

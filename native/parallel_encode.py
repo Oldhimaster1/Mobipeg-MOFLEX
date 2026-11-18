@@ -57,7 +57,7 @@ def parallel_workspace(args, inp, out, encoder, media, notify):
     config={'version':1,'source':inp.name,'bytes':inp.stat().st_size,'source_sha256':file_hash(inp),
             'encoder_sha256':file_hash(encoder),'media':media,
             'settings':{key:getattr(args,key) for key in fields}}
-    if args.max_size_mb is not None:config['budget_analysis']='uniform' if os.environ.get('MOBIPEG_UNIFORM_BUDGET') else 'scene-v1'
+    if args.max_size_mb is not None:config['budget_analysis']='uniform' if os.environ.get('MOBIPEG_UNIFORM_BUDGET') or getattr(args,'budget_mode','scene')=='uniform' else 'scene-v1'
     if args.mode!='2d':
         config['stereo_layout']=1
     root=out.parent/'.mobipeg-checkpoints'
@@ -208,7 +208,7 @@ def encode_parallel(*, args, inp, out, encoder, probe, media, filters, layout_op
     ranges=plan_ranges(media['duration'],rate,eyes=1 if args.mode=='2d' else 2,workers=workers)
     workers=min(workers,len(ranges))
     analysis=None
-    if target_bytes is not None and len(ranges)>1 and not os.environ.get('MOBIPEG_UNIFORM_BUDGET'):
+    if target_bytes is not None and len(ranges)>1 and not os.environ.get('MOBIPEG_UNIFORM_BUDGET') and getattr(args,'budget_mode','scene')!='uniform':
         cache=Path(scratch)/'complexity.json'
         if getattr(args,'resume',False):
             try:

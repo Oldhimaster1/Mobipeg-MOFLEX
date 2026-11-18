@@ -36,7 +36,7 @@ test('cached samples must match the actual schedule and valid measurements',()=>
 });
 test('portable isolated entry point can import its bundled local modules',()=>{
  const help=execFileSync('python3',['-I','native/MobiPEG_Studio_V15.py','--help'],{encoding:'utf8'});
- assert.match(help,/--workers/);assert.match(help,/--max-size-mb/);
+ assert.match(help,/--workers/);assert.match(help,/--budget-mode/);assert.match(help,/--max-size-mb/);
 });
 test('short final ranges sample before EOF and tolerate an audio-only tail',async()=>{
  const {analyzeComplexity}=await import('../complexity.mjs');
@@ -49,3 +49,5 @@ test('short final ranges sample before EOF and tolerate an audio-only tail',asyn
  assert.equal(measured.clips[1].samples,0);
  assert.equal(measured.clips[1].score,.025);
 });
+
+test('unknown allocation modes fail before encoding',async()=>{const {validate}=await import('../core.mjs');assert.throws(()=>validate({budgetMode:'invalid'}),/allocation mode/);});

@@ -31,6 +31,7 @@ export async function runParallelMovie({file, settings, media, job, workers, onU
   const clips=planBalancedMovieClips(media.duration,settings,workers);
   const reservations={};
   const limited=settings.maxMB!=null;
+  const uniform=limited&&settings.budgetMode==='uniform'?allocateMovieBudget(clips,Math.floor(settings.maxMB*1e6)):null;
   const count=Math.min(Math.max(1,Math.floor(workers)),clips.length);
   const live=new Set();
   const stopper=new AbortController();
@@ -79,7 +80,7 @@ export async function runParallelMovie({file, settings, media, job, workers, onU
       try{while(next<pending.length){
         if(aborted())throw Error('Cancelled');
         const clip=pending[next++];
-        const budget=limited?remainingMovieBudgets(clips,Math.floor(settings.maxMB*1e6),job.segments,reservations,media.complexity??null,media.audio?audioBudgetRate(settings.audioCodec):0)[clip.index]:undefined;
+        const budget=uniform?uniform[clip.index]:limited?remainingMovieBudgets(clips,Math.floor(settings.maxMB*1e6),job.segments,reservations,media.complexity??null,media.audio?audioBudgetRate(settings.audioCodec):0)[clip.index]:undefined;
         if(limited)reservations[clip.index]=budget;
         active[slot]=clip;
         progress[slot]=0;

@@ -571,6 +571,7 @@ def parser():
     p.add_argument('--q',type=int,default=None,help='Override actual 12..59 quantizer')
     p.add_argument('--max-size-mb',type=float,default=None,
                    help='Hard decimal-MB final file-size limit; trials may be slow')
+    p.add_argument('--budget-mode',choices=('scene','uniform'),default='scene',help='Size-target range allocation: source texture/motion or legacy uniform')
     p.add_argument('--audio-track',type=int,default=0,help='Audio track number, starting at 0; use --list-audio-tracks to inspect languages')
     p.add_argument('--audio-offset-ms',type=int,default=0,help='Shift audio by up to 30 seconds; positive delays audio')
     p.add_argument('--normalize-audio',action='store_true',help='Measure the selected track and apply one peak-normalizing gain to the entire movie')

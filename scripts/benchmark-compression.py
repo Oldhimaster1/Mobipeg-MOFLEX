@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Controlled mixed static/moving/noisy fixture, equal maximum size cap.
-Reports actual bytes separately: this is not an equal-actual-size comparison.
+"""Controlled mixed static/moving/noisy fixture with cap and actual-byte comparisons.
+The third run retunes uniform allocation to match the scene-aware actual size.
 """
 import json,os,re,subprocess,sys,tempfile,time
 from pathlib import Path
@@ -13,11 +13,10 @@ with tempfile.TemporaryDirectory(prefix='mobipeg-quality-') as folder:
  rows=[];static_bytes=None
  for mode in ['uniform','scene','matched-uniform']:
   output=folder/(mode+'.moflex');env=dict(os.environ);env.pop('MOBIPEG_UNIFORM_BUDGET',None)
-  if mode!='scene':env['MOBIPEG_UNIFORM_BUDGET']='1'
   cap=800000 if mode!='matched-uniform' else 2*(rows[1]['actualBytes']-static_bytes+4096)
   start=time.monotonic()
   run=subprocess.run([sys.executable,'native/MobiPEG_Studio_V15.py','-i',str(source),'-o',str(output),
-    '--preset','small','--q','36','--workers','2','--max-size-mb',str(cap/1e6)],cwd=ROOT,env=env,capture_output=True,text=True,check=True)
+    '--preset','small','--q','36','--workers','2','--budget-mode','scene' if mode=='scene' else 'uniform','--max-size-mb',str(cap/1e6),'--budget-mode','scene' if mode=='scene' else 'uniform'],cwd=ROOT,env=env,capture_output=True,text=True,check=True)
   seconds=time.monotonic()-start
   if mode=='uniform':static_bytes=int(re.search(r'Range 1: Q=\d+, ([\d,]+) bytes',run.stdout).group(1).replace(',',''))
   quality=subprocess.run(['ffmpeg','-v','info','-i',str(source),'-i',str(output),'-filter_complex',
