@@ -1,38 +1,117 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#f5f6f2"><title>MobiPEG — CIA movie builder</title>
-<link rel="stylesheet" href="style.css?v=20261117s"><link rel="manifest" href="manifest.webmanifest">
-<script src="isolation.js?v=20261117s" defer></script><script type="module" src="cia.mjs?v=20261118v"></script>
-<style>
-.cia-main{max-width:940px;margin:auto;padding:clamp(1rem,4vw,3rem)}.cia-main .card{margin:1rem 0;padding:clamp(1rem,3vw,2rem)}
-.cia-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1rem}
-.cia-grid label{display:flex;flex-direction:column;gap:.4rem;font-weight:600}.cia-grid input,.cia-grid select{width:100%;min-height:2.7rem}
-.cia-episodes{list-style:none;padding:0}.cia-episodes li{border:1px solid #d1d8cd;border-radius:.6rem;padding:.75rem;margin:.5rem 0}
-.cia-episode-row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
-.cia-episode-row input{min-width:170px;flex:1}.cia-episode-row button{min-height:2rem}
-.cia-main button{cursor:pointer}.cia-help{font-size:.93rem;line-height:1.6}
-</style>
-</head><body><header><a href="./" class="brand" aria-label="Return to MobiPEG Studio"><span class="logo">m<span>↗</span></span><strong>MobiPEG<span class="web"> / CIA movie builder</span></strong></a><div class="header-right"><a href="./">Web Studio ↗</a><a href="player.html">MOFLEX Player ↗</a></div></header>
-<main class="cia-main"><section class="intro"><div><span class="eyebrow">NINTENDO 3DS</span><h1>Build your movie menu</h1><p>Turn your MOFLEX movies or episodes into an installable CIA with a menu and custom artwork.</p></div></section>
-<section class="card"><h2>1. Select your MOFLEX files</h2><button id="ciaAddSaved" type="button">Add saved conversions</button><p class="hint">Your movies stay on your device. Project files save your settings, not your videos.</p>
-<label for="ciaFiles">Movies and episodes (.moflex)</label><input id="ciaFiles" type="file" accept=".moflex" multiple>
-<p id="ciaFilesStatus" role="status" class="hint">Choose up to 27 MOFLEX files. You can change their order below.</p>
-<ol id="ciaEpisodes" class="cia-episodes"></ol>
-</section>
-<form id="ciaForm"><section class="card"><h2>2. HOME Menu information</h2><div class="cia-grid">
-<label>Short title<input id="ciaTitle" name="title" maxlength="63" required placeholder="My Movie"></label>
-<label>Long title (optional)<input id="ciaLongTitle" name="long_title" maxlength="127"></label>
-<label>Publisher<input id="ciaPublisher" name="publisher" maxlength="63" required value="MobiPEG"></label>
-<label>Unique title ID (C0000–EFFFF)<input id="ciaId" name="id" required minlength="5" maxlength="5" pattern="[c-eC-E][0-9a-fA-F]{4}" placeholder="C1234" autocomplete="off"></label>
-<label>HOME Menu icon (optional)<input id="ciaIcon" type="file" accept=".png,.bmp,.jpg,.jpeg,.smdh"></label>
-<label>Banner (optional)<input id="ciaBanner" type="file" accept=".png,.bmp,.jpg,.jpeg,.bnr,.bin"></label>
-<label>Banner audio (optional PCM16 WAV, up to 10 seconds)<input id="ciaBannerAudio" type="file" accept=".wav"></label></div><p class="hint">Choose a title ID that is not already installed. You must supply artwork files alongside the exported project when packaging.</p></section>
-<section class="card"><h2>3. Build a CIA</h2><label><input id="ciaUseVidInjector" type="checkbox"> Get the VidInjector player automatically</label><p class="hint">This downloads player files from <a href="https://github.com/FoofooTheGuy/VidInjector9000" target="_blank" rel="noopener noreferrer">VidInjector on GitHub</a>. Your movies are processed locally and are not uploaded. These are third-party files; make sure you have permission to use them. Physical 3DS playback has not been verified.</p><label>Or choose your own compatible player CIA (optional)<input id="ciaTemplate" type="file" accept=".cia"></label><p class="hint">Your own decrypted collection-player CIA supports up to 27 episodes. A single-movie template supports only one. You can also add a HOME Menu icon, banner and episode artwork.</p><label><input id="ciaSplit" type="checkbox"> Split oversized collections into separate CIAs</label><p class="hint">Splitting preserves episode order and reserves the template size plus 64 MiB per part for packaging overhead. Parts use consecutive title IDs starting with your chosen ID. Each completed CIA is checked against FAT32. Allow multiple downloads when prompted.</p><label><input id="ciaStage" type="checkbox"> Save completed CIAs in this browser before downloading</label><p class="hint">Keeps files available after reload until deleted or browser storage is cleared. Private browsing and limited free space can prevent saving large files; a download is still available.</p><div id="ciaSaved" aria-live="polite"></div><button id="ciaBuild" type="button" class="primary">Build CIA</button><h3>Save or reopen a project</h3><label>Saved project JSON<input id="ciaProject" type="file" accept=".json,application/json"></label><label>Project movies and artwork<input id="ciaProjectFiles" type="file" multiple accept=".moflex,.png,.bmp,.jpg,.jpeg,.bimg,.smdh,.bin,.bnr,.wav"></label><button id="ciaOpen" type="button">Open project</button><p class="hint">Select the project JSON and its original movies and artwork together. Reopening restores episode order, names and artwork.</p><p class="cia-help">Save the episode order and settings as a native-compatible JSON project.
-The Build CIA button uses your selected player or downloads VidInjector after you select that option. The JSON project also works with the native builder.
-No account or paid API is required.</p>
-<button id="ciaExport" type="submit" class="primary">Download CIA project JSON ↘</button>
-<p class="hint" id="ciaStatus" role="status">Add movies and complete the fields above.</p>
-<p class="cia-help">Put the project JSON, your original MOFLEX files, and any selected icon/banner assets in the same folder. Run:</p>
-<pre style="white-space:pre-wrap;overflow-wrap:anywhere">python3 native/cia_builder.py build project.json movie.cia --backend /path/to/VidInjector9002-CLI</pre>
-<p class="hint">The native builder strips SUPER MOFLEX extras before packaging for the original Nintendo player, checks the title ID, FAT32 limits and CIA content hashes. Actual console installation and playback still require testing.</p>
-</section></form></main></body></html>
+<meta name="theme-color" content="#f5f6f2"><title>MobiPEG — CIA Movie Builder</title>
+<link rel="stylesheet" href="style.css?v=20261118w">
+<link rel="stylesheet" href="cia-design.css?v=20261118w">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="isolation.js?v=20261118w" defer></script>
+<script type="module" src="cia.mjs?v=20261118w"></script>
+</head><body>
+<header><a href="./" class="brand" aria-label="Return to MobiPEG Studio"><span class="logo">m<span>↗</span></span><strong>MobiPEG<span class="web"> / CIA Movie Builder</span></strong></a><div class="header-right"><a href="./">Web Studio ↗</a><a href="player.html">MOFLEX Player ↗</a></div></header>
+<main class="cia-main">
+  <section class="intro"><div><span class="eyebrow">NINTENDO 3DS</span><h1>Build your movie menu</h1><p>Put your MOFLEX movies or episodes into a CIA with a menu and your own artwork.</p></div></section>
+  <section class="card" aria-labelledby="cia-files-heading">
+    <h2 id="cia-files-heading">1. Choose your movies</h2>
+    <label for="ciaFiles">MOFLEX files (.moflex)</label><input id="ciaFiles" type="file" accept=".moflex" multiple>
+    <button id="ciaAddSaved" type="button" class="text-button">Add saved conversions</button>
+    <p id="ciaFilesStatus" role="status" class="hint">Add up to 27 movies or episodes. You can change their order below.</p>
+    <ol id="ciaEpisodes" class="cia-episodes"></ol>
+    <p class="hint">Your videos stay on your device.</p>
+  </section>
+  <form id="ciaForm">
+    <section class="card" aria-labelledby="cia-custom-heading">
+      <h2 id="cia-custom-heading">2. Title and artwork</h2>
+      <div class="cia-custom-layout">
+        <div class="cia-artwork-fields">
+          <label for="ciaTitle">Movie or series title</label>
+          <input id="ciaTitle" name="title" maxlength="63" required placeholder="My Movie">
+          <div class="cia-artwork-entry">
+            <label for="ciaIcon">HOME Menu icon</label>
+            <input id="ciaIcon" type="file" accept=".png,.bmp,.jpg,.jpeg,.smdh">
+            <button type="button" id="ciaEditIcon" class="text-button">Crop or edit icon</button>
+          </div>
+          <div class="cia-artwork-entry">
+            <label for="ciaBanner">HOME Menu banner</label>
+            <input id="ciaBanner" type="file" accept=".png,.bmp,.jpg,.jpeg,.bnr,.bin">
+            <button type="button" id="ciaEditBanner" class="text-button">Crop or edit banner</button>
+          </div>
+        </div>
+        <aside class="cia-live-panel" aria-label="Live CIA menu preview">
+          <h3>Live preview</h3>
+          <p class="hint">A guide to the HOME Menu and episode list. The actual player layout may differ.</p>
+          <div class="cia-device">
+            <div class="cia-top-screen">
+              <div class="cia-live-app">
+                <div class="cia-live-icon">
+                  <img id="ciaLiveIcon" alt="Selected HOME Menu icon" hidden>
+                  <span id="ciaIconFallback">Player icon</span>
+                </div>
+                <div class="cia-live-app-text"><strong id="ciaLiveTitle">Your movie</strong><small id="ciaLivePublisher">MobiPEG</small></div>
+              </div>
+              <div class="cia-live-banner">
+                <img id="ciaLiveBanner" alt="Selected HOME Menu banner artwork" hidden>
+                <span id="ciaBannerFallback">Player banner</span>
+              </div>
+            </div>
+            <div class="cia-device-hinge" aria-hidden="true"></div>
+            <div class="cia-bottom-screen">
+              <div class="cia-list-heading">Movies and episodes</div>
+              <ol id="ciaLiveEpisodes" aria-live="polite"></ol>
+              <div class="cia-device-footer">Title ID: <span id="ciaLiveId">—</span></div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+    <section class="card" aria-labelledby="cia-build-heading">
+      <h2 id="cia-build-heading">3. Build your CIA</h2>
+      <label class="cia-choice" for="ciaUseVidInjector"><input id="ciaUseVidInjector" type="checkbox"> Use the VidInjector player</label>
+      <p class="hint">MobiPEG downloads the player directly from VidInjector when you choose this option. These third-party files have unclear licensing; use them only if you have permission. Real 3DS compatibility is not yet verified. You can also choose your own player in Advanced settings.</p>
+      <button id="ciaBuild" type="button" class="primary">Build CIA</button>
+      <p class="hint" id="ciaStatus" role="status" aria-live="polite">Add your movies and choose a player to get started.</p>
+      <div id="ciaSaved" aria-live="polite"></div>
+
+      <details id="ciaAdvanced">
+        <summary>Advanced settings</summary>
+        <div class="cia-grid">
+          <label>Long title (optional)<input id="ciaLongTitle" name="long_title" maxlength="127"></label>
+          <label>Publisher<input id="ciaPublisher" name="publisher" maxlength="63" required value="MobiPEG"></label>
+          <div class="cia-id-block"><label for="ciaId">Unique title ID (C0000–EFFFF)</label>
+            <div class="cia-id-row"><input id="ciaId" name="id" required minlength="5" maxlength="5" pattern="[c-eC-E][0-9a-fA-F]{4}" placeholder="C1234" autocomplete="off"><button id="ciaNewId" type="button" class="text-button">Generate new ID</button></div>
+            <p class="hint">An ID is generated automatically. MobiPEG avoids IDs generated earlier in this browser, but cannot check which titles are installed on your 3DS. You can enter your own ID.</p>
+          </div>
+          <label>Banner audio (optional, PCM16 WAV, up to 10 seconds)<input id="ciaBannerAudio" type="file" accept=".wav"></label>
+          <label>Compatible player CIA (optional)<input id="ciaTemplate" type="file" accept=".cia"></label>
+        </div>
+        <p class="hint">A selected decrypted player CIA takes priority over VidInjector. Collection players support up to 27 episodes; a single-movie player supports one.</p>
+        <label class="cia-choice"><input id="ciaSplit" type="checkbox"> Split large collections into separate CIAs</label>
+        <p class="hint">Each part uses the next available title ID, starting with yours. Allow multiple downloads when prompted.</p>
+        <label class="cia-choice"><input id="ciaStage" type="checkbox"> Save finished CIAs in this browser</label>
+        <p class="hint">Browser storage is temporary and can be cleared by your device. Keep downloaded copies.</p>
+
+        <h3>Save or open a project</h3>
+        <label>Saved project JSON<input id="ciaProject" type="file" accept=".json,application/json"></label>
+        <label>Project movies and artwork<input id="ciaProjectFiles" type="file" multiple accept=".moflex,.png,.bmp,.jpg,.jpeg,.bimg,.smdh,.bin,.bnr,.wav"></label>
+        <button id="ciaOpen" type="button" class="text-button">Open project</button>
+        <p class="hint">Reopening a project restores your movie order and settings. Select its original video and artwork files too.</p>
+        <button id="ciaExport" type="submit" class="text-button">Save project JSON</button>
+        <p class="hint">Projects contain your settings, not the movie files. The JSON also works with the desktop builder.</p>
+      </details>
+    </section>
+  </form>
+</main>
+<dialog id="ciaArtworkDialog" aria-labelledby="ciaArtworkHeading">
+  <div class="cia-dialog-content">
+    <h2 id="ciaArtworkHeading">Edit artwork</h2>
+    <p class="hint">Drag the image to reposition it. The saved crop will be used in your CIA.</p>
+    <div class="cia-editor-canvas-wrap"><canvas id="ciaArtworkCanvas" width="200" height="120" aria-label="Artwork crop preview"></canvas></div>
+    <div class="cia-editor-settings">
+      <label>Image fit <select id="ciaArtworkFit"><option value="fill">Fill (crop edges)</option><option value="fit">Fit (show whole image)</option></select></label>
+      <label>Zoom <output id="ciaArtworkZoomValue" for="ciaArtworkZoom">100%</output><input id="ciaArtworkZoom" type="range" min="100" max="300" step="5" value="100"></label>
+      <label>Horizontal position <input id="ciaArtworkX" type="range" min="-100" max="100" value="0"></label>
+      <label>Vertical position <input id="ciaArtworkY" type="range" min="-100" max="100" value="0"></label>
+    </div>
+    <div class="cia-dialog-actions"><button id="ciaArtworkCancel" type="button" class="text-button">Cancel</button><button id="ciaArtworkApply" type="button" class="primary">Use this artwork</button></div>
+  </div>
+</dialog>
+</body></html>
