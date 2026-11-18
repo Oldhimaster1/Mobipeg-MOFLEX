@@ -50,8 +50,8 @@ function render(){
     if(episodes.length){
       const estimate=ciaSizeEstimate(episodes.map(x=>({size:x.mediaBytes})));
       $('ciaFilesStatus').textContent=episodes.length+' of '+MAX_CIA_MOVIES+
-        ' movies · '+bytes(estimate.bytes)+' primary video payload. Packaging adds overhead.';
-    }else $('ciaFilesStatus').textContent='Choose 1–27 MOFLEX files, then arrange their order.';
+        ' selected · '+bytes(estimate.bytes)+' of video. The CIA will be a little larger.';
+    }else $('ciaFilesStatus').textContent='Choose up to 27 MOFLEX files. You can change their order below.';
   }catch(e){$('ciaFilesStatus').textContent=e.message;}
 }
 async function addEpisodes(selected){
