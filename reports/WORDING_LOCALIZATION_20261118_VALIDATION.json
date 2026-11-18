@@ -36,5 +36,52 @@
     "checks": [],
     "passed": true
   },
-  "initialWebKitIssue": "New mobile locale test exposed selected-option text painting outside constrained controls. Native-select appearance/overflow fix resolved it; final clean six-case WebKit rerun passed."
+  "initialWebKitIssue": "New mobile locale test exposed selected-option text painting outside constrained controls. Native-select appearance/overflow fix resolved it; final clean six-case WebKit rerun passed.",
+  "applicationCommit": "8c0064fa92ea4156b03b8862a972b601cd886371",
+  "live": {
+    "phase": "after",
+    "checkedAt": "2026-11-18T20:32:42.944Z",
+    "url": "https://oldhimaster1.github.io/Mobipeg-MOFLEX/",
+    "testProxyTLSBypass": true,
+    "caches": [
+      "mobipeg-offline-/Mobipeg-MOFLEX/-20261118u"
+    ],
+    "cia": {
+      "title_id": "000400000C456700",
+      "bytes": 2574080,
+      "contents_checked": 1
+    },
+    "engineReleaseRequests": 106,
+    "checks": [
+      "prior offline cache replaced by release cache through service-worker lifecycle",
+      "scalar live conversion, download and independent full decoding",
+      "simd live conversion, download and independent full decoding",
+      "live player launches converted movie",
+      "live two-episode CIA generation, download and independent native verification",
+      "offline reload, isolation, real conversion and CIA editor availability"
+    ],
+    "passed": true
+  },
+  "liveLocales": {
+    "passed": true,
+    "release": "20261118u",
+    "languages": [
+      "en",
+      "es",
+      "fr",
+      "de",
+      "pt",
+      "ja",
+      "ko",
+      "zh-Hans"
+    ],
+    "mobileWidth": 390,
+    "overflow": false,
+    "guideCurrent": true
+  },
+  "liveAssets": {
+    "matched": 53,
+    "manifestAndServiceWorkerMatch": true,
+    "wasmMIMETypesCorrect": true
+  }
 }

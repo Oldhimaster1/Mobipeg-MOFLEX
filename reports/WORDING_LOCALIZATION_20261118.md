@@ -38,3 +38,11 @@ The full suites need the same local synthetic fixtures, legal template/backend a
 Physical iPhone/3DS testing remains unverified for this release; Linux WebKit is not a physical iPhone substitute. Existing Azahar evidence remains the player-compatibility baseline. Firefox could not start in this managed environment during the preceding release; no new Firefox pass is claimed. No general equal-actual-size compression-quality gain is claimed.
 
 Final clean Linux WebKit rerun: **six passed**, including eight-locale mobile layout, the Guide, real SUPER editing/export, offline conversion/playback/CIA creation, and scalar/SIMD conversion with corrected reports. All 53 manifest assets and source/deployment/version checks pass. No native or WASM binary differences from the verified baseline.
+
+## Published verification
+
+Application commit **`8c0064fa92ea4156b03b8862a972b601cd886371`**, cache **20261118u**, was pushed to `master` and reported **built** by Pages. At **2026-11-18 20:32–20:33 UTC**, direct public-site checks confirmed all **53** manifest assets, service-worker/manifest hashes and WASM MIME types. A real Chromium browser checked all eight languages at **390 px**, with size-allocation settings open: headlines/options/stereo hints translated, settings values stayed intact and there was no horizontal overflow. The live Guide contained the updated recovery, 48 kHz and CIA text and no retired queue/audio claims.
+
+The same persistent profile updated its saved **20261118t** cache to **20261118u**. Live scalar/SIMD conversions downloaded valid MOFLEX files and passed independent complete native decoding; the live player started. A live two-episode CIA (**2,574,080 bytes**, title ID **000400000C456700**) passed independent native verification. Restarting the saved profile behind an unreachable network proxy blocked an uncached request while the app still reloaded, converted a real fixture and opened the CIA editor. All **106** observed engine requests carried the expected release tag. Test usage statistics were opted out; fixtures/templates/screenshots remain outside Git.
+
+No additional physical iPhone/3DS or Firefox compatibility claim is made; existing platform limitations remain. The final documentation-only commit preserves these exact tested application assets and cache version.
