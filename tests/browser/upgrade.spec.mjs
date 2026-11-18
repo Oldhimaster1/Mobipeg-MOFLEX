@@ -136,6 +136,22 @@ test('browser restores pending queue order and individual settings after reload'
   await expect(page.locator('#preset')).toHaveValue('best');
 });
 
+test('browser preserves a damaged or future-version queue until explicit discard',async({page})=>{
+  await page.goto('/');
+  for(const raw of ['{invalid',JSON.stringify({version:99,items:[]})]){
+    await page.evaluate(value=>localStorage.setItem('mobipeg-batch-queue-v1',value),raw);
+    await page.reload();
+    await expect(page.locator('#discardSavedQueue')).toBeVisible();
+    await expect(page.locator('#queueRestoreStatus')).toContainText('has been kept');
+    expect(await page.evaluate(()=>localStorage.getItem('mobipeg-batch-queue-v1'))).toBe(raw);
+    page.once('dialog',dialog=>dialog.accept());
+    await page.locator('#discardSavedQueue').click();
+    await expect(page.locator('#discardSavedQueue')).toBeHidden();
+    const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('mobipeg-batch-queue-v1')));
+    expect(saved).toEqual({version:1,items:[]});
+  }
+});
+
 test('browser can list and safely delete an abandoned OPFS checkpoint',async({page})=>{
   await page.goto('/');
   await page.evaluate(async()=>{

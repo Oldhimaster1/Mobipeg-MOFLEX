@@ -6,13 +6,13 @@ import{openCheckpoint,setCheckpointMedia,restoreCheckpoints,persistRange,closeCh
 import{estimateConversion,totalEstimate,formatBytes,FAT32_LIMIT,FAT32_MESSAGE,fitsFat32,fat32Estimate}from'./queue.mjs?v=20261117v';
 import{runParallelMovie,planBalancedMovieClips}from'./parallel.mjs?v=20261117s';
 import{batchStorage,saveBatchFile}from'./batch-output.mjs?v=20261117s';
-import{loadQueue,saveQueue,relinkQueue,sourceIdentity}from'./queue-state.mjs?v=20261117u';
+import{loadQueue,saveQueue,clearSavedQueue,relinkQueue,sourceIdentity}from'./queue-state.mjs?v=20261117y';
 import{listSavedMovieJobs,removeSavedMovieJob}from'./checkpoint-manager.mjs?v=20261117x';
 const $=id=>document.getElementById(id),form=$('settings');let file=null,worker=null,previewURL=null,outputURL=null,started=0,stageStarted=0,ticker=null,report=null,wake=null,busy=false,runToken=0,stallMonitor=null,movieJob=null,completedMovieJob=null,sampleWorker=null,sampleToken=0,sampleData=null,audioInspector=null,parallelAbort=null;
 let queue=[],activeQueueId=null,queueRunning=false,queueCurrent=null,queueDownloaded=false,originStorage=null,nextQueueId=1,restoringSettings=false;
-let queueRestored=false;
+let queueRestored=false,queueRestoreError=false;
 function persistQueue(){
-  if(!queueRestored)return;
+  if(!queueRestored||queueRestoreError)return;
   try{saveQueue(queue);}catch(error){
     console.warn('Cannot save browser queue:',error);
     const notice=document.getElementById('queueRestoreStatus');
@@ -153,7 +153,7 @@ batchControls.innerHTML='<div class="queue-actions"><button id="batchFolder" typ
 $('startQueue').parentElement.before(batchControls);
 const queueRecovery=document.createElement('div');
 queueRecovery.className='queue-recovery';
-queueRecovery.innerHTML='<p id="queueRestoreStatus" class="hint" role="status"></p><button type="button" id="reselectQueueSources" class="text-button" hidden>Reselect original videos</button>';
+queueRecovery.innerHTML='<p id="queueRestoreStatus" class="hint" role="status"></p><button type="button" id="reselectQueueSources" class="text-button" hidden>Reselect original videos</button><button type="button" id="discardSavedQueue" class="text-button" hidden>Discard unreadable saved queue</button>';
 batchControls.after(queueRecovery);
 const relinkInput=document.createElement('input');
 relinkInput.type='file';relinkInput.multiple=true;relinkInput.hidden=true;
@@ -161,6 +161,15 @@ relinkInput.accept='video/*,.mkv,.avi,.mov,.webm,.m4v,.moflex';
 relinkInput.onchange=()=>{addFiles(relinkInput.files);relinkInput.value='';};
 queueRecovery.after(relinkInput);
 $('reselectQueueSources').onclick=()=>{if(!busy&&!queueRunning)relinkInput.click();};
+$('discardSavedQueue').onclick=()=>{
+  if(busy||queueRunning||!queueRestoreError)return;
+  if(!askConfirm('Discard the unreadable saved queue data? This cannot be undone. Video files are not affected.'))return;
+  try{
+    clearSavedQueue();queueRestoreError=false;$('discardSavedQueue').hidden=true;
+    $('queueRestoreStatus').textContent='Old queue data cleared. New and current jobs can now be saved.';
+    persistQueue();
+  }catch(error){$('queueRestoreStatus').textContent='Could not clear the saved queue: '+(error.message||String(error));}
+};
 $('batchFolder').hidden=typeof window.showDirectoryPicker!=='function';
 $('batchPrivate').hidden=!navigator.storage?.getDirectory;
 const savedPanel=document.createElement('section');
@@ -691,7 +700,8 @@ try{
     refreshEstimates();
   }
 }catch(error){
-  $('queueRestoreStatus').textContent='Saved queue could not be restored: '+(error.message||String(error));
+  queueRestoreError=true;$('discardSavedQueue').hidden=false;
+  $('queueRestoreStatus').textContent='Saved queue could not be restored. Its data has been kept in this browser; new queue changes cannot be saved until you discard it. '+(error.message||String(error));
   console.warn('Batch queue restore failed:',error);
 }
 queueRestored=true;

@@ -191,6 +191,8 @@ can save directly to a selected folder. Browser-saved outputs remain available
 after reload. Batch queue order and per-video settings are also saved locally;
 reselect the original files after reopening the app to continue unfinished items.
 This restores the queue, not the source video bytes.
+If an old or damaged queue cannot be read, MobiPEG leaves its saved data alone
+and asks before discarding it.
 
 The browser build requires **SharedArrayBuffer and cross-origin isolation**, including when using the scalar engine. The local server supplies the required headers. For phone access or public hosting, use HTTPS; plain HTTP on a LAN does not provide the required secure context.
 
