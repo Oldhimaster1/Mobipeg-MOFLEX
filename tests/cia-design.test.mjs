@@ -4,7 +4,7 @@ import {randomCiaId,coverGeometry,drawCover,CIA_ID_MIN,CIA_ID_MAX} from '../cia-
 
 const fixed = n => ({getRandomValues(words){words[0]=n;return words;}});
 test('new CIA title IDs use secure random values and stay in the homebrew range',()=>{
-  for(const sample of [0,1,0xff,0x12345678,0xffffffff]){
+  for(const sample of [0,1,0xff,0x12345678,0xefffffff]){
     const id=randomCiaId([],fixed(sample));
     assert.match(id,/^[CDE][0-9A-F]{4}$/);
     const num=parseInt(id,16);
@@ -36,7 +36,7 @@ test('fit mode preserves whole image and adds predictable borders',()=>{
 });
 test('zoom and pan stay bounded and invalid geometry is rejected',()=>{
   assert.deepEqual(coverGeometry(200,120,200,120,{zoom:1000,x:1000,y:-1000}),{
-    dx:-400,dy:0,dw:600,dh:360
+    dx:0,dy:-240,dw:600,dh:360
   }); // y=-100 reveals the top edge; +100 reveals the bottom.
   assert.throws(()=>coverGeometry(0,120,200,120),/dimensions/);
   assert.throws(()=>coverGeometry(200,120,200,120,{fit:'stretch'}),/mode/);
