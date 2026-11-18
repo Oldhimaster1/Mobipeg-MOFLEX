@@ -47,6 +47,7 @@ const playerLink=document.createElement('a');playerLink.href='player.html?v=2026
 $('result').append(playerLink);
 const navPlayer=document.createElement('a');navPlayer.href='player.html?v=20261117s';navPlayer.textContent='MOFLEX Player ↗';
 document.querySelector('.header-right')?.append(navPlayer);
+const navCIA=document.createElement('a');navCIA.href='cia.html';navCIA.textContent='CIA project builder ↗';document.querySelector('.header-right')?.append(navCIA);
 const renderWorkerCount=()=>{workerField.querySelector('#workerValue').textContent=workerSlider.value+' / '+coreMax+' logical cores';};
 workerSlider.addEventListener('input',renderWorkerCount);
 function renderParallelProgress(update){
