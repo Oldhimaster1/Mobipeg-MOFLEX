@@ -22,17 +22,22 @@ export function randomCiaId(used = [], random = globalThis.crypto) {
 }
 
 export function coverGeometry(sw, sh, tw, th, {
-  fit = 'fill', zoom = 100, x = 0, y = 0
+  fit = 'fill', aspect = 'native', zoom = 100, x = 0, y = 0
 } = {}) {
   if (![sw, sh, tw, th].every(n => Number.isFinite(n) && n > 0))
     throw Error('Invalid artwork dimensions.');
   if (!['fill', 'fit'].includes(fit)) throw Error('Unknown artwork fit mode.');
-  const base = (fit === 'fill' ? Math.max : Math.min)(tw / sw, th / sh);
+  const ratio = ({native:tw / th, square:1, wide:16 / 9, cinema:21 / 9, portrait:3 / 4})[aspect];
+  if (!ratio) throw Error('Unknown artwork aspect ratio.');
+  // Alternative ratios use letterboxing inside the CIA's required output size.
+  const bw = Math.min(tw, th * ratio), bh = Math.min(th, tw / ratio);
+  const ox = (tw - bw) / 2, oy = (th - bh) / 2;
+  const base = (fit === 'fill' ? Math.max : Math.min)(bw / sw, bh / sh);
   const scale = base * clamp(Number(zoom) || 100, 100, 300) / 100;
   const dw = sw * scale, dh = sh * scale;
   // Pan only when there is cropped content in that direction.
-  const dx = (tw - dw) / 2 + Math.max(0, dw - tw) * clamp(Number(x) || 0, -100, 100) / 200;
-  const dy = (th - dh) / 2 + Math.max(0, dh - th) * clamp(Number(y) || 0, -100, 100) / 200;
+  const dx = ox + (bw - dw) / 2 + Math.max(0, dw - bw) * clamp(Number(x) || 0, -100, 100) / 200;
+  const dy = oy + (bh - dh) / 2 + Math.max(0, dh - bh) * clamp(Number(y) || 0, -100, 100) / 200;
   return {dx, dy, dw, dh};
 }
 
@@ -65,7 +70,7 @@ export function setupCiaDesign({getEpisodes, notify, setFile}) {
   const canvas = $('ciaArtworkCanvas');
   const ctx = canvas.getContext('2d');
   const dialog = $('ciaArtworkDialog');
-  const fit = $('ciaArtworkFit'), zoom = $('ciaArtworkZoom'),
+  const fit = $('ciaArtworkFit'), aspect = $('ciaArtworkAspect'), zoom = $('ciaArtworkZoom'),
     panX = $('ciaArtworkX'), panY = $('ciaArtworkY');
   let active = false;
 
@@ -150,11 +155,11 @@ export function setupCiaDesign({getEpisodes, notify, setFile}) {
     if (canvas.width !== width) canvas.width = width;
     if (canvas.height !== height) canvas.height = height;
     drawCover(ctx, current.bitmap, width, height, {
-      fit: fit.value, zoom: +zoom.value, x: +panX.value, y: +panY.value
+      fit: fit.value, aspect: aspect.value, zoom: +zoom.value, x: +panX.value, y: +panY.value
     });
     $('ciaArtworkZoomValue').textContent = zoom.value + '%';
   }
-  for (const control of [fit, zoom, panX, panY]) control.addEventListener('input', paint);
+  for (const control of [fit, aspect, zoom, panX, panY]) control.addEventListener('input', paint);
 
   let drag = null;
   canvas.addEventListener('pointerdown', event => {
@@ -196,7 +201,7 @@ export function setupCiaDesign({getEpisodes, notify, setFile}) {
     current.kind = kind;
     current.apply = apply;
     current.filename = filename;
-    fit.value = 'fill'; zoom.value = '100'; panX.value = '0'; panY.value = '0';
+    fit.value = 'fill'; aspect.value = 'native'; zoom.value = '100'; panX.value = '0'; panY.value = '0';
     $('ciaArtworkHeading').textContent = kind === 'icon' ? 'Edit HOME Menu icon' :
       kind === 'banner' ? 'Edit HOME Menu banner' : 'Edit episode artwork';
     paint();
