@@ -7,7 +7,7 @@ import{estimateConversion,totalEstimate,formatBytes,FAT32_LIMIT,FAT32_MESSAGE,fi
 import{runParallelMovie,planBalancedMovieClips}from'./parallel.mjs?v=20261117s';
 import{batchStorage,saveBatchFile}from'./batch-output.mjs?v=20261117s';
 import{loadQueue,saveQueue,relinkQueue,sourceIdentity}from'./queue-state.mjs?v=20261117u';
-import{listSavedMovieJobs,removeSavedMovieJob}from'./checkpoint-manager.mjs?v=20261117w';
+import{listSavedMovieJobs,removeSavedMovieJob}from'./checkpoint-manager.mjs?v=20261117x';
 const $=id=>document.getElementById(id),form=$('settings');let file=null,worker=null,previewURL=null,outputURL=null,started=0,stageStarted=0,ticker=null,report=null,wake=null,busy=false,runToken=0,stallMonitor=null,movieJob=null,completedMovieJob=null,sampleWorker=null,sampleToken=0,sampleData=null,audioInspector=null,parallelAbort=null;
 let queue=[],activeQueueId=null,queueRunning=false,queueCurrent=null,queueDownloaded=false,originStorage=null,nextQueueId=1,restoringSettings=false;
 let queueRestored=false;
@@ -181,16 +181,19 @@ async function refreshSavedJobs(){
     const list=$('savedJobsList');list.replaceChildren();
     for(const job of jobs){
       const row=document.createElement('li'),description=document.createElement('span');
-      description.textContent=job.name+' · '+job.ranges+' saved range records · '+formatBytes(job.storedBytes)+' stored';
-      const remove=rowButton('Delete saved ranges',async()=>{
+      description.textContent=job.damaged
+        ?'Damaged recovery · '+job.name+' · '+formatBytes(job.storedBytes)+' stored · '+job.problem+'. Cannot resume this job.'
+        :job.name+' · '+job.ranges+' saved range records · '+formatBytes(job.storedBytes)+' stored';
+      const remove=rowButton(job.damaged?'Delete damaged recovery':'Delete saved ranges',async()=>{
         if(!askConfirm('Delete all saved recovery data for '+job.name+'? Completed movie downloads are not affected.'))return;
         try{await removeSavedMovieJob(job.id);await refreshSavedJobs();}
         catch(error){$('savedJobsStatus').textContent=error.message||String(error);}
       });
       row.append(description,' ',remove);list.append(row);
     }
+    const damaged=jobs.filter(job=>job.damaged).length,healthy=jobs.length-damaged;
     $('savedJobsStatus').textContent=jobs.length
-      ?jobs.length+' recoverable job'+(jobs.length===1?'':'s')+' found. Reselect the original video and matching settings to resume.'
+      ?healthy+' recoverable job'+(healthy===1?'':'s')+', '+damaged+' damaged. Healthy jobs can resume with their original video and settings; damaged jobs can be deleted to reclaim space.'
       :'No unfinished movie recoveries found.';
   }catch(error){$('savedJobsStatus').textContent='Cannot inspect saved movies: '+(error.message||String(error));}
   finally{$('refreshSavedJobs').disabled=false;}

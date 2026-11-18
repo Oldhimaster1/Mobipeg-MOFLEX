@@ -36,3 +36,26 @@ test('missing checkpoint folder produces an empty list',async()=>{
   const storage={getDirectory:async()=>({getDirectoryHandle:async()=>Promise.reject(missing())})};
   assert.deepEqual(await listSavedMovieJobs(storage),[]);
 });
+test('damaged or missing manifests remain visible and deletable without reading video bytes',async()=>{
+  const badId='resume-'+'b'.repeat(64),missingId='resume-'+'c'.repeat(64);
+  const video={kind:'file',getFile:async()=>({size:2048})};
+  const broken={kind:'directory',getFileHandle:async()=>({getFile:async()=>({
+    size:12,lastModified:123,text:async()=>'{invalid json'
+  })}),async *entries(){yield ['part-0.moflex',video];}};
+  const noManifest={kind:'directory',getFileHandle:async()=>{throw missing();},
+    async *entries(){yield ['part-0.moflex',video];}};
+  const removed=[];
+  const root={async *entries(){yield [badId,broken];yield [missingId,noManifest];},
+    removeEntry:async(id,options)=>{removed.push({id,options});}};
+  const storage={getDirectory:async()=>({getDirectoryHandle:async()=>root})};
+  const jobs=await listSavedMovieJobs(storage);
+  assert.equal(jobs.length,2);
+  assert.equal(jobs[0].damaged,true);
+  assert.match(jobs[0].problem,/damaged/);
+  assert.equal(jobs[0].storedBytes,2060);
+  assert.equal(jobs[1].damaged,true);
+  assert.match(jobs[1].problem,/missing/);
+  assert.equal(jobs[1].storedBytes,2048);
+  await removeSavedMovieJob(badId,storage,{request:async(_id,_opts,fn)=>fn({})});
+  assert.deepEqual(removed,[{id:badId,options:{recursive:true}}]);
+});

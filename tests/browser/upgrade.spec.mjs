@@ -1,17 +1,38 @@
 import {expect,test} from '@playwright/test';
 import {execFileSync} from 'node:child_process';
-import {copyFileSync,mkdtempSync,readFileSync,rmSync} from 'node:fs';
+import {copyFileSync,mkdtempSync,readFileSync,rmSync,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 
-let work,source,movie,ffmpeg;
+let work,source,movie;
 test.beforeAll(()=>{
   work=mkdtempSync(join(tmpdir(),'mobipeg-upgrade-'));
   source=join(work,'source.mkv');movie=join(work,'source.moflex');
-  ffmpeg=resolve('native/local/bin/ffmpeg');
-  execFileSync(ffmpeg,['-v','error','-f','lavfi','-i','color=c=red:s=320x240:r=24:d=2',
+  execFileSync('ffmpeg',['-v','error','-f','lavfi','-i','color=c=red:s=320x240:r=24:d=2',
     '-f','lavfi','-i','sine=f=880:r=48000:d=2','-c:v','ffv1','-c:a','pcm_s16le',source]);
-  execFileSync('python3',['native/MobiPEG_Studio_V15.py','-i',source,'-o',movie,'--preset','small','--resolution','320x240']);
+  // Use the same checked-in WASM engine as the browser. A developer should not
+  // need an untracked native/local/bin/ffmpeg build to run browser regressions.
+  const run=(name,args,files,output,destination)=>{
+    const spec={args,files,env:{MOBI_SUBME:'7',MOBI_SKIP:'0'},output,
+      destination,result:join(work,name+'-result.json')};
+    const manifest=join(work,name+'-command.json');
+    writeFileSync(manifest,JSON.stringify(spec));
+    execFileSync(process.execPath,['tests/wasm-command.cjs',manifest],{timeout:180000,
+      env:{...process.env,MOBIPEG_ENGINE_DIR:resolve('dist/engine')},maxBuffer:2*1024*1024});
+    const result=JSON.parse(readFileSync(spec.result));
+    if(result.code!==0)throw Error('WASM fixture creation failed: '+result.log.slice(-1200));
+  };
+  const encoded=join(work,'video-only.moflex');
+  run('encode',['-hide_banner','-nostdin','-v','error','-y','-i','/input/source',
+    '-vf','fps=24,scale=320:240,format=yuv420p','-an','-c:v','mobiclip',
+    '-mobiclip','1','-qp','12','-mobi_qyx','3','-preset','medium',
+    '-me_method','hex','-g','48','-mo_layout','6','-f','moflex','/video.moflex'],
+    {source},'/video.moflex',encoded);
+  run('mux',['-hide_banner','-nostdin','-v','error','-y',
+    '-i','/input/video','-i','/input/source','-map','0:v:0','-map','1:a:0',
+    '-c:v','copy','-c:a','pcm_s16le','-ar','48000','-ac','2','-af','apad',
+    '-mo_audio','fastaudio','-mo_layout','6','-t','2','-f','moflex','/movie.moflex'],
+    {video:encoded,source},'/movie.moflex',movie);
 });
 test.afterAll(()=>{if(work)rmSync(work,{recursive:true,force:true});});
 
@@ -46,7 +67,7 @@ test('browser edits SUPER MOFLEX, plays subtitles and exports tracks to MKV',asy
   await expect(page.locator('#playerStatus')).toHaveText('Converted video downloaded.',{timeout:30000});
   const out=testInfo.outputPath('tracks.mkv');
   await (await exporting).saveAs(out);
-  const streams=JSON.parse(execFileSync(resolve('native/local/bin/ffprobe'),['-v','error','-show_entries',
+  const streams=JSON.parse(execFileSync('ffprobe',['-v','error','-show_entries',
     'stream=codec_type','-of','json',out])).streams;
   expect(streams.map(track=>track.codec_type)).toEqual(['video','audio','audio','subtitle']);
 });
@@ -125,10 +146,18 @@ test('browser can list and safely delete an abandoned OPFS checkpoint',async({pa
     await writer.write(JSON.stringify({config:{identity:{name:'recovery-test.mkv',bytes:12345},
       encoder:'v15-test'},generation:'test'}));
     await writer.close();
+    const broken=await root.getDirectoryHandle('resume-'+'b'.repeat(64),{create:true});
+    const brokenFile=await broken.getFileHandle('checkpoint.json',{create:true});
+    const brokenWriter=await brokenFile.createWritable();
+    await brokenWriter.write('{unfinished metadata');await brokenWriter.close();
   });
   await page.locator('#refreshSavedJobs').click();
-  await expect(page.locator('#savedJobsList > li')).toHaveCount(1);
+  await expect(page.locator('#savedJobsList > li')).toHaveCount(2);
   await expect(page.locator('#savedJobsList')).toContainText('recovery-test.mkv');
+  await expect(page.locator('#savedJobsList')).toContainText('Damaged recovery');
+  page.once('dialog',dialog=>dialog.accept());
+  await page.getByRole('button',{name:'Delete damaged recovery'}).click();
+  await expect(page.locator('#savedJobsList > li')).toHaveCount(1);
   page.once('dialog',dialog=>dialog.accept());
   await page.getByRole('button',{name:'Delete saved ranges'}).click();
   await expect(page.locator('#savedJobsList > li')).toHaveCount(0);

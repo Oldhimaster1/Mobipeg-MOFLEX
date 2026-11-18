@@ -13,21 +13,32 @@ export async function listSavedMovieJobs(storage=globalThis.navigator?.storage){
   for await(const [id,folder] of root.entries()){
     if(!validJobId(id)||folder.kind!=='directory')continue;
     if(jobs.length>=MAX_JOBS)break;
+    let manifest=null,identity=null,problem='',meta=null;
     try{
-      const file=await (await folder.getFileHandle('checkpoint.json')).getFile();
-      if(file.size>1024*1024)continue;
-      const manifest=JSON.parse(await file.text()),identity=manifest?.config?.identity;
-      if(!identity||typeof identity.name!=='string'||!identity.name||identity.name.length>512||
-        !Number.isSafeInteger(identity.bytes)||identity.bytes<0)continue;
-      let ranges=0,bytes=file.size;
-      for await(const [name,part] of folder.entries()){
-        if(name==='checkpoint.json'||part.kind!=='file')continue;
+      meta=await (await folder.getFileHandle('checkpoint.json')).getFile();
+      if(meta.size>1024*1024)problem='Checkpoint metadata is too large';
+      else{
+        manifest=JSON.parse(await meta.text());identity=manifest?.config?.identity;
+        if(!identity||typeof identity.name!=='string'||!identity.name||identity.name.length>512||
+          !Number.isSafeInteger(identity.bytes)||identity.bytes<0){
+          identity=null;problem='Checkpoint metadata is invalid';
+        }
+      }
+    }catch(e){
+      if(!isMissing(e)&&!(e instanceof SyntaxError))throw e;
+      problem=isMissing(e)?'Checkpoint metadata is missing':'Checkpoint metadata is damaged';
+    }
+    let ranges=0,bytes=meta?.size??0;
+    for await(const [name,part] of folder.entries()){
+      if(name==='checkpoint.json'||part.kind!=='file')continue;
+      try{
         const stat=await part.getFile();bytes+=stat.size;
         if(/^range-\d+\.json$/.test(name))ranges++;
-      }
-      jobs.push({id,name:identity.name,sourceBytes:identity.bytes,ranges,storedBytes:bytes,
-        lastModified:file.lastModified,encoder:manifest.config.encoder||'Unknown'});
-    }catch(e){if(!isMissing(e)&&!(e instanceof SyntaxError))throw e;}
+      }catch(e){if(!isMissing(e))throw e;problem||='A saved range is missing';}
+    }
+    jobs.push({id,name:identity?.name??'Unknown source',sourceBytes:identity?.bytes??null,
+      ranges,storedBytes:bytes,lastModified:meta?.lastModified??0,
+      encoder:manifest?.config?.encoder||'Unknown',damaged:!!problem,problem});
   }
   return jobs.sort((a,b)=>b.lastModified-a.lastModified);
 }

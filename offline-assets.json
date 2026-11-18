@@ -1,15 +1,16 @@
 {
-  "version": "20261117w",
+  "version": "20261117x",
   "files": {
-    "index.html": "812da8c0e8f4d1f4437b749b3459c1eb1212584b2d7b279db20975966a0230ea",
+    "index.html": "f4ad0e539328ed3773adc35ae2dde6300a44297faa4c0e729889c6c12015acfb",
     "player.html": "33937ec53384d2ee830d960cdeea1c073f70699fede062a8785df8079d9f031b",
     "guide.html": "0dd1ce8cd75fc64f07e0b5f67ac75c273f049e1af9eb095c7eb396eafea17f76",
-    "app.mjs": "f3129ef78d709651091be2aba6cc02fa1f70d97a913e1a3f0f09ea1977100a82",
+    "app.mjs": "1ea6d1d3f36e2ce8c4280617532e7b9c73b25a4772bd03c63e4d3ffc297e0ade",
     "core.mjs": "2de575567eb53de8727fd5460a252b5b5759799893039dc7e5a8ba176d70731b",
     "movie.mjs": "63728b3f4ebaed566aa4457149575c2aec78408033596d138235a3ad78b7c81d",
     "parallel.mjs": "26b082ca5a9d4b3b4f4c7392be65999864b14b446f1198014a76d2b975c027d6",
     "queue.mjs": "0633fc33a78f62e120af1b5746b073d7211a56b4a0c002ae10f0327656cb5ac0",
     "checkpoints.mjs": "398fba2f09f22dadb74f3d70d62bbbc86c4eda2af613498b0b5bd18a5fe35a4a",
+    "checkpoint-manager.mjs": "48d757ca79bf89c882a39f0ee0f38cb00b5d99d570344c60d09a1871c6ef2d42",
     "i18n.mjs": "a0aa8c47d076d7f695752b97a1c9b8e01b6cbddfcc854ba3fd1313a01af28aa3",
     "translations.mjs": "cba608346a455be73ab4a0653664d3d614fc87a787bcf7ffb1c8649880ac2c35",
     "queue-translations.mjs": "a222ae76b30f5fd4abd06e53c0555ac644c8133138756e868b5d8aff2bfd1371",
@@ -20,7 +21,9 @@
     "player-core.mjs": "cc5a07a50b3373f8f107d4af9156f243076699c749616ccec7ba7d573bc9f168",
     "super-moflex.mjs": "58a57a0ba2a19d3cbd0335f5bbc933f8dfc847911505ce5f5ccd2e337a8349ac",
     "trailer-editor.mjs": "bf94d6f17f84642d507b83fb593587a5918f46dd095270058f32050adeff85ed",
+    "subtitle-timing.mjs": "dfd87a149ab1aa4b742357b4b70a882f1da4ea420f252234b25de82e297af469",
     "batch-output.mjs": "158fe2cfcf897e10c84eda5815d7b3288303fc6d4645177bc11ada46b3d786e8",
+    "queue-state.mjs": "5964e525d6844a67ba76b3248ff5bf9f4fa04e1f121dca4149cea3417b80d782",
     "style.css": "72396300b39779b397601fe68657e35500f9cd4c048cd318bbbd3aca668919a0",
     "player.css": "f0cb1bff04e2f9035194234de8279e822a5e2a7e26275ca6c9ac0398b95d4f76",
     "isolation.js": "69ef66870385061c293ace8e3be5d2f3c3ab663aa606c66bd444dfa6ead2f109",
@@ -33,9 +36,6 @@
     "engine-simd/mobipeg.js": "cf77bd88ac1632233b6435281fcae922df362cddd7f48a3cd429eab90ff0ed79",
     "engine-simd/mobipeg.wasm": "694326d0b5b72bcf64121843d0f03e91a19207699789841991bc3ff1dafb2149",
     "dist/translations.mjs": "cba608346a455be73ab4a0653664d3d614fc87a787bcf7ffb1c8649880ac2c35",
-    "dist/queue-translations.mjs": "96196fb0e4222fef0ae40057fe5c28b4f829464eef521cdaf14af398634eecd3",
-    "subtitle-timing.mjs": "dfd87a149ab1aa4b742357b4b70a882f1da4ea420f252234b25de82e297af469",
-    "queue-state.mjs": "5964e525d6844a67ba76b3248ff5bf9f4fa04e1f121dca4149cea3417b80d782",
-    "checkpoint-manager.mjs": "1ea65e3b784a66bb29088263c702778a5030a73d356379516b9c3731e8b4505f"
+    "dist/queue-translations.mjs": "96196fb0e4222fef0ae40057fe5c28b4f829464eef521cdaf14af398634eecd3"
   }
 }
