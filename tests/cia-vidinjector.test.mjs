@@ -81,6 +81,19 @@ test('ZIP input validation rejects unsafe paths, duplicate files and incomplete 
     zip([['romfs/a.txt','missing executable']])
   ])await assert.rejects(()=>readVidInjectorZip(input));
 });
+test('mismatched ZIP size metadata cannot trigger unlimited inflation',async()=>{
+  const original=zip([['exefs/.code',Buffer.alloc(20000,0x61)],['exheader.bin',Buffer.alloc(2048)]]);
+  const corrupted=Buffer.from(await original.arrayBuffer());
+  let changed=false;
+  for(let i=0;i<corrupted.length-46;i++){
+    if(corrupted.readUInt32LE(i)!==0x02014b50)continue;
+    if(corrupted.subarray(i+46,i+46+11).toString()!=='exefs/.code')continue;
+    corrupted.writeUInt32LE(16,i+24);
+    changed=true;break;
+  }
+  assert.ok(changed);
+  await assert.rejects(()=>readVidInjectorZip(new Blob([corrupted])),/exceeds declared size|Corrupted|ZIP/);
+});
 test('only pinned upstream files are requested and browser credentials are omitted',async()=>{
   const seen=[];
   const response=await fetchVidInjectorFile('arrays/bimgheader.bin',{request:async(url,opts)=>{
