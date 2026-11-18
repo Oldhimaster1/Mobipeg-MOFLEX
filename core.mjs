@@ -99,7 +99,7 @@ function audioMuxArgs(s,seconds,start,gain){
     '-mo_audio',s.audioCodec??'adpcm',...(s.mode==='2d'?[]:['-r',codedRate(s)]),...layout(s),
     '-t',(samples/48000).toFixed(8),'-f','moflex','/final.moflex'];
 }
-export function parseProbe(log){const d=/Duration:\s*(\d+):(\d+):([\d.]+)/.exec(log);if(!/Video:/.test(log)||!d)throw Error('Cannot read video or duration. This format may not be supported.');const duration=Number(d[1])*3600+Number(d[2])*60+Number(d[3]);if(!Number.isFinite(duration)||duration<=0)throw Error('Video must have a known, positive duration');return {duration,audio:/Audio:/.test(log),hdrTransfer:hdrTransferFromLog(log)};}
+export function parseProbe(log){const d=/Duration:\s*(\d+):(\d+):([\d.]+)/.exec(log);if(!/Video:/.test(log)||!d)throw Error('Cannot read video or duration. This format may not be supported.');const duration=Number(d[1])*3600+Number(d[2])*60+Number(d[3]);if(!Number.isFinite(duration)||duration<=0)throw Error('Video must have a known, positive duration');const hdrTransfer=hdrTransferFromLog(log);return {duration,audio:/Audio:/.test(log),...(hdrTransfer?{hdrTransfer}:{})};}
 export function progressLine(line){const m=/^(frame|out_time_us|total_size|speed|progress)=(.*)$/.exec(line.trim());return m?{key:m[1],value:m[2].trim()}:null;}
 
 // Verify each media stream independently. Browser builds can run each check in a
