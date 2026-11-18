@@ -166,7 +166,7 @@ async function hashBlocks(blob) {
   }
   return new Blob([hashes]);
 }
-async function buildRomfs(state) {
+export async function buildRomfs(state) {
   const parts = [state.metadata];
   let offset = 0;
   for (const file of state.files) {
@@ -322,6 +322,8 @@ export async function buildCia({
   // Both program-ID copies in the extended header must follow the NCCH ID.
   put64(prefix, 0x200 + 0x200, id);
   put64(prefix, 0x200 + 0x600, id);
+  // VidInjector also stores the application unique ID in its extended header.
+  put32(prefix, 0x200 + 0x1c9, Number(id >> 8n) & 0xfffff);
   prefix.set(
     await hash(prefix.subarray(0x200, 0x200 + u32(prefix, 0x180))),
     0x160,
