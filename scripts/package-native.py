@@ -59,7 +59,9 @@ def main():
             for name in tracked:
                 if name and name.startswith('native/source/'):
                     archive.write(ROOT / name, name)
-            for name in ['LICENSE', 'README.md', 'native/MobiPEG_Studio_V15.py',
+            for module in (ROOT/'native').glob('*.py'):
+                archive.write(module,module.relative_to(ROOT))
+            for name in ['LICENSE', 'README.md',
                          'native/BUILD_FOR_LINUX.sh', 'native/BUILD_FOR_MAC.command',
                          'native/BUILD_FOR_WINDOWS.sh', 'native/PORTABLE_BUILDS.md',
                          'scripts/package-native.py', 'scripts/smoke-native-package.py',

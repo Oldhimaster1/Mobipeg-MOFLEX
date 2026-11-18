@@ -1,5 +1,6 @@
-import {allocateMovieBudget, appendMovieSegment, getCodedRate} from './movie.mjs?v=20261118f';
-import {persistRange} from './checkpoints.mjs?v=20261118f';
+import {audioBudgetRate} from './complexity.mjs?v=20261118i';
+import {remainingMovieBudgets,allocateMovieBudget, appendMovieSegment, getCodedRate} from './movie.mjs?v=20261118i';
+import {persistRange} from './checkpoints.mjs?v=20261118i';
 
 // Balanced, frame-aligned timeline parts require no source chapters.
 // A bounded worker pool reuses compiled WASM and recycles memory every four parts.
@@ -26,9 +27,10 @@ export function planBalancedMovieClips(seconds, settings, wanted=1) {
   return clips;
 }
 export async function runParallelMovie({file, settings, media, job, workers, onUpdate=()=>{},
-  signal, createWorker=()=>new Worker('worker.js?v=20261118g'), save=appendMovieSegment}) {
+  signal, createWorker=()=>new Worker('worker.js?v=20261118i'), save=appendMovieSegment}) {
   const clips=planBalancedMovieClips(media.duration,settings,workers);
-  const budgets=settings.maxMB==null?null:allocateMovieBudget(clips,Math.floor(settings.maxMB*1e6));
+  const reservations={};
+  const limited=settings.maxMB!=null;
   const count=Math.min(Math.max(1,Math.floor(workers)),clips.length);
   const live=new Set();
   const stopper=new AbortController();
@@ -46,7 +48,7 @@ export async function runParallelMovie({file, settings, media, job, workers, onU
   const aborted=()=>signal?.aborted||stopper.signal.aborted;
   const abort=()=>{stopper.abort();for(const w of live)w.terminate();};
   signal?.addEventListener('abort',abort,{once:true});
-  async function encode(clip, slot, w){
+  async function encode(clip, slot, w, budget){
     if(aborted())throw Error('Cancelled');
     return await new Promise((resolve,reject)=>{
         let settled=false;
@@ -66,7 +68,7 @@ export async function runParallelMovie({file, settings, media, job, workers, onU
             notify();
           }else if(d.type==='log'&&/error|failed/i.test(d.line))onUpdate({log:d.line});
         };
-        try{w.postMessage({type:'segment',file,settings,clip:{start:clip.start,seconds:clip.seconds},media,verifyRange:!!job.manifest,rangeBudget:budgets?.[clip.index]});}
+        try{w.postMessage({type:'segment',file,settings,clip:{start:clip.start,seconds:clip.seconds},media,verifyRange:!!job.manifest,rangeBudget:budget});}
         catch(e){done(e);}
       });
   }
@@ -77,11 +79,13 @@ export async function runParallelMovie({file, settings, media, job, workers, onU
       try{while(next<pending.length){
         if(aborted())throw Error('Cancelled');
         const clip=pending[next++];
+        const budget=limited?remainingMovieBudgets(clips,Math.floor(settings.maxMB*1e6),job.segments,reservations,media.complexity??null,media.audio?audioBudgetRate(settings.audioCodec):0)[clip.index]:undefined;
+        if(limited)reservations[clip.index]=budget;
         active[slot]=clip;
         progress[slot]=0;
         notify();
         if(!w){w=createWorker();live.add(w);used=0;}
-        const d=await encode(clip,slot,w);
+        const d=await encode(clip,slot,w,budget);
         if(aborted())throw Error('Cancelled');
         if(d.empty){
           if(clip.index!==clips.length-1)throw Error('Input video ended before the scheduled timeline; try one worker.');
@@ -97,6 +101,7 @@ export async function runParallelMovie({file, settings, media, job, workers, onU
           }else await save(job,d.blob,d.frames,clip.index);
           if(aborted())throw Error('Cancelled');
         }
+        delete reservations[clip.index];
         active[slot]=null;
         completed+=clip.codedFrames;
         progress[slot]=1;

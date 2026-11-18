@@ -66,7 +66,7 @@ async function holdLock(locks, id) {
 export async function openCheckpoint(source, settings, {storage, locks, cancelled}) {
   const identity = {name:source.name, bytes:source.size, sha256:await fileDigest(source, cancelled)};
   if (cancelled()) throw Error('Cancelled');
-  const config = {version:VERSION, encoder:settings.mode==='2d'?ENCODER:ENCODER+'-stereo-layout1', identity, settings};
+  const config = {version:VERSION, encoder:(settings.mode==='2d'?ENCODER:ENCODER+'-stereo-layout1')+(settings.maxMB!=null&&settings.movieAudio?'-scene-v1':''), identity, settings};
   const key = new TextEncoder().encode(JSON.stringify(config));
   const id = 'resume-' + hex(new Uint8Array(await crypto.subtle.digest('SHA-256', key)));
   const release = await holdLock(locks, id);

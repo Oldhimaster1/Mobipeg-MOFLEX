@@ -36,7 +36,8 @@ with tempfile.TemporaryDirectory(prefix='mobipeg-cross-package-') as temp:
         shutil.copy2(ROOT/'.build/cross'/args.target/'local/bin'/(name+suffix),bundle/'local/bin'/(name+suffix))
     subprocess.run([args.zig,'cc','-target',triple,str(ROOT/'scripts/portable-launcher.c'),
                     *(['-municode'] if windows else []),'-O2','-o',str(bundle/('MobiPEGStudio'+suffix))],check=True,env={**os.environ,'ZIG_GLOBAL_CACHE_DIR':os.environ.get('ZIG_GLOBAL_CACHE_DIR',str(ROOT/'.build/zig-launcher-cache'))})
-    shutil.copy2(ROOT/'native/MobiPEG_Studio_V15.py',bundle/'MobiPEG_Studio_V15.py')
+    for module in (ROOT/'native').glob('*.py'):
+        shutil.copy2(module,bundle/module.name)
     shutil.copy2(ROOT/'LICENSE',bundle/'LICENSE')
     shutil.copy2(ROOT/'native/PORTABLE_BUILDS.md',bundle/'README.md')
     (bundle/'BUILD.txt').write_text(f'Target: {args.target}\nCross-compiler: Zig 0.14.1\nRuntime: {args.runtime.name}\nRuntime SHA256: {args.runtime_sha256}\nMac packages are cross-compiled; Mac execution/GUI is unverified.\n')
@@ -44,7 +45,9 @@ with tempfile.TemporaryDirectory(prefix='mobipeg-cross-package-') as temp:
         names=subprocess.check_output(['git','ls-files','-z'],cwd=ROOT).decode().split('\0')
         for name in names:
             if name.startswith('native/source/'):archive.write(ROOT/name,name)
-        for name in ['native/MobiPEG_Studio_V15.py','native/BUILD_FOR_LINUX.sh','native/BUILD_FOR_MAC.command','native/BUILD_FOR_WINDOWS.sh','native/PORTABLE_BUILDS.md','scripts/build-cross.sh','scripts/package-cross.py','scripts/portable-launcher.c','scripts/smoke-cross-windows.py','LICENSE']:
+        for module in (ROOT/'native').glob('*.py'):
+            archive.write(module,module.relative_to(ROOT))
+        for name in ['native/BUILD_FOR_LINUX.sh','native/BUILD_FOR_MAC.command','native/BUILD_FOR_WINDOWS.sh','native/PORTABLE_BUILDS.md','scripts/build-cross.sh','scripts/package-cross.py','scripts/portable-launcher.c','scripts/smoke-cross-windows.py','LICENSE']:
             archive.write(ROOT/name,name)
     label='MobiPEG-'+args.target
     # tar preserves macOS runtime symlinks and executable modes.

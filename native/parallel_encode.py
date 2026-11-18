@@ -14,7 +14,9 @@ import re
 import shutil
 import subprocess
 import tempfile
-from threading import Event
+from threading import Event, Lock
+
+from scene_complexity import analyze_complexity
 
 from moflex_join import BLOCK, FAT32_LIMIT, inspect, join
 
@@ -55,6 +57,7 @@ def parallel_workspace(args, inp, out, encoder, media, notify):
     config={'version':1,'source':inp.name,'bytes':inp.stat().st_size,'source_sha256':file_hash(inp),
             'encoder_sha256':file_hash(encoder),'media':media,
             'settings':{key:getattr(args,key) for key in fields}}
+    if args.max_size_mb is not None:config['budget_analysis']='uniform' if os.environ.get('MOBIPEG_UNIFORM_BUDGET') else 'scene-v1'
     if args.mode!='2d':
         config['stereo_layout']=1
     root=out.parent/'.mobipeg-checkpoints'
@@ -177,18 +180,20 @@ def audio_window(start, seconds, track, offset_ms, peak_gain=0):
     return seek_args,['-map',f'1:a:{track}','-af',audio_filter]
 
 
-def allocate_movie_budget(ranges, target_bytes):
+def allocate_movie_budget(ranges, target_bytes, complexity=None, audio_rate=0):
     blocks=min(target_bytes,FAT32_LIMIT)//BLOCK
-    remaining=blocks-2*len(ranges)
+    floors=[2+math.ceil(length*audio_rate/BLOCK) for start,length,frames in ranges]
+    remaining=blocks-sum(floors)
     if not ranges or remaining<0:
         raise ValueError('Maximum size is too small for the movie ranges and seek indexes.')
-    total=sum(frames for _,_,frames in ranges)
+    weights=[frames*(complexity[i] if complexity is not None else 1) for i,(_,_,frames) in enumerate(ranges)]
+    total=sum(weights)
     cumulative=previous=0
     budgets=[]
-    for _,_,frames in ranges:
-        cumulative+=frames
-        allocated=remaining*cumulative//total
-        budgets.append((2+allocated-previous)*BLOCK)
+    for i,(_,_,frames) in enumerate(ranges):
+        cumulative+=weights[i]
+        allocated=remaining if i==len(ranges)-1 else math.floor(remaining*cumulative/total)
+        budgets.append((floors[i]+allocated-previous)*BLOCK)
         previous=allocated
     return budgets
 
@@ -202,7 +207,25 @@ def encode_parallel(*, args, inp, out, encoder, probe, media, filters, layout_op
     rate=Fraction(coded_fps_label)
     ranges=plan_ranges(media['duration'],rate,eyes=1 if args.mode=='2d' else 2,workers=workers)
     workers=min(workers,len(ranges))
-    budgets=allocate_movie_budget(ranges,target_bytes) if target_bytes is not None else None
+    analysis=None
+    if target_bytes is not None and len(ranges)>1 and not os.environ.get('MOBIPEG_UNIFORM_BUDGET'):
+        cache=Path(scratch)/'complexity.json'
+        if getattr(args,'resume',False):
+            try:
+                candidate=json.loads(cache.read_text())
+                rows=candidate['clips']
+                if candidate['version']==1 and len(rows)==len(ranges) and all(
+                    abs(row['start']-start)<1e-6 and abs(row['seconds']-seconds)<1e-6 and
+                    all(isinstance(row[k],(int,float)) and math.isfinite(row[k]) and 0<=row[k]<=1 for k in ('texture','motion')) and
+                    abs(row['score']-(.025+row['texture']+2*row['motion']))<1e-9
+                    for row,(start,seconds,frames) in zip(rows,ranges)):analysis=candidate
+            except (OSError,ValueError,TypeError,KeyError):pass
+        if analysis is None:
+            analysis=analyze_complexity(encoder,inp,ranges,callback)
+            if getattr(args,'resume',False):write_checkpoint(cache,analysis)
+    audio_rate=(15000 if args.audio_codec=='fastaudio' else 49500) if media.get('audio') else 0
+    budgets=allocate_movie_budget(ranges,target_bytes,[r['score'] for r in analysis['clips']] if analysis else None,audio_rate if analysis else 0) if target_bytes is not None else None
+    reservations={};budget_lock=Lock()
     me=presets[args.preset]['me'];search=presets[args.preset]['search']
     improve=(args.motion_refinement=='on' or args.motion_refinement=='auto' and args.preset in ('best','quality'))
     env={k:v for k,v in os.environ.items() if not k.startswith('MOBI_')}
@@ -224,11 +247,19 @@ def encode_parallel(*, args, inp, out, encoder, probe, media, filters, layout_op
             video=output_dir/f'video-{index:05d}.moflex'
             final=output_dir/f'part-{index:05d}.moflex'
             record=output_dir/f'part-{index:05d}.json'
+            if analysis is not None:
+                with budget_lock:
+                    spent=sum(path.stat().st_size for item in results if item for path in [item[0]])+sum(reservations.values())
+                    available=[i for i in range(len(ranges)) if results[i] is None and i not in reservations]
+                    caps=allocate_movie_budget([ranges[i] for i in available],min(target_bytes,FAT32_LIMIT)-spent,[analysis['clips'][i]['score'] for i in available],audio_rate)
+                    for i,cap in zip(available,caps):budgets[i]=cap
+                    reservations[index]=budgets[index]
             if getattr(args,'resume',False):
                 restored=restore_range(record,final,(start,length,expected),expected,index==len(ranges)-1)
                 if restored and (budgets is None or final.stat().st_size<=budgets[index]):
                     callback(f'Reusing verified range {index+1}/{len(ranges)}.')
-                    results[index]=(final,restored)
+                    with budget_lock:
+                        results[index]=(final,restored);reservations.pop(index,None)
                     progress(slot,1)
                     continue
             callback(f'Worker {slot+1}/{workers}: part {index+1}/{len(ranges)} at {start:.3f}s')
@@ -298,7 +329,8 @@ def encode_parallel(*, args, inp, out, encoder, probe, media, filters, layout_op
                         '-map','0:v:0','-map','0:a:0?','-f','null','-'])
                 write_checkpoint(record,{'timeline':[start,length,expected],'frames':frames,
                                          'bytes':final.stat().st_size,'sha256':file_hash(final)})
-            results[index]=(final,frames)
+            with budget_lock:
+                results[index]=(final,frames);reservations.pop(index,None)
             progress(slot,1)
 
     def encode_lane(slot):

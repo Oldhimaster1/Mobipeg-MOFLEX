@@ -21,11 +21,16 @@ import tempfile
 import threading
 from typing import Callable
 
+# The portable launcher uses Python -I. Add only this trusted application
+# directory, never the caller's working directory or PYTHONPATH.
+ROOT = Path(__file__).resolve().parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from parallel_encode import audio_window, encode_parallel, measure_audio_peak, parallel_workspace
 from moflex_join import FAT32_LIMIT, FAT32_MESSAGE
 
 
-ROOT = Path(__file__).resolve().parent
 EXE_SUFFIX = '.exe' if os.name == 'nt' else ''
 MODES = ('2d','full-sbs','half-sbs')
 PRESETS = {

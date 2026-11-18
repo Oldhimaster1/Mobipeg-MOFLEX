@@ -1,0 +1,785 @@
+{
+  "dateUTC": "2026-11-18",
+  "baseline": "7009825788abeeb4d3634ef855cdf97ab72a0ae0",
+  "nativeSeeks": [
+    {
+      "seconds": 0.0339711619890295,
+      "videoHash": "0e0e1621d6a691b4eb995929973a8543f3c12c33e99ff9920b052fca9014f524",
+      "audioHash": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+      "videoBytes": 864000,
+      "audioBytes": 48000,
+      "indexed": true,
+      "minutes": 30,
+      "targetSeconds": 180.0,
+      "verified": true
+    },
+    {
+      "seconds": 0.022815791991888545,
+      "videoHash": "0e0e1621d6a691b4eb995929973a8543f3c12c33e99ff9920b052fca9014f524",
+      "audioHash": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+      "videoBytes": 864000,
+      "audioBytes": 48000,
+      "indexed": true,
+      "minutes": 30,
+      "targetSeconds": 900.0,
+      "verified": true
+    },
+    {
+      "seconds": 0.08513495000079274,
+      "videoHash": "0e0e1621d6a691b4eb995929973a8543f3c12c33e99ff9920b052fca9014f524",
+      "audioHash": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+      "videoBytes": 864000,
+      "audioBytes": 48000,
+      "indexed": true,
+      "minutes": 30,
+      "targetSeconds": 1710.0,
+      "verified": true
+    },
+    {
+      "seconds": 0.07403288599743973,
+      "videoHash": "2e7433cad8fccd1e4660b642045f35bac98591a1d6716dd2b8078bb546c9a465",
+      "audioHash": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+      "videoBytes": 864000,
+      "audioBytes": 48000,
+      "indexed": true,
+      "minutes": 60,
+      "targetSeconds": 360.0,
+      "verified": true
+    },
+    {
+      "seconds": 0.05621359399810899,
+      "videoHash": "2e7433cad8fccd1e4660b642045f35bac98591a1d6716dd2b8078bb546c9a465",
+      "audioHash": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+      "videoBytes": 864000,
+      "audioBytes": 48000,
+      "indexed": true,
+      "minutes": 60,
+      "targetSeconds": 1800.0,
+      "verified": true
+    },
+    {
+      "seconds": 0.03686776199901942,
+      "videoHash": "0e0e1621d6a691b4eb995929973a8543f3c12c33e99ff9920b052fca9014f524",
+      "audioHash": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+      "videoBytes": 864000,
+      "audioBytes": 48000,
+      "indexed": true,
+      "minutes": 60,
+      "targetSeconds": 3420.0,
+      "verified": true
+    },
+    {
+      "seconds": 0.13339973500114866,
+      "videoHash": "0e0e1621d6a691b4eb995929973a8543f3c12c33e99ff9920b052fca9014f524",
+      "audioHash": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+      "videoBytes": 864000,
+      "audioBytes": 48000,
+      "indexed": true,
+      "minutes": 90,
+      "targetSeconds": 540.0,
+      "verified": true
+    },
+    {
+      "seconds": 0.04095008700096514,
+      "videoHash": "0e0e1621d6a691b4eb995929973a8543f3c12c33e99ff9920b052fca9014f524",
+      "audioHash": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+      "videoBytes": 864000,
+      "audioBytes": 48000,
+      "indexed": true,
+      "minutes": 90,
+      "targetSeconds": 2700.0,
+      "verified": true
+    },
+    {
+      "seconds": 0.02440168800239917,
+      "videoHash": "0e0e1621d6a691b4eb995929973a8543f3c12c33e99ff9920b052fca9014f524",
+      "audioHash": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+      "videoBytes": 864000,
+      "audioBytes": 48000,
+      "indexed": true,
+      "minutes": 90,
+      "targetSeconds": 5130.0,
+      "verified": true
+    },
+    {
+      "seconds": 0.07146723699406721,
+      "videoHash": "2e7433cad8fccd1e4660b642045f35bac98591a1d6716dd2b8078bb546c9a465",
+      "audioHash": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+      "videoBytes": 864000,
+      "audioBytes": 48000,
+      "indexed": true,
+      "minutes": 120,
+      "targetSeconds": 720.0,
+      "verified": true
+    },
+    {
+      "seconds": 0.06812161199923139,
+      "videoHash": "2e7433cad8fccd1e4660b642045f35bac98591a1d6716dd2b8078bb546c9a465",
+      "audioHash": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+      "videoBytes": 864000,
+      "audioBytes": 48000,
+      "indexed": true,
+      "minutes": 120,
+      "targetSeconds": 3600.0,
+      "verified": true
+    },
+    {
+      "seconds": 0.06324038800084963,
+      "videoHash": "2e7433cad8fccd1e4660b642045f35bac98591a1d6716dd2b8078bb546c9a465",
+      "audioHash": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+      "videoBytes": 864000,
+      "audioBytes": 48000,
+      "indexed": true,
+      "minutes": 120,
+      "targetSeconds": 6840.0,
+      "verified": true
+    },
+    {
+      "seconds": 188.40448398000444,
+      "videoHash": "2e7433cad8fccd1e4660b642045f35bac98591a1d6716dd2b8078bb546c9a465",
+      "audioHash": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+      "videoBytes": 864000,
+      "audioBytes": 48000,
+      "indexed": false,
+      "minutes": 120,
+      "targetSeconds": 6840,
+      "baseline": true
+    }
+  ],
+  "chromiumSeeks": [
+    {
+      "engine": "scalar",
+      "minutes": 30,
+      "warmSeconds": 0.6848699999898672,
+      "rows": [
+        {
+          "seconds": 0.6046449999958277,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 180,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 0.45876000000536443,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 900,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 0.6306899999976158,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 1710,
+          "equalVideo": true,
+          "equalAudio": true
+        }
+      ]
+    },
+    {
+      "engine": "scalar",
+      "minutes": 60,
+      "warmSeconds": 0.30647499999403954,
+      "rows": [
+        {
+          "seconds": 0.48575,
+          "frames": 6,
+          "video": "cb8dcec1a2d59d21673934d4b088fbb0c473b7f4956d6743f088608d3a2dfd38",
+          "audio": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+          "start": 360,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 0.593109999999404,
+          "frames": 6,
+          "video": "cb8dcec1a2d59d21673934d4b088fbb0c473b7f4956d6743f088608d3a2dfd38",
+          "audio": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+          "start": 1800,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 0.3741899999976158,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 3420,
+          "equalVideo": true,
+          "equalAudio": true
+        }
+      ]
+    },
+    {
+      "engine": "scalar",
+      "minutes": 90,
+      "warmSeconds": 0.2355949999988079,
+      "rows": [
+        {
+          "seconds": 0.5452750000059605,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 540,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 0.4781750000119209,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 2700,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 0.5115450000017882,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 5130,
+          "equalVideo": true,
+          "equalAudio": true
+        }
+      ]
+    },
+    {
+      "engine": "scalar",
+      "minutes": 120,
+      "warmSeconds": 0.328875,
+      "rows": [
+        {
+          "seconds": 0.5627399999946355,
+          "frames": 6,
+          "video": "cb8dcec1a2d59d21673934d4b088fbb0c473b7f4956d6743f088608d3a2dfd38",
+          "audio": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+          "start": 720,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 0.4169149999916554,
+          "frames": 6,
+          "video": "cb8dcec1a2d59d21673934d4b088fbb0c473b7f4956d6743f088608d3a2dfd38",
+          "audio": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+          "start": 3600,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 0.6659450000077486,
+          "frames": 6,
+          "video": "cb8dcec1a2d59d21673934d4b088fbb0c473b7f4956d6743f088608d3a2dfd38",
+          "audio": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+          "start": 6840,
+          "equalVideo": true,
+          "equalAudio": true
+        }
+      ]
+    },
+    {
+      "engine": "simd",
+      "minutes": 30,
+      "warmSeconds": 0.4048100000023842,
+      "rows": [
+        {
+          "seconds": 0.6038500000089407,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 180,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 0.4027849999964237,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 900,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 0.6338999999910593,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 1710,
+          "equalVideo": true,
+          "equalAudio": true
+        }
+      ]
+    },
+    {
+      "engine": "simd",
+      "minutes": 60,
+      "warmSeconds": 0.2652149999886751,
+      "rows": [
+        {
+          "seconds": 0.43731999999284743,
+          "frames": 6,
+          "video": "cb8dcec1a2d59d21673934d4b088fbb0c473b7f4956d6743f088608d3a2dfd38",
+          "audio": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+          "start": 360,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 0.3979050000011921,
+          "frames": 6,
+          "video": "cb8dcec1a2d59d21673934d4b088fbb0c473b7f4956d6743f088608d3a2dfd38",
+          "audio": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+          "start": 1800,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 0.32739499999582766,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 3420,
+          "equalVideo": true,
+          "equalAudio": true
+        }
+      ]
+    },
+    {
+      "engine": "simd",
+      "minutes": 90,
+      "warmSeconds": 0.25922499999403953,
+      "rows": [
+        {
+          "seconds": 0.7008249999880791,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 540,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 0.6322349999994039,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 2700,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 0.5943100000023842,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 5130,
+          "equalVideo": true,
+          "equalAudio": true
+        }
+      ]
+    },
+    {
+      "engine": "simd",
+      "minutes": 120,
+      "warmSeconds": 0.4081749999970198,
+      "rows": [
+        {
+          "seconds": 0.5144799999892712,
+          "frames": 6,
+          "video": "cb8dcec1a2d59d21673934d4b088fbb0c473b7f4956d6743f088608d3a2dfd38",
+          "audio": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+          "start": 720,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 0.6016850000023842,
+          "frames": 6,
+          "video": "cb8dcec1a2d59d21673934d4b088fbb0c473b7f4956d6743f088608d3a2dfd38",
+          "audio": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+          "start": 3600,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 0.5518950000107289,
+          "frames": 6,
+          "video": "cb8dcec1a2d59d21673934d4b088fbb0c473b7f4956d6743f088608d3a2dfd38",
+          "audio": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+          "start": 6840,
+          "equalVideo": true,
+          "equalAudio": true
+        }
+      ]
+    }
+  ],
+  "linuxWebKitSeeks": [
+    {
+      "engine": "scalar",
+      "minutes": 30,
+      "warmSeconds": 2.70662,
+      "rows": [
+        {
+          "seconds": 3.0578999999999996,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 180,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 2.3608399999999983,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 900,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 6.2954799999999995,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 1710,
+          "equalVideo": true,
+          "equalAudio": true
+        }
+      ]
+    },
+    {
+      "engine": "scalar",
+      "minutes": 60,
+      "warmSeconds": 1.2647,
+      "rows": [
+        {
+          "seconds": 1.997739999999999,
+          "frames": 6,
+          "video": "cb8dcec1a2d59d21673934d4b088fbb0c473b7f4956d6743f088608d3a2dfd38",
+          "audio": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+          "start": 360,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 2.637359999999999,
+          "frames": 6,
+          "video": "cb8dcec1a2d59d21673934d4b088fbb0c473b7f4956d6743f088608d3a2dfd38",
+          "audio": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+          "start": 1800,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 1.7265600000000012,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 3420,
+          "equalVideo": true,
+          "equalAudio": true
+        }
+      ]
+    },
+    {
+      "engine": "scalar",
+      "minutes": 90,
+      "warmSeconds": 1.40988,
+      "rows": [
+        {
+          "seconds": 2.74084,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 540,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 2.4877400000000014,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 2700,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 2.4040000000000017,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 5130,
+          "equalVideo": true,
+          "equalAudio": true
+        }
+      ]
+    },
+    {
+      "engine": "scalar",
+      "minutes": 120,
+      "warmSeconds": 1.3664800000000006,
+      "rows": [
+        {
+          "seconds": 3.9840600000000013,
+          "frames": 6,
+          "video": "cb8dcec1a2d59d21673934d4b088fbb0c473b7f4956d6743f088608d3a2dfd38",
+          "audio": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+          "start": 720,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 2.319920000000002,
+          "frames": 6,
+          "video": "cb8dcec1a2d59d21673934d4b088fbb0c473b7f4956d6743f088608d3a2dfd38",
+          "audio": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+          "start": 3600,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 1.1909799999999995,
+          "frames": 6,
+          "video": "cb8dcec1a2d59d21673934d4b088fbb0c473b7f4956d6743f088608d3a2dfd38",
+          "audio": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+          "start": 6840,
+          "equalVideo": true,
+          "equalAudio": true
+        }
+      ]
+    },
+    {
+      "engine": "simd",
+      "minutes": 30,
+      "warmSeconds": 0.9715600000000002,
+      "rows": [
+        {
+          "seconds": 5.720860000000001,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 180,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 2.905379999999999,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 900,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 5.025239999999998,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 1710,
+          "equalVideo": true,
+          "equalAudio": true
+        }
+      ]
+    },
+    {
+      "engine": "simd",
+      "minutes": 60,
+      "warmSeconds": 2.1011,
+      "rows": [
+        {
+          "seconds": 2.68304,
+          "frames": 6,
+          "video": "cb8dcec1a2d59d21673934d4b088fbb0c473b7f4956d6743f088608d3a2dfd38",
+          "audio": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+          "start": 360,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 1.7799600000000009,
+          "frames": 6,
+          "video": "cb8dcec1a2d59d21673934d4b088fbb0c473b7f4956d6743f088608d3a2dfd38",
+          "audio": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+          "start": 1800,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 1.7543999999999997,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 3420,
+          "equalVideo": true,
+          "equalAudio": true
+        }
+      ]
+    },
+    {
+      "engine": "simd",
+      "minutes": 90,
+      "warmSeconds": 1.1528399999999999,
+      "rows": [
+        {
+          "seconds": 1.1386200000000009,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 540,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 1.4910999999999994,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 2700,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 1.4576200000000008,
+          "frames": 6,
+          "video": "006b77a4c289a5ee4ccc0a179043496af96ec3aa848630c4166a1615aea24c9c",
+          "audio": "642a89678a4e0fb92c91f1aff5e6a46d7c00130ce78a821e362d29b99ebdcc7a",
+          "start": 5130,
+          "equalVideo": true,
+          "equalAudio": true
+        }
+      ]
+    },
+    {
+      "engine": "simd",
+      "minutes": 120,
+      "warmSeconds": 2.5778600000000007,
+      "rows": [
+        {
+          "seconds": 2.5080600000000004,
+          "frames": 6,
+          "video": "cb8dcec1a2d59d21673934d4b088fbb0c473b7f4956d6743f088608d3a2dfd38",
+          "audio": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+          "start": 720,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 1.800260000000002,
+          "frames": 6,
+          "video": "cb8dcec1a2d59d21673934d4b088fbb0c473b7f4956d6743f088608d3a2dfd38",
+          "audio": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+          "start": 3600,
+          "equalVideo": true,
+          "equalAudio": true
+        },
+        {
+          "seconds": 1.171159999999998,
+          "frames": 6,
+          "video": "cb8dcec1a2d59d21673934d4b088fbb0c473b7f4956d6743f088608d3a2dfd38",
+          "audio": "04daa5e1b0c007a5239361579c3540b969a022aa0305d9e7e73b42e63fb58d4e",
+          "start": 6840,
+          "equalVideo": true,
+          "equalAudio": true
+        }
+      ]
+    }
+  ],
+  "actualPlayerSlider": [
+    {
+      "actualInterfaceSeekSeconds": 6.627,
+      "targetSeconds": 6846
+    }
+  ],
+  "compression": [
+    {
+      "mode": "uniform",
+      "capBytes": 800000,
+      "actualBytes": 438272,
+      "seconds": 12.92917906299408,
+      "busyScenePSNR": 26.409839,
+      "completeDecodeVerified": true,
+      "trials": 6
+    },
+    {
+      "mode": "scene",
+      "capBytes": 800000,
+      "actualBytes": 651264,
+      "seconds": 13.616130081994925,
+      "busyScenePSNR": 26.974959,
+      "completeDecodeVerified": true,
+      "trials": 6
+    },
+    {
+      "mode": "matched-uniform",
+      "capBytes": 1228800,
+      "actualBytes": 651264,
+      "seconds": 14.007568932007416,
+      "busyScenePSNR": 26.974959,
+      "completeDecodeVerified": true,
+      "trials": 6
+    }
+  ],
+  "testResults": {
+    "nodePassed": 359,
+    "nativeIndexedPassed": 7,
+    "otherNativePassed": 13,
+    "scalarAndSIMDWasm": "included full Node suite and separate SIMD player test (1 passed)",
+    "chromiumUpgradePassed": 19,
+    "chromiumFramingOptionsQueuePassed": 10,
+    "chromiumLongParallelRecoveryPassed": 5,
+    "chromiumWorkerSeekingPassed": 8,
+    "chromiumActualSliderPassed": 1,
+    "chromiumComplexityAndCachePassed": 2,
+    "linuxWebKitSeekingPassed": 8,
+    "linuxWebKitComplexityAndCachePassed": 2
+  },
+  "portablePackages": [
+    {
+      "file": "MobiPEG-windows-x86_64.zip",
+      "bytes": 68615886,
+      "sha256": "4f912b459add03d91834066462310e58e6eebeb788f7704269fc872754a72047"
+    },
+    {
+      "file": "MobiPEG-macos-x86_64.tar.gz",
+      "bytes": 68242169,
+      "sha256": "96dfb090c1e5ea34008c86eff7ae7f5ae5b0419b46557d334bb2f41c36399d31"
+    },
+    {
+      "file": "MobiPEG-macos-arm64.tar.gz",
+      "bytes": 67467687,
+      "sha256": "d3d03413e3f8105af232820e28e42dd90aea47db28c9d956a1ed4ddd5c718e1c"
+    },
+    {
+      "file": "MobiPEG-linux-x86_64.tar.gz",
+      "bytes": 63647128,
+      "sha256": "c2054dd3d2729453a2e5010ce605e4779c867f69448bbbf07e34a3132159e7b1"
+    }
+  ],
+  "packageExecution": {
+    "linux": "frozen package smoke passed",
+    "windows": "Wine portable smoke passed: 2D/full-SBS/half-SBS, selected audio, complete decoding, output protection",
+    "macos": "cross-built; architecture/system imports checked, ARM64 ad-hoc page hashes verified; not executed on macOS"
+  },
+  "limitations": [
+    "Indexed path requires a validated MobiPEG front table and supported single MobiClip stream. Unknown formats retain forward decoding.",
+    "Interleaved stereo requires an even-frame intra start with the following eye also intra. No verified start within the bounded search retains the safe fallback.",
+    "Timings are machine-specific. Browser worker measurements separate engine warmup; actual slider is recorded independently.",
+    "Scene analysis samples source luma at two short locations per range; it is not exhaustive shot analysis or optical flow.",
+    "At the same 800000-byte cap, more budget is used and difficult-scene PSNR improves. At matched actual bytes, the measured quality ties a manually retuned uniform baseline. No general equal-byte quality gain is claimed.",
+    "Budget redistribution applies to queued work; in-flight caps remain reserved. Completion order can affect later caps.",
+    "Desktop scene allocation applies to segmented parallel size-target jobs; the existing single-process short path is preserved.",
+    "Physical iPhone, physical 3DS and native macOS execution were not tested.",
+    "No new Azahar run was needed: player executable, CIA format, muxer and codec implementations are unchanged. Existing Azahar evidence remains the baseline.",
+    "Portable archives rebuilt locally; existing GitHub release assets have not been replaced."
+  ]
+}

@@ -1,17 +1,22 @@
 {
-  "encoder": "MobiPEG V15 stereo eye-order corrected",
+  "encoder": "MobiPEG V15 indexed seeking and scene-aware allocation",
   "toolchain": "Emscripten 4.0.10",
   "threading": "pthreads (FFmpeg scheduler), codec thread count 1",
   "hashes": {
-    "native/MobiPEG_Studio_V15.py": "9bd6bc9b3a52ae9c7860eec99ef4747e9840c0a9832b75f3740d089e58b3c18e",
+    "native/MobiPEG_Studio_V15.py": "28cae026ec0b9d48f3a6766cd01a438d54bb7a95fc91376f2c2fe0f873a78e20",
+    "native/parallel_encode.py": "9f4078cc397a89978034d4500e9fe0e6246716f900afe72464447a7329ae3dd7",
+    "native/scene_complexity.py": "a99613a7ae3291ffe0ec30b640c76a7fd8ee01a17d45d9ab62389601de698839",
+    "dist/complexity.mjs": "89a08c55d9d6a0e82216cd186e0cec0761d68602b197440bc439930151bc7c5d",
+    "dist/movie.mjs": "484feb16048448c3639f1782430532fbc4da3062524d64a0cd8ebe323b5cb8c6",
+    "dist/parallel.mjs": "7fefc2dc4556247d58435d7bd2ca19e8c4e70c03b2fddbd5bfa4f68ffc52ae6b",
     "dist/core.mjs": "ff7989d07ea2f3174b6996864c8f2e27955561ae680ad146bc895451ae6b0f2d",
-    "dist/worker.js": "0b1c90d07624b2439f63ba7e4640b633a199caa1dcba4cfe7158b762b39529b7",
+    "dist/worker.js": "78a6e74d8ef1882c710e5d9ab0a278d009fb85d959e92a32e540ea443f671bfc",
     "native/source/x264/encoder/macroblock.c": "ec8d3fa826cd4a662e1fa236b30a1af2a4402382e3d96a82aa0479fddd92aba5",
     "native/source/x264/encoder/encoder.c": "fa0269214e468bcde007bcaf351ca92f4bc56ec2f2480153130d8202280b9389",
     "native/source/ffmpeg/libavcodec/libx264.c": "2c48a488ecf602aaac55bbac91d86568a3909581dfed5a0836342392fc7385cf",
-    "native/source/ffmpeg/libavformat/moflex.c": "eab1b025638f0d6969af9bc96642215616f9a2cbbba09803abc9fdd11086e65a",
+    "native/source/ffmpeg/libavformat/moflex.c": "12e531daba37e620719f6baa3579e58f00101a12b596e1a72d47161028d4e420",
     "native/source/ffmpeg/libavformat/moflexenc.c": "5e321816b41598daba0c95dae2c126b608ef9edc33f7f7309c25d2598bcd0fc3",
-    "dist/engine/mobipeg.wasm": "ae9f7d775f27c593168d705f88d468f41a9053cface4395984f38ea75c020ccf",
-    "dist/engine-simd/mobipeg.wasm": "694326d0b5b72bcf64121843d0f03e91a19207699789841991bc3ff1dafb2149"
+    "dist/engine/mobipeg.wasm": "acdd2772930d5b2a71d29755b606f9b9a5f3087222adde11ac049ce411ef940a",
+    "dist/engine-simd/mobipeg.wasm": "d906386847c601d3bee98e4c6abd1aba4be68bc4f685f9a0ed75bddc56723a98"
   }
 }

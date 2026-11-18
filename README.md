@@ -496,3 +496,17 @@ a 4.31 GB collection from browser storage. These are synthetic software tests;
 physical iPhone and 3DS long-movie behavior remains unverified. The safe forward
 decoder can still make long seeks slow. Detailed scope and benchmarks are in
 [the progress report](reports/UPGRADE_PROGRESS.md).
+
+### Indexed seeking and scene-aware size targets
+
+The player now uses guarded indexed access for supported MobiPEG files, selecting
+real intra starts and preserving audio clocks and stereo eye pairs. Generated
+30–120 minute movies seek in seconds in the tested browsers. Unknown files or
+stereo streams without suitable intra starts retain the safe forward fallback.
+
+Multi-range browser jobs and native parallel jobs with a maximum size now measure
+source texture and motion activity, weight video budgets, and redistribute unused
+bytes to queued ranges. Fixed audio and in-flight work remain reserved. The
+original short-video path is preserved. Testing showed better use of the requested
+cap; matched-actual-size quality tied a manually retuned uniform baseline.
+See [measurements and limitations](reports/INDEXED_SEEK_COMPRESSION.md).

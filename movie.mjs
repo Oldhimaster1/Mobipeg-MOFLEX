@@ -2,7 +2,7 @@
 // Works with the existing unmodified V15 WASM encoder, keeping each trial small.
 // All temporary files and the final output stay in the browser's private storage.
 import {FAT32_LIMIT, FAT32_MESSAGE} from './queue.mjs?v=20261117s';
-import {pruneCheckpoint} from './checkpoints.mjs?v=20261118f';
+import {pruneCheckpoint} from './checkpoints.mjs?v=20261118i';
 
 const BLOCK = 4096;
 const MAX_INDEX_ENTRIES = 50000;
@@ -213,21 +213,42 @@ export function planMovieClips(seconds, settings, targetSeconds = 30) {
 }
 // Each standalone range has a seek block and at least one media block.
 // Budget the complete range files, including their own audio and indexes.
-export function allocateMovieBudget(clips, targetBytes) {
+export function allocateMovieBudget(clips, targetBytes, complexity=null, audioRate=0) {
   const blocks = Math.floor(Math.min(targetBytes,FAT32_LIMIT)/BLOCK);
-  const minimum = 2*clips.length;
+  if(complexity!==null&&(!Array.isArray(complexity)||complexity.length!==clips.length||complexity.some(x=>!Number.isFinite(x)||x<=0)))throw Error('Invalid scene complexity weights');
+  if(!Number.isFinite(audioRate)||audioRate<0)throw Error('Invalid audio budget');
+  const floors=clips.map(clip=>2+Math.ceil((clip.seconds??0)*audioRate/BLOCK));
+  const minimum = floors.reduce((a,b)=>a+b,0);
   if (!Number.isSafeInteger(blocks) || !clips.length || blocks < minimum)
     throw Error('Maximum size is too small for the movie ranges and seek indexes.');
-  const frames = clips.reduce((sum,clip)=>sum+clip.codedFrames,0);
+  const weights=clips.map((clip,i)=>clip.codedFrames*(complexity?.[i]??1));
+  const frames = weights.reduce((sum,n)=>sum+n,0);
   const remaining = blocks-minimum;
   let cumulative = 0, last = 0;
-  return clips.map(clip=>{
-    cumulative += clip.codedFrames;
-    const allocated = Math.floor(remaining*cumulative/frames);
-    const bytes = (2+allocated-last)*BLOCK;
+  return clips.map((clip,i)=>{
+    cumulative += weights[i];
+    const allocated = i===clips.length-1?remaining:Math.floor(remaining*cumulative/frames);
+    const bytes = (floors[i]+allocated-last)*BLOCK;
     last = allocated;
     return bytes;
   });
+}
+// In-flight caps remain reserved until their outputs commit. Completed ranges
+// spend actual bytes; the rest is redistributed without a second analysis pass.
+export function remainingMovieBudgets(clips,targetBytes,segments,active={},analysis=null,audioRate=0){
+  targetBytes=Math.min(targetBytes,FAT32_LIMIT);
+  let spent=0;const pending=[];
+  for(const clip of clips){
+    const part=segments[clip.index];
+    if(part)spent+=part.file.size;
+    else if(Object.hasOwn(active,clip.index))spent+=active[clip.index];
+    else pending.push(clip);
+  }
+  if(spent>targetBytes)throw Error('Saved and active ranges exceed the maximum size.');
+  if(!pending.length)return {};
+  const weights=analysis?pending.map(c=>analysis.clips[c.index].score):null;
+  const values=allocateMovieBudget(pending,Math.floor(targetBytes-spent),weights,audioRate);
+  return Object.fromEntries(pending.map((clip,i)=>[clip.index,values[i]]));
 }
 export async function createMovieJob() {
   expect(navigator.storage && typeof navigator.storage.getDirectory === 'function', 'on-device OPFS storage is unavailable in this browser');

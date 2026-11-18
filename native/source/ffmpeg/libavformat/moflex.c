@@ -24,6 +24,8 @@
 
 #include "libavcodec/bytestream.h"
 #include "libavutil/intreadwrite.h"
+#include "libavutil/mathematics.h"
+#include "libavutil/mem.h"
 #include "demux.h"
 
 #include "avformat.h"
@@ -44,6 +46,14 @@ typedef struct MOFLEXDemuxContext {
     BitReader br;
 
     int64_t stream_pts[16]; /* cumulative pts per stream index */
+    uint8_t *seek_table;
+    unsigned seek_count;
+    uint8_t sync_descriptor[1024];
+    int sync_descriptor_size;
+    int interleaved;
+    int indexed_seek;
+    int seek_corrupt;
+    int64_t seek_start_video_pts;
     uint32_t expected_video_frames; /* validated MobiPEG front seek-table */
 } MOFLEXDemuxContext;
 
@@ -247,6 +257,7 @@ static int moflex_read_sync(AVFormatContext *s)
                 int layout;
                 avio_skip(pb, 2); /* PelRatioRate / PelRatioScale */
                 layout = avio_r8(pb) & 0x0f;
+                m->interleaved = layout < 2;
                 if ((layout == 0 || layout == 1) && tb.num > 0 && tb.den > 0)
                     tb.den *= 2;
             } else {
@@ -286,12 +297,20 @@ static int moflex_read_sync(AVFormatContext *s)
 
 static int moflex_read_header(AVFormatContext *s)
 {
+    MOFLEXDemuxContext *m = s->priv_data;
     int ret;
 
     ret = moflex_read_sync(s);
     if (ret < 0)
         return ret;
 
+    int64_t end = avio_tell(s->pb);
+    if (end >= 14 && end - 14 <= sizeof(m->sync_descriptor)) {
+        m->sync_descriptor_size = end - 14;
+        avio_seek(s->pb, 14, SEEK_SET);
+        if (avio_read(s->pb, m->sync_descriptor, m->sync_descriptor_size) != m->sync_descriptor_size)
+            return AVERROR_INVALIDDATA;
+    }
     s->ctx_flags |= AVFMTCTX_NOHEADER;
     avio_seek(s->pb, 0, SEEK_SET);
 
@@ -305,6 +324,7 @@ static int moflex_read_packet(AVFormatContext *s, AVPacket *pkt)
     BitReader *br = &m->br;
     int ret;
 
+    if (m->seek_corrupt) return AVERROR_INVALIDDATA;
     while (!avio_feof(pb)) {
         if (!m->in_block) {
             m->pos = avio_tell(pb);
@@ -327,6 +347,7 @@ static int moflex_read_packet(AVFormatContext *s, AVPacket *pkt)
 
         while ((avio_tell(pb) < m->pos + m->size) && !avio_feof(pb) && avio_r8(pb)) {
             int stream_index, bits, pkt_size, endframe;
+            int64_t clock = AV_NOPTS_VALUE;
             AVPacket *packet;
 
             m->in_block = 1;
@@ -347,15 +368,25 @@ static int moflex_read_packet(AVFormatContext *s, AVPacket *pkt)
             if (endframe < 0)
                 return endframe;
             if (endframe) {
+                int sign;
+                int64_t relative = 0;
                 bits = pop_length(br, pb);
-                if (bits < 0)
-                    return bits;
-                pop_int(br, pb, bits);
-                pop(br, pb);
+                if (bits < 1 || bits > 30) return AVERROR_INVALIDDATA;
+                if (pop_int(br, pb, bits) < 0) return AVERROR_INVALIDDATA;
+                sign = pop(br, pb);
                 bits = pop_length(br, pb);
-                if (bits < 0)
-                    return bits;
-                pop_int(br, pb, bits * 2 + 26);
+                if (sign < 0 || bits < 1 || bits > 18) return AVERROR_INVALIDDATA;
+                for (int j = 0; j < bits * 2 + 26; j++) {
+                    int bit = pop(br, pb);
+                    if (bit < 0) return bit;
+                    relative = relative * 2 + bit;
+                }
+                if (m->indexed_seek && bits != 1) return AVERROR(ENOSYS);
+                if (m->indexed_seek) {
+                    if (m->ts < 0 || m->ts > INT64_MAX - relative) return AVERROR_INVALIDDATA;
+                    clock = av_rescale_q(m->ts + (sign ? -relative : relative),
+                                         AV_TIME_BASE_Q, s->streams[stream_index]->time_base);
+                }
             }
 
             pkt_size = pop_int(br, pb, 13) + 1;
@@ -406,6 +437,8 @@ static int moflex_read_packet(AVFormatContext *s, AVPacket *pkt)
         } while (0)
 
             if (endframe && packet->size > 0) {
+                if (clock != AV_NOPTS_VALUE && stream_index < FF_ARRAY_ELEMS(m->stream_pts))
+                    m->stream_pts[stream_index] = clock;
                 av_packet_move_ref(pkt, packet);
                 pkt->pos = m->pos;
                 pkt->stream_index = stream_index;
@@ -420,7 +453,25 @@ static int moflex_read_packet(AVFormatContext *s, AVPacket *pkt)
                     if (entries > 0 && entries < 65536 && frames > 0 &&
                         (uint64_t)pkt->size == 16ULL + 24ULL * entries &&
                         AV_RL32(pkt->data + 12) == 0)
+                    {
                         m->expected_video_frames = frames;
+                        if (!m->seek_table && !m->indexed_seek) {
+                            int64_t file_size = avio_size(pb);
+                            int valid = m->sync_descriptor_size > 0 && file_size >= 4096;
+                            for (unsigned j = 0; j < entries && valid; j++) {
+                                const uint8_t *e = pkt->data + 16 + j * 24;
+                                uint64_t offset = AV_RL64(e + 16), time = AV_RL64(e + 8);
+                                valid = AV_RL64(e) < frames && time <= INT64_MAX &&
+                                    offset >= 4096 && offset % 4096 == 0 && offset < file_size;
+                                if (j) valid = valid && time > AV_RL64(e - 16) && offset > AV_RL64(e - 8) && AV_RL64(e) >= AV_RL64(e - 24);
+                            }
+                            if (valid && AV_RL64(pkt->data + 32) == ((avio_tell(pb) + 4095) / 4096) * 4096) {
+                                m->seek_table = av_memdup(pkt->data + 16, entries * 24);
+                                if (!m->seek_table) return AVERROR(ENOMEM);
+                                m->seek_count = entries;
+                            }
+                        }
+                    }
                 }
                 if (stream_index < FF_ARRAY_ELEMS(m->stream_pts)) {
                     pkt->pts = m->stream_pts[stream_index];
@@ -451,6 +502,11 @@ static int moflex_read_packet(AVFormatContext *s, AVPacket *pkt)
                 } else {
                     FILL_AUDIO_PKT(pkt, stream_index);
                 }
+                if (m->indexed_seek && s->streams[stream_index]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO &&
+                    pkt->pts < m->seek_start_video_pts) {
+                    av_packet_unref(pkt);
+                    continue;
+                }
                 return 0;
             }
         }
@@ -467,47 +523,103 @@ static int moflex_read_packet(AVFormatContext *s, AVPacket *pkt)
     return moflex_eof_status(s);
 }
 
+static int moflex_reset_at(AVFormatContext *s, int64_t offset, int indexed)
+{
+    MOFLEXDemuxContext *m = s->priv_data;
+    int64_t ret = avio_seek(s->pb, offset, SEEK_SET);
+    if (ret < 0) return ret;
+    memset(m->stream_pts, 0, sizeof(m->stream_pts));
+    for (int i = 0; i < s->nb_streams; i++)
+        if (s->streams[i]->priv_data) av_packet_unref(s->streams[i]->priv_data);
+    m->pos = offset; m->size = 0; m->flags = 0; m->in_block = 0;
+    m->indexed_seek = indexed; m->seek_start_video_pts = 0;
+    return 0;
+}
+
+static int moflex_indexed_seek(AVFormatContext *s, int video, int64_t target)
+{
+    MOFLEXDemuxContext *m = s->priv_data;
+    int lo = 0, hi = m->seek_count - 1, attempts = 0;
+    int64_t target_us = av_rescale_q(target, s->streams[video]->time_base, AV_TIME_BASE_Q);
+    while (lo < hi) {
+        int mid = (lo + hi + 1) / 2;
+        if (AV_RL64(m->seek_table + mid * 24 + 8) <= target_us) lo = mid;
+        else hi = mid - 1;
+    }
+    for (int index = lo; index >= 0 && attempts++ < 64; index--) {
+        const uint8_t *entry = m->seek_table + index * 24;
+        int64_t offset = AV_RL64(entry + 16), key = -1;
+        int verified = 0;
+        uint8_t header[14 + 1024];
+        uint16_t check = 0xaaaa;
+        int ret = moflex_reset_at(s, offset, 1);
+        if (ret < 0) return ret;
+        int length = 14 + m->sync_descriptor_size;
+        if (avio_read(s->pb, header, length) != length) return AVERROR_INVALIDDATA;
+        uint64_t stamp = AV_RB64(header + 4);
+        for (int j = 0; j < 64; j += 16) check ^= stamp >> j;
+        if (AV_RB16(header) != 0x4c32 || AV_RB16(header + 2) != check ||
+            stamp != AV_RL64(entry + 8) || AV_RB16(header + 12) != 4095 ||
+            memcmp(header + 14, m->sync_descriptor, m->sync_descriptor_size))
+            return AVERROR_INVALIDDATA;
+        ret = moflex_reset_at(s, offset, 1);
+        if (ret < 0) return ret;
+        AVPacket *pkt = av_packet_alloc();
+        if (!pkt) return AVERROR(ENOMEM);
+        for (int packets = 0; packets < 4096; packets++) {
+            ret = moflex_read_packet(s, pkt);
+            if (ret < 0) break;
+            if (pkt->stream_index == video) {
+                int64_t frame = pkt->pts;
+                if (key >= 0) {
+                    if ((pkt->flags & AV_PKT_FLAG_KEY) && frame == key + 1) { verified = 1; break; }
+                    key = -1;
+                }
+                if (frame > target) break;
+                if ((pkt->flags & AV_PKT_FLAG_KEY) && (!m->interleaved || !(frame & 1))) {
+                    key = frame;
+                    if (!m->interleaved) { verified = 1; break; }
+                }
+            }
+            av_packet_unref(pkt);
+        }
+        av_packet_free(&pkt);
+        if (ret >= 0 && key >= 0 && verified) {
+            ret = moflex_reset_at(s, offset, 1);
+            m->seek_start_video_pts = key;
+            av_log(s, AV_LOG_DEBUG, "MOFLEX indexed seek: frame %"PRId64" at byte %"PRId64"\n", key, offset);
+            return ret;
+        }
+    }
+    return AVERROR(ENOSYS);
+}
+
 static int moflex_read_seek(AVFormatContext *s, int stream_index,
                             int64_t pts, int flags)
 {
     MOFLEXDemuxContext *m = s->priv_data;
-    int64_t ret;
-    int i;
-
-    /*
-     * Safe compatibility path: seek back to the beginning and allow the
-     * caller's accurate-seek logic to decode/drop frames until 'pts'.
-     *
-     * The generic packet index includes block-start addresses which are
-     * NOT guaranteed to start at MobiClip I-frames. Seeking directly to a
-     * nominal timestamp can therefore feed a P-frame into an empty picture
-     * ring and produce "P-frame setup_qtables failed".  Rewind preserves
-     * correctness while a real keyframe+timestamp index is implemented.
-     *
-     * This is intentionally O(video duration) for mid-file seeks.
-     */
-    if (!(s->pb->seekable & AVIO_SEEKABLE_NORMAL))
-        return AVERROR(ENOSYS);
-
-    ret = avio_seek(s->pb, 0, SEEK_SET);
-    if (ret < 0)
-        return (int)ret;
-
-    for (i = 0; i < FF_ARRAY_ELEMS(m->stream_pts); i++)
-        m->stream_pts[i] = 0;
-    for (i = 0; i < s->nb_streams; i++)
-        if (s->streams[i]->priv_data)
-            av_packet_unref(s->streams[i]->priv_data);
-
-    m->pos = 0;
-    m->size = 0;
-    m->flags = 0;
-    m->in_block = 0;
-    return 0;
+    if (!(s->pb->seekable & AVIO_SEEKABLE_NORMAL)) return AVERROR(ENOSYS);
+    int video_streams = 0;
+    for (int i = 0; i < s->nb_streams; i++)
+        video_streams += s->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO;
+    if (m->seek_count && video_streams == 1 && stream_index == 0 && stream_index < s->nb_streams &&
+        s->streams[stream_index]->codecpar->codec_id == AV_CODEC_ID_MOBICLIP &&
+        !(flags & AVSEEK_FLAG_BYTE) && pts > 0 && !getenv("MOBIPEG_FORWARD_SEEK")) {
+        int ret = moflex_indexed_seek(s, stream_index, pts);
+        if (ret != AVERROR(ENOSYS)) {
+            if (ret < 0) m->seek_corrupt = 1;
+            return ret;
+        }
+    }
+    /* Unknown layouts, unindexed vendors and unverified starts retain the
+     * safe accurate-forward path. Never feed a P-frame into an empty ring. */
+    return moflex_reset_at(s, 0, 0);
 }
 
 static int moflex_read_close(AVFormatContext *s)
 {
+    MOFLEXDemuxContext *m = s->priv_data;
+    av_freep(&m->seek_table);
     for (int i = 0; i < s->nb_streams; i++) {
         av_packet_free((AVPacket **)&s->streams[i]->priv_data);
     }
@@ -525,6 +637,6 @@ const FFInputFormat ff_moflex_demuxer = {
     .read_seek      = moflex_read_seek,
     .read_close     = moflex_read_close,
     .p.extensions     = "moflex",
-    .p.flags          = AVFMT_GENERIC_INDEX,
+    .p.flags          = AVFMT_NOBINSEARCH | AVFMT_NOGENSEARCH | AVFMT_NO_BYTE_SEEK,
     .flags_internal = FF_INFMT_FLAG_INIT_CLEANUP,
 };
