@@ -1,3 +1,5 @@
+import {bannerWithWav} from './cia-banner-audio.mjs';
+import {makeHomeBanner} from './cia-banner.mjs';
 import {isArtworkImage,makeSmdhArtwork,makeEpisodeArtwork} from './cia-artwork.mjs';
 import { rebuildRomfsMetadata } from "./cia-romfs.mjs";
 import { sha256Blob } from "./cia-sha256.mjs";
@@ -207,6 +209,7 @@ export async function buildCia({
   movies,
   icon = null,
   banner = null,
+  bannerAudio = null,
   episodeBanners = [],
   onProgress = () => {},
 }) {
@@ -359,7 +362,8 @@ export async function buildCia({
     }
   }
   if (!executable) throw Error("Player executable missing");
-  if (banner) {
+  if (banner || bannerAudio) {
+    if(banner&&!isArtworkImage(banner)&&banner.size>16*1024*1024)throw Error('Prepared banner exceeds 16 MiB');
     const entries = [];
     for (let i = 0; i < 10; i++) {
       const o = i * 16,
@@ -372,7 +376,8 @@ export async function buildCia({
     }
     const entry = entries.find((e) => e.name === "banner");
     if (!entry) throw Error("Template has no banner slot");
-    entry.bytes = await read(banner, 0, banner.size);
+    if(banner)entry.bytes = isArtworkImage(banner) ? await makeHomeBanner(banner,entry.bytes) : await read(banner, 0, banner.size);
+    if(bannerAudio)entry.bytes=await bannerWithWav(entry.bytes,bannerAudio);
     if (entry.bytes.length < 0x84 || text(entry.bytes, 0, 4) !== "CBMD")
       throw Error("Supply a prepared banner binary with CBMD content");
     const eh = new Uint8Array(512),

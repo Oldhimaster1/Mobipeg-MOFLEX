@@ -233,11 +233,20 @@ template to build seasons. Tests reuse a two-episode native template for 1, 2, 5
 10, 20 and 27 episodes and verify payloads, title rows, settings, executable and
 menu resource preservation through independent extraction.
 
-Custom icons currently require a prepared SMDH. Custom banners require a prepared
-CBMD `.bnr` or `.bin`, which can include banner audio. PNG/BMP artwork remains
-available for native project export. Each episode can use a prepared `.bimg` thumbnail matching the selected template's
-format. Otherwise its thumbnail is copied from the template's first episode.
-PNG/BMP conversion for episode thumbnails remains pending.
+HOME Menu icons and episode thumbnails accept PNG, BMP and JPG images, plus
+prepared SMDH/BIMG files. Images are center-cropped and resized to tiled RGB565.
+HOME Menu banner images can replace a compatible 256×128 RGB565 texture inside
+the selected template's CGFX model. Animation and model resources are retained.
+Unsupported models give an explicit error and can use prepared CBMD banners.
+Optional mono/stereo PCM16 WAV audio at 8–48 kHz and up to ten seconds is packed
+into CWAV. Leaving audio blank retains the template's audio. Independent
+vgmstream decoding preserved every original mono/stereo PCM sample. Physical
+console banner display and audio remain unverified.
+
+Prepare synthetic console-test movies with
+`python3 scripts/prepare-cia-device-test.py /path/to/new-test-directory`.
+Follow [the device checklist](reports/CIA_DEVICE_TEST.md) with your own legally
+obtained local collection template. The kit distributes no player executable.
 
 SHA-256 content hashing reads 1 MiB chunks. RomFS integrity hashing uses 4 KiB
 blocks, and movie data remains in Blob slices. Executable/ExeFS prefix allocation

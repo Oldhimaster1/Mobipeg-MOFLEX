@@ -1,6 +1,6 @@
-import {stageCia,ciaOutputDirectory} from './cia-output.mjs?v=20261118d';
-import {buildCia} from './cia-packager.mjs?v=20261118d';
-import {createCiaProject,ciaSizeEstimate,MAX_CIA_MOVIES,planCiaParts} from './cia-project.mjs?v=20261118d';
+import {stageCia,ciaOutputDirectory} from './cia-output.mjs?v=20261118e';
+import {buildCia} from './cia-packager.mjs?v=20261118e';
+import {createCiaProject,ciaSizeEstimate,MAX_CIA_MOVIES,planCiaParts} from './cia-project.mjs?v=20261118e';
 import {readSuperMoflex} from './super-moflex.mjs?v=20261117r';
 import {inspectPlayableMoflex} from './player-core.mjs?v=20261117s';
 
@@ -92,7 +92,7 @@ $('ciaBuild').onclick=async()=>{
     if(!template)throw Error('Select a local compatible player CIA template.');
     const icon=$('ciaIcon').files[0],banner=$('ciaBanner').files[0];
     if(icon&&!/\.(smdh|png|bmp|jpe?g)$/i.test(icon.name))throw Error('Choose a PNG, BMP, JPG or SMDH icon.');
-    if(banner&&!/\.(bin|bnr)$/i.test(banner.name))throw Error('CIA building requires a prepared .bnr or .bin banner.');
+    if(banner&&!/\.(bin|bnr|png|bmp|jpe?g)$/i.test(banner.name))throw Error('Choose a PNG, BMP, JPG or prepared banner.');
     if(episodes.some(e=>e.bannerFile&&!/\.(bimg|png|bmp|jpe?g)$/i.test(e.bannerFile.name)))throw Error('Choose a PNG, BMP, JPG or BIMG episode thumbnail.');
     const project=createCiaProject({title:$('ciaTitle').value,longTitle:$('ciaLongTitle').value,
       publisher:$('ciaPublisher').value,id:$('ciaId').value,
@@ -102,7 +102,7 @@ $('ciaBuild').onclick=async()=>{
     const firstId=parseInt(project.id,16);
     for(const [part,indices] of groups.entries()){
       const partProject={...project,id:(firstId+part).toString(16).toUpperCase(),movies:indices.map(i=>project.movies[i])};
-      let result=await buildCia({template,project:partProject,movies:indices.map(i=>movies[i]),icon,banner,episodeBanners:indices.map(i=>episodes[i].bannerFile),onProgress:message=>setStatus('Part '+(part+1)+' of '+groups.length+' · '+message)});
+      let result=await buildCia({template,project:partProject,movies:indices.map(i=>movies[i]),icon,banner,bannerAudio:$('ciaBannerAudio').files[0],episodeBanners:indices.map(i=>episodes[i].bannerFile),onProgress:message=>setStatus('Part '+(part+1)+' of '+groups.length+' · '+message)});
       if($('ciaStage').checked){setStatus('Saving CIA in private browser storage');result=await stageCia(result);await showSavedCias();}
       const url=URL.createObjectURL(result),link=document.createElement('a');link.href=url;link.download=groups.length>1?'collection-'+(part+1)+'.cia':'movie.cia';link.click();
       setTimeout(()=>URL.revokeObjectURL(url),60000);
