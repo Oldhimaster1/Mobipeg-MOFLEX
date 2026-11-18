@@ -21,6 +21,8 @@ for(const name of Object.keys(manifest.files)){
 }
 for(const [path,expected] of Object.entries(JSON.parse(read('dist/engine/provenance.json')).hashes))assert.equal(hash(read(path)),expected,path);
 assert.deepEqual(read('engine/provenance.json'),read('dist/engine/provenance.json'));
+for(const name of ['worker.js','player-worker.js'])assert.equal(/const ENGINE_RELEASE = '([^']+)'/.exec(read(name).toString())[1],version,name+' release');
+for(const name of ['app.mjs','parallel.mjs','player.mjs','trailer-editor.mjs'])for(const match of read(name).toString().matchAll(/(?:player-)?worker\.js\?v=([A-Za-z0-9]+)/g))assert.equal(match[1],version,name+' worker URL');
 assert.equal(read('.nojekyll').length,0);
 console.log(`Web release ${version}: source/deployment parity, offline hashes, real scalar/SIMD modules and provenance passed.`);
 if(process.argv[2]){

@@ -280,6 +280,7 @@ test('CIA project reopens ordered episodes and artwork without changing the edit
 });
 
 for(const engine of ['scalar','simd'])test('real short conversion and playback with '+engine,async({page},testInfo)=>{
+  const engineRequests=[];page.on('request',r=>{if(/\/engine(?:-simd)?\/mobipeg\.(?:js|wasm)/.test(r.url()))engineRequests.push(r.url());});
   await page.goto('/');
   await page.locator('#file').setInputFiles(source);
   await page.locator('#workers').fill('1');
@@ -296,6 +297,8 @@ for(const engine of ['scalar','simd'])test('real short conversion and playback w
   await page.goto('/player.html');await page.locator('#movieFile').setInputFiles(output);
   await page.locator('#play').click();
   await expect(page.locator('#playerStatus')).toContainText('Playing locally',{timeout:30000});
+  expect(engineRequests.some(url=>url.includes('.wasm?'))).toBe(true);
+  for(const url of engineRequests)expect(new URL(url).searchParams.get('v')).toBe('20261118t');
 });
 
 test('CIA editor uses saved batch conversions directly from OPFS',async({page})=>{

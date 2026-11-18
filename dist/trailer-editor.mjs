@@ -28,7 +28,7 @@ async function alternateBody(file, language, duration, update){
   header.setUint32(0,48000,true);header.setUint16(4,2,true);header.setUint16(6,256,true);
   new Uint8Array(header.buffer,8).set(languageHeader(language));
   const parts=[header.buffer];
-  const worker=new Worker('player-worker.js?v=20261118f');
+  const worker=new Worker('player-worker.js?v=20261118t');
   try{
     for(let at=0;at<samples;at+=1048576){
       update('Encoding alternate audio… '+Math.floor(100*at/samples)+'%');

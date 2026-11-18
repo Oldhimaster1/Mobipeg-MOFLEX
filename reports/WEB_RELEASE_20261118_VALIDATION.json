@@ -1,0 +1,43 @@
+{
+  "releaseCache": "20261118t",
+  "testResults": {
+    "nodePassed": 361,
+    "nodeSkipped": 0,
+    "chromiumDistinctPassed": 48,
+    "chromiumMainPassed": 42,
+    "chromiumCorrectedArtworkRerunPassed": 6,
+    "linuxWebKitPassed": 5,
+    "separateSIMDHDRAndPlayerPassed": 3,
+    "finalNodePassed": 361,
+    "finalLinuxWebKitPassed": 5,
+    "additionalFinalWebKitSuperEditorPassed": 1,
+    "finalCleanChromiumPassed": 48,
+    "finalChromiumSkipped": 0
+  },
+  "initialFixtureIssue": "Non-red artwork was mistakenly supplied to red-artwork assertions. Six CIA cases structurally verified but failed expected-color assertions. Rerun with required red image passed all six without product changes.",
+  "firefox": "Official Playwright Firefox installed; headless browser startup timed out with sandbox uid-map and software compositor/framebuffer failures. No Firefox functionality pass claimed.",
+  "beforeLive": {
+    "phase": "before",
+    "checkedAt": "2026-11-18T18:08:50.684Z",
+    "url": "https://oldhimaster1.github.io/Mobipeg-MOFLEX/",
+    "testProxyTLSBypass": true,
+    "caches": [
+      "mobipeg-offline-/Mobipeg-MOFLEX/-20261118h"
+    ],
+    "manifest": "20261118h",
+    "checks": [],
+    "passed": true
+  },
+  "engines": {
+    "engine/mobipeg.wasm": "acdd2772930d5b2a71d29755b606f9b9a5f3087222adde11ac049ce411ef940a",
+    "engine-simd/mobipeg.wasm": "d906386847c601d3bee98e4c6abd1aba4be68bc4f685f9a0ed75bddc56723a98"
+  },
+  "intermediateApplicationCommit": "0923ffc53cd31b8e95f4f7c1c8a25dd565d64f3e",
+  "engineLoading": "Encoder JS, WASM and pthread bootstrap plus decoder JS/WASM are explicitly pinned to release 20261118t. Real scalar/SIMD browser tests assert requested URL versions.",
+  "intermediateLiveAssets": {
+    "allManifestAssetsMatched": 52,
+    "serviceWorkerAndManifestMatched": true,
+    "wasmMIMETypesCorrect": true,
+    "version": "20261118r"
+  }
+}

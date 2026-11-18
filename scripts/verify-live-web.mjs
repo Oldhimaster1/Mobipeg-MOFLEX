@@ -12,11 +12,12 @@ if(!work||resolve(work).startsWith(resolve('.')+'/'))throw Error('Choose an exte
 mkdirSync(work,{recursive:true});
 const url='https://oldhimaster1.github.io/Mobipeg-MOFLEX/';
 const version=/const VERSION = '([^']+)'/.exec(readFileSync('isolation-sw.js','utf8'))[1];
-const context=await chromium.launchPersistentContext(resolve(work,'profile'),{headless:true,acceptDownloads:true,...(process.env.MOBIPEG_TEST_IGNORE_HTTPS_ERRORS==='1'?{ignoreHTTPSErrors:true,args:['--ignore-certificate-errors']}: {})});
+let context=await chromium.launchPersistentContext(resolve(work,'profile'),{headless:true,acceptDownloads:true,...(process.env.MOBIPEG_TEST_IGNORE_HTTPS_ERRORS==='1'?{ignoreHTTPSErrors:true,args:['--ignore-certificate-errors']}: {})});
 await context.addInitScript(()=>{try{localStorage.setItem('mobipeg-usage-opt-out','1');}catch{}});
 let page=context.pages()[0]||await context.newPage();
 const evidence={phase,checkedAt:new Date().toISOString(),url,testProxyTLSBypass:process.env.MOBIPEG_TEST_IGNORE_HTTPS_ERRORS==='1'};
-const checks=[];
+const checks=[],engineRequests=[];
+context.on('request',r=>{if(r.serviceWorker())return;if(/\/engine(?:-simd)?\/mobipeg\.(?:js|wasm)/.test(r.url()))engineRequests.push(r.url());});
 try{
  await page.goto(url,{waitUntil:'domcontentloaded'});
  await expect(page.locator('#offlineSetup')).toBeVisible({timeout:60000});
@@ -77,10 +78,20 @@ try{
   evidence.cia=JSON.parse(execFileSync('python3',['native/cia_builder.py','verify',cia],{encoding:'utf8'}));
   await page.screenshot({path:resolve(work,'live-cia.png')});
   checks.push('live two-episode CIA generation, download and independent native verification');
-  await context.setOffline(true);await page.goto(url);
+  expect(engineRequests.length).toBeGreaterThan(0);
+  for(const request of engineRequests)expect(new URL(request).searchParams.get('v')).toBe(version);
+  evidence.engineReleaseRequests=engineRequests.length;
+  await context.close();
+  // Playwright's page offline flag does not reliably block service-worker
+  // networking. Restart the same profile behind an unreachable proxy instead.
+  context=await chromium.launchPersistentContext(resolve(work,'profile'),{headless:true,acceptDownloads:true,
+    proxy:{server:'http://127.0.0.1:9'},ignoreHTTPSErrors:process.env.MOBIPEG_TEST_IGNORE_HTTPS_ERRORS==='1',
+    ...(process.env.MOBIPEG_TEST_IGNORE_HTTPS_ERRORS==='1'?{args:['--ignore-certificate-errors']}:{} )});
+  await context.addInitScript(()=>{try{localStorage.setItem('mobipeg-usage-opt-out','1');}catch{}});
+  page=context.pages()[0]||await context.newPage();await page.goto(url);
   await expect(page.locator('#convert')).toBeVisible();
   expect(await page.evaluate(()=>crossOriginIsolated)).toBe(true);
-  expect(await page.evaluate(async()=>{try{await fetch('never-cached-network-probe');return false;}catch{return true;}})).toBe(true);
+  expect(await page.evaluate(async()=>{try{await fetch('never-cached-network-probe-'+Date.now());return false;}catch{return true;}})).toBe(true);
   await page.locator('#file').setInputFiles(process.env.MOBIPEG_LIVE_SOURCE);
   await page.locator('#workers').fill('1');await page.locator('#resolution').selectOption('256x144');
   await page.locator('#speed').selectOption('fast');await page.locator('#convert').click();
