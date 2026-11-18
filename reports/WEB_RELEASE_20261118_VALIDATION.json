@@ -39,5 +39,55 @@
     "serviceWorkerAndManifestMatched": true,
     "wasmMIMETypesCorrect": true,
     "version": "20261118r"
+  },
+  "applicationCommit": "479d65567c56592d33d648e79d78c86b73d825f6",
+  "live": {
+    "phase": "after",
+    "checkedAt": "2026-11-18T18:27:38.338Z",
+    "url": "https://oldhimaster1.github.io/Mobipeg-MOFLEX/",
+    "testProxyTLSBypass": true,
+    "caches": [
+      "mobipeg-offline-/Mobipeg-MOFLEX/-20261118t"
+    ],
+    "cia": {
+      "title_id": "000400000C456700",
+      "bytes": 2574080,
+      "contents_checked": 1
+    },
+    "engineReleaseRequests": 106,
+    "checks": [
+      "prior offline cache replaced by release cache through service-worker lifecycle",
+      "scalar live conversion, download and independent full decoding",
+      "simd live conversion, download and independent full decoding",
+      "live player launches converted movie",
+      "live two-episode CIA generation, download and independent native verification",
+      "offline reload, isolation, real conversion and CIA editor availability"
+    ],
+    "passed": true
+  },
+  "liveExtractedContents": {
+    "movies": [
+      {
+        "episode": 1,
+        "bytes": 335872,
+        "sha256": "fb9e459ca0142c4f07cbd70591321197530f85eb5c01fff2ba9a94aa1a4c335f",
+        "originalByteIdentical": true
+      },
+      {
+        "episode": 2,
+        "bytes": 348160,
+        "sha256": "1759f0685eab808da21ae2d00abaf89d43fa0f7fdd815d1d1d723cb1180237a1",
+        "originalByteIdentical": true
+      }
+    ],
+    "executableBytes": 1298432,
+    "executableSHA256": "96b2f18aabd395f289aeda6cc9b376ab901756db83ec2d61a7f988e8b164a00f",
+    "templateExecutableByteIdentical": true
+  },
+  "liveAssets": {
+    "allManifestAssetsMatched": 52,
+    "serviceWorkerAndManifestMatched": true,
+    "wasmMIMETypesCorrect": true,
+    "version": "20261118t"
   }
 }

@@ -39,3 +39,13 @@ node scripts/validate-web-release.mjs https://oldhimaster1.github.io/Mobipeg-MOF
 - Locally refreshed desktop archives are not republished by this web release; native macOS execution remains unverified.
 
 Final local release rerun: **48 Chromium passed in one clean run, zero failures/skips**, including real engine URL-tag assertions. Final Node rerun: **361 passed, zero skipped**. Final WebKit: **five passed**, plus the extra editor/export recheck. All 52 offline assets, root/deployment parity, engine-release tags and provenance pass the current-source gate.
+
+## Final published result
+
+Application commit **`479d65567c56592d33d648e79d78c86b73d825f6`** was pushed directly to `master`; Pages reports **built**. The public site was then checked at **2026-11-18 18:27–18:28 UTC**. All **52** deployed manifest assets matched local SHA-256 values; the offline manifest and service worker matched, and both WASM engines had the correct MIME type.
+
+The same persistent profile migrated from the previously saved release through the intermediate cache to **20261118t**, leaving only the final scoped cache. Both live scalar and SIMD conversions downloaded valid MOFLEX files and passed independent native full decoding. Live playback started. The live CIA editor produced a **2,574,080-byte, two-episode CIA** with title ID **000400000C456700**, independently verified by the native verifier. VidInjector extraction confirmed both original 400×240 MOFLEX payloads byte-for-byte. An independent CIA/NCCH/ExeFS parse confirmed the embedded `.code` player is byte-identical to the supplied template executable; hashes and sizes are in `WEB_RELEASE_20261118_VALIDATION.json`.
+
+The persistent profile then restarted with an unreachable network proxy: a never-cached request failed, while the cached app reloaded with cross-origin isolation, completed a real conversion, and opened the CIA editor. This verifies offline execution rather than only successful cache installation. **106 observed engine requests used the expected release tag**. Screenshots and synthetic media remain outside Git. No new physical-device or Azahar playback claim is made.
+
+The follow-up documentation commit changes no application asset or offline version; its application content is exactly the release tested above.
