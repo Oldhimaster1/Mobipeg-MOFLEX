@@ -35,7 +35,7 @@ function base(){
   const content=Buffer.concat([ncch,exheader,gap,exefs]);
   tmd.writeBigUInt64BE(BigInt(content.length),record+8);sha(content).copy(tmd,record+16);
   p64(header,24,align(content.length));
-  return new Blob([header,cert,ticket,Buffer.alloc(align(ticket.length)-ticket.length),tmd,Buffer.alloc(align(tmd.length)-tmd.length),content]);
+  return new Blob([header,Buffer.alloc(align(header.length)-header.length),cert,ticket,Buffer.alloc(align(ticket.length)-ticket.length),tmd,Buffer.alloc(align(tmd.length)-tmd.length),content]);
 }
 function zip(records){
   const local=[],central=[];let at=0,cs=0;
