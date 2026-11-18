@@ -1,3 +1,4 @@
+import {isArtworkImage,makeSmdhArtwork,makeEpisodeArtwork} from './cia-artwork.mjs';
 import { rebuildRomfsMetadata } from "./cia-romfs.mjs";
 import { sha256Blob } from "./cia-sha256.mjs";
 // Template-preserving CIA rebuild. No executable or template is distributed.
@@ -253,7 +254,7 @@ export async function buildCia({
       blob: movies[i],
     });
     if (collection) {
-      const thumbnail = episodeBanners[i] || art.blob;
+      const thumbnail = isArtworkImage(episodeBanners[i]) ? await makeEpisodeArtwork(episodeBanners[i],art.blob) : episodeBanners[i] || art.blob;
       if (
         episodeBanners[i] &&
         (thumbnail.size !== art.blob.size ||
@@ -335,7 +336,7 @@ export async function buildCia({
     if (name === ".code") executable = true;
     if (name === "icon") {
       if (icon) {
-        const replacement = await read(icon, 0, icon.size);
+        const replacement = isArtworkImage(icon) ? await makeSmdhArtwork(icon,ex.subarray(start,start+size)) : await read(icon, 0, icon.size);
         if (replacement.length !== size || text(replacement, 0, 4) !== "SMDH")
           throw Error("Custom icon must be a matching SMDH");
         ex.set(replacement, start);

@@ -1,5 +1,6 @@
-import {buildCia} from './cia-packager.mjs?v=20261118c';
-import {createCiaProject,ciaSizeEstimate,MAX_CIA_MOVIES,planCiaParts} from './cia-project.mjs?v=20261118c';
+import {stageCia,ciaOutputDirectory} from './cia-output.mjs?v=20261118d';
+import {buildCia} from './cia-packager.mjs?v=20261118d';
+import {createCiaProject,ciaSizeEstimate,MAX_CIA_MOVIES,planCiaParts} from './cia-project.mjs?v=20261118d';
 import {readSuperMoflex} from './super-moflex.mjs?v=20261117r';
 import {inspectPlayableMoflex} from './player-core.mjs?v=20261117s';
 
@@ -26,7 +27,7 @@ function render(){
     input.addEventListener('input',()=>entry.title=input.value);
     label.append(input);controls.append(label);
     const bannerLabel=document.createElement('label');bannerLabel.textContent='Episode banner ';
-    const banner=document.createElement('input');banner.type='file';banner.accept='.png,.bmp,.bnr,.bimg';
+    const banner=document.createElement('input');banner.type='file';banner.accept='.png,.bmp,.jpg,.jpeg,.bimg';
     banner.setAttribute('aria-label','Episode '+(index+1)+' banner');
     banner.onchange=()=>{entry.banner=banner.files[0]?.name??null;entry.bannerFile=banner.files[0]??null;};
     bannerLabel.append(banner);controls.append(bannerLabel);
@@ -90,9 +91,9 @@ $('ciaBuild').onclick=async()=>{
     const template=$('ciaTemplate').files[0];
     if(!template)throw Error('Select a local compatible player CIA template.');
     const icon=$('ciaIcon').files[0],banner=$('ciaBanner').files[0];
-    if(icon&&!/\.smdh$/i.test(icon.name))throw Error('CIA building currently requires a prepared .smdh icon.');
+    if(icon&&!/\.(smdh|png|bmp|jpe?g)$/i.test(icon.name))throw Error('Choose a PNG, BMP, JPG or SMDH icon.');
     if(banner&&!/\.(bin|bnr)$/i.test(banner.name))throw Error('CIA building requires a prepared .bnr or .bin banner.');
-    if(episodes.some(e=>e.bannerFile&&!/\.bimg$/i.test(e.bannerFile.name)))throw Error('Browser episode thumbnails require a template-compatible .bimg file.');
+    if(episodes.some(e=>e.bannerFile&&!/\.(bimg|png|bmp|jpe?g)$/i.test(e.bannerFile.name)))throw Error('Choose a PNG, BMP, JPG or BIMG episode thumbnail.');
     const project=createCiaProject({title:$('ciaTitle').value,longTitle:$('ciaLongTitle').value,
       publisher:$('ciaPublisher').value,id:$('ciaId').value,
       movies:episodes.map(e=>({file:e.file.name,title:e.title}))});
@@ -101,7 +102,8 @@ $('ciaBuild').onclick=async()=>{
     const firstId=parseInt(project.id,16);
     for(const [part,indices] of groups.entries()){
       const partProject={...project,id:(firstId+part).toString(16).toUpperCase(),movies:indices.map(i=>project.movies[i])};
-      const result=await buildCia({template,project:partProject,movies:indices.map(i=>movies[i]),icon,banner,episodeBanners:indices.map(i=>episodes[i].bannerFile),onProgress:message=>setStatus('Part '+(part+1)+' of '+groups.length+' · '+message)});
+      let result=await buildCia({template,project:partProject,movies:indices.map(i=>movies[i]),icon,banner,episodeBanners:indices.map(i=>episodes[i].bannerFile),onProgress:message=>setStatus('Part '+(part+1)+' of '+groups.length+' · '+message)});
+      if($('ciaStage').checked){setStatus('Saving CIA in private browser storage');result=await stageCia(result);await showSavedCias();}
       const url=URL.createObjectURL(result),link=document.createElement('a');link.href=url;link.download=groups.length>1?'collection-'+(part+1)+'.cia':'movie.cia';link.click();
       setTimeout(()=>URL.revokeObjectURL(url),60000);
     }
@@ -109,3 +111,20 @@ $('ciaBuild').onclick=async()=>{
   }catch(error){setStatus(error.message||String(error),true);}
   finally{button.disabled=false;}
 };
+
+async function showSavedCias(){
+  const list=$('ciaSaved');list.replaceChildren();
+  try{
+    const directory=await ciaOutputDirectory();
+    for await(const [name,handle] of directory.entries()){
+      if(handle.kind!=='file'||!name.endsWith('.cia'))continue;
+      const row=document.createElement('p'),download=document.createElement('button'),remove=document.createElement('button');
+      download.type=remove.type='button';download.textContent='Download '+name;remove.textContent='Delete';
+      download.onclick=async()=>{const url=URL.createObjectURL(await handle.getFile()),link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);};
+      remove.onclick=async()=>{if(confirm('Delete this browser-saved CIA?')){await directory.removeEntry(name);await showSavedCias();}};
+      row.append(download,remove);list.append(row);
+    }
+  }catch(error){if(error.name!=='NotFoundError')list.textContent='Saved CIA storage is unavailable: '+error.message;}
+}
+$('ciaStage').disabled=!navigator.storage?.getDirectory;
+showSavedCias();

@@ -245,6 +245,8 @@ is limited to 16 MiB. Output is assembled as a Blob and checked against FAT32.
 Enable splitting to partition an oversized collection in order, using consecutive
 title IDs. The splitter conservatively reserves the template size plus 64 MiB per
 part for packaging overhead. Every finished CIA receives a final FAT32 check.
+Enable **Save completed CIAs in this browser before downloading** to stream each
+finished output into OPFS and retain it for download/delete after reload.
 Actual multi-gigabyte builds, mobile peak memory and Safari are unverified.
 The browser validates source and final content hashes, NCCH section hashes and
 matching IDs. Independent native verification and extraction passed for generated

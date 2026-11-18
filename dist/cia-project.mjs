@@ -44,7 +44,7 @@ export function createCiaProject({title:projectTitle,longTitle='',publisher='Mob
   if(longTitle)data.long_title=title(longTitle,'Long title',127);
   for(const [key,value] of [['icon',icon],['banner',banner]])if(value){
     const name=safeCiaFileName(value);
-    if(!/\.(png|bmp|bnr|smdh)$/i.test(name))
+    if(!/\.(png|bmp|jpe?g|bnr|smdh|bin)$/i.test(name))
       throw Error('Unsupported '+key+' file format.');
     data[key]=name;
   }
