@@ -8,7 +8,7 @@
     "cia.mjs": "58cb15a41555a495ebdae57e19b318444ccb5b379b322a20e8301f96f5ad34fb",
     "cia-project.mjs": "a5cd05a455165aa1ba29d407ba1d43c384fe5c7a2d5d7e7d60832e0dee6f5d58",
     "cia-project-import.mjs": "9b656f0693929d4ed3104d00019c5b1be6f92ae47f21e2d03ddca77beeadb6f8",
-    "cia-packager.mjs": "29aad3479063b5737a33fc4e668cac7092c85b69a8b74c8d13eb607a534a78ae",
+    "cia-packager.mjs": "e47cf334ddb402dda528e449f9a64bc535f5ef6c2bb0b15fe1b893c37a49ac43",
     "cia-vidinjector-template.mjs": "0216542cc681765f0f00ff408a7192ae0a556d2995b6c20e29d95d447e0eb447",
     "cia-sha256.mjs": "a5c78b5728e1c6843eaeac79ea49e55ee6eb180c93896f185df24a37e1f244cc",
     "cia-sha256-wasm.mjs": "d1e52030b5bcb65b4b660e08b2aedc8039da1defb24cdf5b750ad3797172a3f1",
