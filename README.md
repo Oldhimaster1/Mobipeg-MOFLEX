@@ -179,8 +179,8 @@ The JSON project controls each episode's menu title and optional banner, plus
 the application title, publisher, icon, and banner. Run `preview` instead of
 `build` with a PNG output and `--asset icon` or `--asset banner` for the
 backend's preview. A prepared banner binary can supply its own banner audio.
-MobiPEG does not distribute the external tool or its assets. Browser CIA
-building and physical installation testing are pending.
+MobiPEG does not distribute the external tool or its assets. Browser CIA building supports compatible local templates as described below.
+Physical installation testing is pending.
 
 Choose **Save app for offline use** in the footer to cache the converter, player,
 and both WASM engines. After the status confirms setup, you can reopen and use
@@ -216,28 +216,40 @@ in a second WASM process in local synthetic checks. The committed
 Device-specific Safari behavior, real movies, and physical 3DS playback
 are still unverified.
 
-### CIA projects from the browser
+### CIA building in the browser
 
-Open [CIA project builder](cia.html) from the Web Studio header. Select 1–27
-MOFLEX files, arrange episodes, choose their menu titles and optional banners,
-and enter the HOME Menu title, publisher, ID, icon and banner. The browser
-inspects each movie locally and downloads a native-compatible **JSON project**.
-Your movie bytes stay on your device and are **not** included in the JSON.
-Keep the selected files, artwork, and `project.json` together, then use
-the existing native packager with your own VidInjector9002-CLI installation:
+Open the CIA builder, select your MOFLEX movies, and supply a legally obtained,
+decrypted VidInjector-compatible player CIA from your device. Select **Build CIA**
+to rebuild a real CIA locally. The template's executable and menu resources are
+retained. Movies are replaced in order, episode names and HOME Menu information
+are updated, and RomFS integrity levels, NCCH section hashes, content hashes,
+TMD and ticket title IDs are rebuilt. No template or executable is distributed.
 
-```sh
-python3 native/cia_builder.py build project.json movie.cia --backend /path/to/VidInjector9002-CLI
-python3 native/cia_builder.py verify movie.cia
-```
+The selected template must currently contain exactly the same number of movie
+slots as your project. Single-movie and two-movie native templates have integration
+coverage. The interface permits up to 27 episodes, with matching-template builds
+above two episodes still unverified. The browser preserves the template's layout
+and selection logic. It cannot switch a single-movie executable into a collection.
 
-**The browser does not yet generate a finished installable CIA.** The
-VidInjector backend and compatible base template are not distributed with
-MobiPEG, and the browser currently provides project authoring rather than
-packaging. This avoids pretending that a JSON manifest is an installable
-Nintendo 3DS title. The native packager does produce CIAs when provided the
-backend and validates the resulting content hashes. A real console is still
-required to confirm installation and playback.
+Custom icons currently require a prepared SMDH. Custom banners require a prepared
+CBMD `.bnr` or `.bin`, which can include banner audio. PNG/BMP artwork remains
+available for native project export. Per-episode banner editing is not yet wired
+into browser packaging. Existing episode artwork is retained from the template.
+
+SHA-256 content hashing reads 1 MiB chunks. RomFS integrity hashing uses 4 KiB
+blocks, and movie data remains in Blob slices. Executable/ExeFS prefix allocation
+is limited to 16 MiB. Output is assembled as a Blob and checked against FAT32.
+Actual multi-gigabyte builds, mobile peak memory and Safari are unverified.
+The browser validates source and final content hashes, NCCH section hashes and
+matching IDs. Independent native verification and extraction passed for generated
+single- and two-movie outputs, including exact movie bytes. Structural checks
+cannot establish physical 3DS installation or playback, which remain untested.
+
+The JSON export and native builder remain available. To run the native-reference
+integration test, set `MOBIPEG_CIA_BACKEND` to your VidInjector9002-CLI executable
+and run `node --test tests/cia-packager.test.mjs`. The Chromium test takes
+`MOBIPEG_TEST_CIA_TEMPLATE` and a JSON array of local movie paths in
+`MOBIPEG_TEST_CIA_MOVIES`, using `tests/browser/upgrade.config.mjs`.
 
 ### Hosting the web version
 

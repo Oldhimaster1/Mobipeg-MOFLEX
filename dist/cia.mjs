@@ -1,3 +1,4 @@
+import {buildCia} from './cia-packager.mjs?v=20261118b';
 import {createCiaProject,ciaSizeEstimate,MAX_CIA_MOVIES} from './cia-project.mjs?v=20261117z';
 import {readSuperMoflex} from './super-moflex.mjs?v=20261117r';
 import {inspectPlayableMoflex} from './player-core.mjs?v=20261117s';
@@ -82,3 +83,24 @@ $('ciaForm').addEventListener('submit',event=>{
   }catch(error){setStatus(error.message||String(error),true);}
 });
 render();
+
+$('ciaBuild').onclick=async()=>{
+  const button=$('ciaBuild');button.disabled=true;
+  try{
+    const template=$('ciaTemplate').files[0];
+    if(!template)throw Error('Select a local compatible player CIA template.');
+    const icon=$('ciaIcon').files[0],banner=$('ciaBanner').files[0];
+    if(icon&&!/\.smdh$/i.test(icon.name))throw Error('CIA building currently requires a prepared .smdh icon.');
+    if(banner&&!/\.(bin|bnr)$/i.test(banner.name))throw Error('CIA building requires a prepared .bnr or .bin banner.');
+    if(episodes.some(e=>e.banner))throw Error('Per-episode artwork currently comes from the selected template.');
+    const project=createCiaProject({title:$('ciaTitle').value,longTitle:$('ciaLongTitle').value,
+      publisher:$('ciaPublisher').value,id:$('ciaId').value,
+      movies:episodes.map(e=>({file:e.file.name,title:e.title}))});
+    const movies=[];for(const episode of episodes)movies.push((await readSuperMoflex(episode.file)).media);
+    const result=await buildCia({template,project,movies,icon,banner,onProgress:message=>setStatus(message)});
+    const url=URL.createObjectURL(result),link=document.createElement('a');link.href=url;link.download='movie.cia';link.click();
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+    setStatus('CIA built and content hash verified. Installation and playback require console testing.');
+  }catch(error){setStatus(error.message||String(error),true);}
+  finally{button.disabled=false;}
+};
