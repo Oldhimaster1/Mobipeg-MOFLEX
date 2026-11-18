@@ -40,7 +40,7 @@ test('aspect ratio options frame content without stretching the exported CIA ima
   });
   const portrait=coverGeometry(400,400,200,120,{aspect:'portrait'});
   assert.equal(portrait.dw,portrait.dh);
-  assert.equal(portrait.dx,55);
+  assert.equal(portrait.dx,40);
   assert.equal(portrait.dy,0);
   const wide=coverGeometry(400,200,200,120,{aspect:'wide'});
   assert.equal(wide.dw/wide.dh,2);
@@ -58,9 +58,11 @@ test('drawCover uses the geometry that the PNG exporter will receive',()=>{
   const context={clearRect(...args){calls.push(['clear',...args]);},
     fillRect(...args){calls.push(['fill',...args]);},
     drawImage(...args){calls.push(['draw',...args]);},
+    save(){calls.push(['save']);},beginPath(){calls.push(['path']);},rect(...args){calls.push(['rect',...args]);},clip(){calls.push(['clip']);},restore(){calls.push(['restore']);},
     set fillStyle(value){calls.push(['fillStyle',value]);}};
   const image={width:100,height:60};
   drawCover(context,image,200,120);
-  assert.deepEqual(calls.at(-1),['draw',image,0,0,200,120]);
+  assert.ok(calls.some(row=>row[0]==='draw'&&row[1]===image&&row[2]===0&&row[3]===0&&row[4]===200&&row[5]===120));
+  assert.deepEqual(calls.at(-1),['restore']);
   assert.equal(calls.some(row=>row[0]==='fill'),true);
 });
