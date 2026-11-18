@@ -37,7 +37,7 @@ export function createCiaProject({title:projectTitle,longTitle='',publisher='Mob
     if(!/\.moflex$/i.test(path))throw Error('CIA movie inputs must be .moflex files.');
     if(used.has(path.toLowerCase()))throw Error('Duplicate movie filename: '+path);
     used.add(path.toLowerCase());
-    list.push({file:path,...(movie.title?{title:title(movie.title,'Episode title',127)}:{})});
+    list.push({file:path,...(movie.title?{title:title(movie.title,'Episode title',127)}:{}),...(movie.banner?{banner:safeCiaFileName(movie.banner)}:{})});
   }
   const data={version:1,title:title(projectTitle,'CIA title',63),
     publisher:title(publisher,'Publisher',63),id:identifier,movies:list};
