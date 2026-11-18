@@ -106,6 +106,7 @@
     <p class="hint">Drag the image to reposition it. The saved crop will be used in your CIA.</p>
     <div class="cia-editor-canvas-wrap"><canvas id="ciaArtworkCanvas" width="200" height="120" aria-label="Artwork crop preview"></canvas></div>
     <div class="cia-editor-settings">
+      <label>Aspect ratio <select id="ciaArtworkAspect"><option value="native">Match CIA artwork</option><option value="square">Square (1:1)</option><option value="wide">Widescreen (16:9)</option><option value="cinema">Cinema (21:9)</option><option value="portrait">Portrait (3:4)</option></select></label>
       <label>Image fit <select id="ciaArtworkFit"><option value="fill">Fill (crop edges)</option><option value="fit">Fit (show whole image)</option></select></label>
       <label>Zoom <output id="ciaArtworkZoomValue" for="ciaArtworkZoom">100%</output><input id="ciaArtworkZoom" type="range" min="100" max="300" step="5" value="100"></label>
       <label>Horizontal position <input id="ciaArtworkX" type="range" min="-100" max="100" value="0"></label>
