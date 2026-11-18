@@ -208,6 +208,24 @@ Cross-Origin-Resource-Policy: same-origin
 
 The included `_headers` file works on hosts that support that format. GitHub Pages does not apply that file; the app includes a service-worker isolation fallback whose compatibility depends on the browser. Open the app as a top-level page. The app checks isolation before conversion.
 
+### Check MOFLEX files before copying them to a 3DS
+
+The native **MOFLEX preflight** tool checks the seek-index structure, video layout,
+frame rate, per-eye dimensions, FAT32 size limit, and appended SUPER MOFLEX tracks.
+It warns about experimental resolutions and frame rates and the known seeking
+uncertainty after approximately 71 minutes. It reads the file without changing it.
+
+```sh
+python3 native/moflex_check.py movie.moflex
+python3 native/moflex_check.py movie.moflex --json
+```
+
+A passing structural check **does not** mean every MobiClip frame decodes or
+that the video has been tested on a physical Nintendo 3DS. For stronger
+assurance, also run a full decode using the project's patched FFmpeg and test
+the movie on the console and player you intend to use. The tool does not
+require FFmpeg for the initial structural check.
+
 ## Compatibility and limitations
 
 This version is a development preview. Native/WASM comparison reports and Chrome conversion tests are included. On November 16, 2026, a user completed browser conversions in iPhone Safari, including a decode-verified five-minute 2D video; one shorter 2D ADPCM output was confirmed playing on a physical Nintendo 3DS. FastAudio, MOFLEX-to-video export, layouts 1–5, long-movie joining, stereo playback, and extended-duration seeking have software tests but remain unverified on 3DS hardware. No retail/proprietary MOFLEX sample is committed or claimed as tested; automated coverage generates files with this repository's muxer. Successful software decoding does not by itself establish console compatibility.
