@@ -36,6 +36,8 @@ test('CIA Builder generates a local Title ID and updates the live preview',async
   const next=await page.locator('#ciaId').inputValue();
   expect(next).toMatch(/^[CDE][0-9A-F]{4}$/);
   expect(next).not.toBe(initial);
+  await page.locator('#ciaId').fill(initial);
+  await expect(page.locator('#ciaIdCollision')).toContainText('generated in this browser before');
   await page.locator('#ciaId').fill('D1234');
   await expect(page.locator('#ciaLiveId')).toHaveText('D1234');
   await page.reload();
@@ -62,6 +64,7 @@ test('cover editor exports exact CIA icon and thumbnail dimensions',async({page}
   expect(icon).toEqual({name:'mobipeg-icon.png',width:48,height:48,type:'image/png'});
   await page.locator('#ciaEditBanner').click();
   await page.locator('#ciaArtworkFit').selectOption('fit');
+  await page.locator('#ciaArtworkAspect').selectOption('square');
   await page.locator('#ciaArtworkApply').click();
   const banner=await page.locator('#ciaBanner').evaluate(async el=>{
     const f=el.files[0],im=await createImageBitmap(f);
@@ -69,6 +72,22 @@ test('cover editor exports exact CIA icon and thumbnail dimensions',async({page}
     im.close();return result;
   });
   expect(banner).toEqual({name:'mobipeg-banner.png',width:200,height:120,type:'image/png'});
+  const packed=await page.locator('#ciaIcon').evaluate(async el=>{
+    const {makeSmdhArtwork}=await import('/cia-artwork.mjs');
+    const original=new Uint8Array(0x36c0);
+    original.set([83,77,68,72]);
+    const encoded=await makeSmdhArtwork(el.files[0],original);
+    return {size:encoded.byteLength,magic:String.fromCharCode(...encoded.slice(0,4)),
+      hasTexture:encoded.slice(0x24c0).some(byte=>byte!==0)};
+  });
+  expect(packed).toEqual({size:0x36c0,magic:'SMDH',hasTexture:true});
+  const episodeTexture=await page.locator('#ciaBanner').evaluate(async el=>{
+    const {makeEpisodeArtwork}=await import('/cia-artwork.mjs');
+    const original=new Blob([new Uint8Array(0x10020)]);
+    const packed=await makeEpisodeArtwork(el.files[0],original);
+    return {bytes:packed.size,payload:packed.size-32};
+  });
+  expect(episodeTexture).toEqual({bytes:0x10020,payload:65536});
   await expect(page.locator('#ciaLiveBanner')).toBeVisible();
 });
 
