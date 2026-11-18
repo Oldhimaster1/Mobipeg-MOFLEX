@@ -178,3 +178,34 @@ test('browser can list and safely delete an abandoned OPFS checkpoint',async({pa
   await page.getByRole('button',{name:'Delete saved ranges'}).click();
   await expect(page.locator('#savedJobsList > li')).toHaveCount(0);
 });
+
+test('browser CIA project editor exports a native-compatible ordered project',async({page},testInfo)=>{
+  await page.goto('/cia.html');
+  await page.locator('#ciaFiles').setInputFiles(movie);
+  await expect(page.locator('#ciaEpisodes > li')).toHaveCount(1);
+  await page.locator('#ciaTitle').fill('My Movie');
+  await page.locator('#ciaPublisher').fill('Studio');
+  await page.locator('#ciaId').fill('C1234');
+  const output=page.waitForEvent('download');
+  await page.locator('#ciaExport').click();
+  const downloaded=await output;
+  const saved=testInfo.outputPath('cia-project.json');
+  await downloaded.saveAs(saved);
+  const manifest=JSON.parse(readFileSync(saved,'utf8'));
+  expect(manifest.version).toBe(1);
+  expect(manifest.title).toBe('My Movie');
+  expect(manifest.publisher).toBe('Studio');
+  expect(manifest.id).toBe('C1234');
+  expect(manifest.movies).toHaveLength(1);
+  expect(manifest.movies[0].file).toBe('source.moflex');
+});
+
+test('browser HDR controls expose auto detection, manual PQ/HLG and tone-mapping modes',async({page})=>{
+  await page.goto('/');
+  await expect(page.locator('#hdrMode')).toHaveValue('auto');
+  await expect(page.locator('#hdrTransfer')).toHaveValue('auto');
+  await page.locator('#hdrMode').selectOption('hable');
+  await page.locator('#hdrTransfer').selectOption('hlg');
+  await expect(page.locator('#hdrMode')).toHaveValue('hable');
+  await expect(page.locator('#hdrTransfer')).toHaveValue('hlg');
+});

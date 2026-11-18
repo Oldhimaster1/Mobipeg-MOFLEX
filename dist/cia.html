@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f5f6f2"><title>MobiPEG — CIA project builder</title>
+<link rel="stylesheet" href="style.css?v=20261117s"><link rel="manifest" href="manifest.webmanifest">
+<script src="isolation.js?v=20261117s" defer></script><script type="module" src="cia.mjs?v=20261117z"></script>
+<style>
+.cia-main{max-width:940px;margin:auto;padding:clamp(1rem,4vw,3rem)}.cia-main .card{margin:1rem 0;padding:clamp(1rem,3vw,2rem)}
+.cia-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1rem}
+.cia-grid label{display:flex;flex-direction:column;gap:.4rem;font-weight:600}.cia-grid input,.cia-grid select{width:100%;min-height:2.7rem}
+.cia-episodes{list-style:none;padding:0}.cia-episodes li{border:1px solid #d1d8cd;border-radius:.6rem;padding:.75rem;margin:.5rem 0}
+.cia-episode-row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.cia-episode-row input{min-width:170px;flex:1}.cia-episode-row button{min-height:2rem}
+.cia-main button{cursor:pointer}.cia-help{font-size:.93rem;line-height:1.6}
+</style>
+</head><body><header><a href="./" class="brand" aria-label="Return to MobiPEG Studio"><span class="logo">m<span>↗</span></span><strong>MobiPEG<span class="web"> / CIA project builder</span></strong></a><div class="header-right"><a href="./">Web Studio ↗</a><a href="player.html">MOFLEX Player ↗</a></div></header>
+<main class="cia-main"><section class="intro"><div><span class="eyebrow">NINTENDO 3DS</span><h1>Build your movie menu</h1><p>Organize converted MOFLEX movies, names, icons and banners into a project for the native CIA builder.</p></div></section>
+<section class="card"><h2>1. Select your MOFLEX files</h2><p class="hint">Your movies stay on your device. No video data is uploaded or embedded in the project JSON.</p>
+<label for="ciaFiles">Movies and episodes (.moflex)</label><input id="ciaFiles" type="file" accept=".moflex" multiple>
+<p id="ciaFilesStatus" role="status" class="hint">Choose 1–27 MOFLEX files, then arrange their order.</p>
+<ol id="ciaEpisodes" class="cia-episodes"></ol>
+</section>
+<form id="ciaForm"><section class="card"><h2>2. HOME Menu information</h2><div class="cia-grid">
+<label>Short title<input id="ciaTitle" name="title" maxlength="63" required placeholder="My Movie"></label>
+<label>Long title (optional)<input id="ciaLongTitle" name="long_title" maxlength="127"></label>
+<label>Publisher<input id="ciaPublisher" name="publisher" maxlength="63" required value="MobiPEG"></label>
+<label>Unique title ID (C0000–EFFFF)<input id="ciaId" name="id" required minlength="5" maxlength="5" pattern="[c-eC-E][0-9a-fA-F]{4}" placeholder="C1234" autocomplete="off"></label>
+<label>HOME Menu icon (optional)<input id="ciaIcon" type="file" accept=".png,.bmp,.smdh"></label>
+<label>Banner (optional)<input id="ciaBanner" type="file" accept=".png,.bmp,.bnr"></label>
+</div><p class="hint">Choose a title ID that is not already installed. You must supply artwork files alongside the exported project when packaging.</p></section>
+<section class="card"><h2>3. Export the project</h2><p class="cia-help"><strong>This exports a native-compatible CIA project, not a finished CIA.</strong>
+The browser does not ship VidInjector9002-CLI or its base CIA template. Building a playable .cia currently requires the local native builder and a separately obtained backend.
+No account, server, or paid API is required.</p>
+<button id="ciaExport" type="submit" class="primary">Download CIA project JSON ↘</button>
+<p class="hint" id="ciaStatus" role="status">Add movies and complete the fields above.</p>
+<p class="cia-help">Put the project JSON, your original MOFLEX files, and any selected icon/banner assets in the same folder. Run:</p>
+<pre style="white-space:pre-wrap;overflow-wrap:anywhere">python3 native/cia_builder.py build project.json movie.cia --backend /path/to/VidInjector9002-CLI</pre>
+<p class="hint">The native builder strips SUPER MOFLEX extras before packaging for the original Nintendo player, checks the title ID, FAT32 limits and CIA content hashes. Actual console installation and playback still require testing.</p>
+</section></form></main></body></html>

@@ -196,6 +196,49 @@ and asks before discarding it.
 
 The browser build requires **SharedArrayBuffer and cross-origin isolation**, including when using the scalar engine. The local server supplies the required headers. For phone access or public hosting, use HTTPS; plain HTTP on a LAN does not provide the required secure context.
 
+### Browser HDR to SDR conversion
+
+Web Studio now offers an HDR-to-SDR selector with **Auto**, **Off**, **Mobius**,
+**Hable**, and **Reinhard** tone mapping and optional manual **PQ/HDR10** or
+**HLG** source override. Tagged HDR is detected from the video stream.
+Conversion takes place inside the existing WASM worker via a dynamically
+generated BT.2020-to-BT.709 3D LUT. SDR input is left untouched. The LUT
+implements a 100-nit SDR reference and a 1000-nit HDR roll-off; it is not a
+reference-grade mastered color transform. For critical color work, compare
+against a display-referred reference. An HDR output may have different
+brightness/chroma depending on the mastering display.
+
+No other video services, paid APIs, or server processing are involved.
+The bundled WASM engine's `lut3d` filter decoded a generated PQ and HLG
+sample successfully, and each could be encoded to a MOFLEX file and decoded
+in a second WASM process in local synthetic checks. The committed
+`tests/hdr-wasm.test.mjs` exercises these paths in a full checkout.
+Device-specific Safari behavior, real movies, and physical 3DS playback
+are still unverified.
+
+### CIA projects from the browser
+
+Open [CIA project builder](cia.html) from the Web Studio header. Select 1–27
+MOFLEX files, arrange episodes, choose their menu titles and optional banners,
+and enter the HOME Menu title, publisher, ID, icon and banner. The browser
+inspects each movie locally and downloads a native-compatible **JSON project**.
+Your movie bytes stay on your device and are **not** included in the JSON.
+Keep the selected files, artwork, and `project.json` together, then use
+the existing native packager with your own VidInjector9002-CLI installation:
+
+```sh
+python3 native/cia_builder.py build project.json movie.cia --backend /path/to/VidInjector9002-CLI
+python3 native/cia_builder.py verify movie.cia
+```
+
+**The browser does not yet generate a finished installable CIA.** The
+VidInjector backend and compatible base template are not distributed with
+MobiPEG, and the browser currently provides project authoring rather than
+packaging. This avoids pretending that a JSON manifest is an installable
+Nintendo 3DS title. The native packager does produce CIAs when provided the
+backend and validates the resulting content hashes. A real console is still
+required to confirm installation and playback.
+
 ### Hosting the web version
 
 The repository root contains a ready-to-serve copy of the web app, both WASM engines, and `.nojekyll`. In **Settings → Pages → Build and deployment**, choose **Deploy from a branch**, select **master** and **/ (root)**, then save. No custom build workflow or encoder rebuild is required. The expected address is https://oldhimaster1.github.io/Mobipeg-MOFLEX/.
