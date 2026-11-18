@@ -184,7 +184,7 @@ The JSON project controls each episode's menu title and optional banner, plus
 the application title, publisher, icon, and banner. Run `preview` instead of
 `build` with a PNG output and `--asset icon` or `--asset banner` for the
 backend's preview. A prepared banner binary can supply its own banner audio.
-MobiPEG does not distribute the external tool or its assets. Browser CIA building supports compatible local templates as described below.
+MobiPEG does not bundle the external tool or its player assets. The experimental browser CIA builder can fetch those files from VidInjector when explicitly enabled; see the licensing and verification caveat below.
 Physical installation testing is pending.
 
 Choose **Save app for offline use** in the footer to cache the converter, player,
@@ -223,12 +223,19 @@ are still unverified.
 
 ### CIA building in the browser
 
-Open the CIA builder, select your MOFLEX movies, and supply a legally obtained,
-decrypted VidInjector-compatible player CIA from your device. Select **Build CIA**
-to rebuild a real CIA locally. The template's executable and menu resources are
-retained. Movies are replaced in order, episode names and HOME Menu information
-are updated, and RomFS integrity levels, NCCH section hashes, content hashes,
-TMD and ticket title IDs are rebuilt. No template or executable is distributed.
+Open the CIA builder and select your MOFLEX movies. You can supply a compatible,
+decrypted player CIA yourself, or explicitly enable **Get the VidInjector player automatically**.
+The latter fetches three upstream resources from a pinned VidInjector GitHub revision
+and assembles a starter locally. MobiPEG does not include those third-party binary
+files in this repository. This is **experimental**: VidInjector's player binary
+redistribution rights have not been established, and the automatically generated
+CIA has **not** passed a physical 3DS installation/playback test. Do not use or
+redistribute files without the necessary permissions.
+
+After selecting an allowed player source, **Build CIA** rebuilds the movies,
+metadata and menu, and recalculates RomFS, NCCH, TMD, ticket and content hashes.
+An internet connection is required when obtaining the VidInjector resources
+unless you already have your own local player CIA.
 
 A compatible collection template can now be reused for 1–27 episodes. The browser
 rebuilds directory/file metadata and hash buckets, episode-count settings, ordered
