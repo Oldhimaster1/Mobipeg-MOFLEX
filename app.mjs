@@ -1,6 +1,6 @@
 import{initLanguage,translateText}from'./i18n.mjs?v=20261117f';
 import{createUsage}from'./usage.mjs?v=20261117a';
-import{validate,rate,PRESETS,ADVANCED_NUMBERS,ADVANCED_ENUMS,encodeArgs,encodeClipArgs,audioArgs,environment}from'./core.mjs?v=20261117s';
+import{validate,rate,PRESETS,ADVANCED_NUMBERS,ADVANCED_ENUMS,encodeArgs,encodeClipArgs,audioArgs,environment}from'./core.mjs?v=20261117z';
 import{allocateMovieBudget,createMovieJob,appendMovieSegment,assembleMovie,cleanupMovieJob,getCodedRate,nextMovieClip,planMovieClips,loadMovieSegment}from'./movie.mjs?v=20261117s';
 import{openCheckpoint,setCheckpointMedia,restoreCheckpoints,persistRange,closeCheckpoint}from'./checkpoints.mjs?v=20261117s';
 import{estimateConversion,totalEstimate,formatBytes,FAT32_LIMIT,FAT32_MESSAGE,fitsFat32,fat32Estimate}from'./queue.mjs?v=20261117v';
@@ -38,6 +38,9 @@ const normalizationField=document.createElement('label');
 normalizationField.className='hint';
 normalizationField.innerHTML='<input id="normalizeAudio" name="normalizeAudio" type="checkbox"> Normalize audio peak';
 audioOffsetField.after(normalizationField);
+const hdrField=document.createElement('div');hdrField.className='field';
+hdrField.innerHTML='<label for="hdrMode">HDR to SDR</label><select id="hdrMode" name="hdrMode"><option value="auto">Automatic — PQ / HLG to SDR</option><option value="off">Off — no color conversion</option><option value="mobius">Mobius — preserve shadows</option><option value="hable">Hable — cinematic highlights</option><option value="reinhard">Reinhard — soft highlights</option></select><label for="hdrTransfer">Source transfer</label><select id="hdrTransfer" name="hdrTransfer"><option value="auto">Detect PQ / HLG from metadata</option><option value="pq">PQ / HDR10 — force</option><option value="hlg">HLG — force</option></select><p class="hint">BT.2020 to BT.709 conversion uses a locally generated color LUT. Tagged HDR is detected automatically; untagged HDR can be specified manually. SDR files are unchanged.</p>';
+normalizationField.after(hdrField);
 const timeline=document.createElement('div');timeline.id='parallelTimeline';timeline.className='parallel-timeline';timeline.hidden=true;timeline.setAttribute('aria-label','Parallel encoder timelines');
 $('progress').after(timeline);
 const playerLink=document.createElement('a');playerLink.href='player.html?v=20261117s';playerLink.className='secondary';playerLink.textContent='Open MOFLEX player ↗';playerLink.style.marginTop='1rem';
@@ -92,12 +95,12 @@ function advancedPreview(){
       '\n\n'+(s.movieAudio?'First timeline range; repeated with aligned seeks. ':'')+'Audio invocation runs only when an audio stream exists. Duration uses source metadata (1 s placeholder before a file is selected). Size-limited trials may change Q.';
   }catch(e){$('advancedCommand').textContent=e.message;}
 }
-function settings(){const d=new FormData(form),audioOffsetMs=Number(d.get('audioOffsetMs')||0);return validate({mode:d.get('mode'),engine:d.get('engine')||'auto',preset:d.get('preset'),resolution:d.get('resolution'),fps:d.get('fps'),filter:d.get('filter'),motion:d.get('motion'),q:d.get('q')===''?null:Number(d.get('q')),audioTrack:Number(d.get('audioTrack')||0),...(d.has('normalizeAudio')?{normalizeAudio:true}:{}),...(audioOffsetMs?{audioOffsetMs}:{}),audioCodec:d.get('audioCodec')||'adpcm',maxMB:d.get('maxMB')===''?null:Number(d.get('maxMB')),speed:d.get('speed')||'original',workers:Number(d.get('workers')||1),advanced:readAdvanced(d),crop:{fit:d.get('fit'),aspect:d.get('aspect')||'source',...Object.fromEntries(['left','right','top','bottom'].map(k=>[k,Number(d.get('crop-'+k))]))}});}
+function settings(){const d=new FormData(form),audioOffsetMs=Number(d.get('audioOffsetMs')||0);return validate({mode:d.get('mode'),hdrMode:d.get('hdrMode')||'auto',hdrTransfer:d.get('hdrTransfer')||'auto',engine:d.get('engine')||'auto',preset:d.get('preset'),resolution:d.get('resolution'),fps:d.get('fps'),filter:d.get('filter'),motion:d.get('motion'),q:d.get('q')===''?null:Number(d.get('q')),audioTrack:Number(d.get('audioTrack')||0),...(d.has('normalizeAudio')?{normalizeAudio:true}:{}),...(audioOffsetMs?{audioOffsetMs}:{}),audioCodec:d.get('audioCodec')||'adpcm',maxMB:d.get('maxMB')===''?null:Number(d.get('maxMB')),speed:d.get('speed')||'original',workers:Number(d.get('workers')||1),advanced:readAdvanced(d),crop:{fit:d.get('fit'),aspect:d.get('aspect')||'source',...Object.fromEntries(['left','right','top','bottom'].map(k=>[k,Number(d.get('crop-'+k))]))}});}
 function snapshotSettings(){const value=structuredClone(settings());value.movieAudio=$('longMovie').checked;return value;}
 function applySettings(value){
   restoringSettings=true;
   const set=(name,value)=>{const control=form.elements.namedItem(name);if(!control)return;if(control instanceof RadioNodeList){for(const el of control)el.checked=el.value===String(value);}else control.value=value??'';};
-  for(const key of ['mode','engine','preset','resolution','fps','filter','motion','q','audioTrack','audioCodec','audioOffsetMs','maxMB','speed','workers'])set(key,key==='audioOffsetMs'?value[key]??0:value[key]);renderWorkerCount();
+  for(const key of ['mode','hdrMode','hdrTransfer','engine','preset','resolution','fps','filter','motion','q','audioTrack','audioCodec','audioOffsetMs','maxMB','speed','workers'])set(key,key==='audioOffsetMs'?value[key]??0:value[key]);renderWorkerCount();
   $('normalizeAudio').checked=!!value.normalizeAudio;
   set('longMovie',value.movieAudio?'on':'');$('longMovie').checked=!!value.movieAudio;
   set('fit',value.crop?.fit??'fit');set('aspect',value.crop?.aspect??'source');for(const edge of ['left','right','top','bottom'])set('crop-'+edge,value.crop?.[edge]??0);
