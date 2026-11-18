@@ -57,7 +57,20 @@ export async function readVidInjectorZip(zip){
     if(method===0)inflated=compressed;
     else{
       if(typeof DecompressionStream!=='function')throw Error('This browser cannot unpack VidInjector resources');
-      inflated=new Uint8Array(await new Response(new Blob([compressed]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+      // Read decompressed bytes in bounded chunks. Malformed ZIP headers must not
+      // cause the browser to allocate an unbounded inflated archive.
+      const reader=new Blob([compressed]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader();
+      inflated=new Uint8Array(unpacked);
+      let written=0;
+      try{
+        for(;;){
+          const {value,done}=await reader.read();
+          if(done)break;
+          if(written+value.byteLength>unpacked){await reader.cancel();throw Error('ZIP member exceeds declared size');}
+          inflated.set(value,written);written+=value.byteLength;
+        }
+      }finally{reader.releaseLock();}
+      if(written!==unpacked)throw Error('Truncated expanded ZIP member');
     }
     if(inflated.length!==unpacked||found.has(name))throw Error('Corrupted or duplicate player file');
     found.set(name,new Blob([inflated]));
