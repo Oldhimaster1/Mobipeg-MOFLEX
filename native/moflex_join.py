@@ -149,8 +149,12 @@ class Part:
     time_offset:int=0
 
 
-def inspect(path,expected_frames=None):
-    path=Path(path);size=path.stat().st_size
+def inspect(path,expected_frames=None,media_bytes=None):
+    # Optional logical boundary ignores a valid appended SUPER MOFLEX trailer.
+    # Do not copy gigabytes of movie data merely to check its seek index.
+    path=Path(path);file_size=path.stat().st_size
+    size=file_size if media_bytes is None else media_bytes
+    require(isinstance(size,int) and 0<size<=file_size,'invalid media boundary')
     require(size>=BLOCK*2 and size%BLOCK==0,'segment size invalid')
     with path.open('rb') as file:
         header=file.read(BLOCK);meta=read_sync(header)
