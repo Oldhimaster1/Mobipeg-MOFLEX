@@ -25,6 +25,7 @@ test("browser obtains the pinned VidInjector player and builds a playable collec
   );
   test.setTimeout(180000);
   await page.goto("/cia.html");
+  await page.locator('#ciaAdvanced').evaluate(el=>{el.open=true;});
   await page.locator("#ciaFiles").setInputFiles(movies.slice(0, 2));
   await page.locator("#ciaTitle").fill("Automatic player test");
   await page.locator("#ciaPublisher").fill("MobiPEG QA");
