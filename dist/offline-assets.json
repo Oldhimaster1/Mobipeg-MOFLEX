@@ -10,7 +10,7 @@
     "cia-project-import.mjs": "9b656f0693929d4ed3104d00019c5b1be6f92ae47f21e2d03ddca77beeadb6f8",
     "cia-packager.mjs": "9e8c12326074c94724fbfba723f3abe5f6322bd44ceae00681575dd12d0e8379",
     "cia-vidinjector-template.mjs": "3d7135c523392843efa4d1cd52ada5f6401fa799d3034ef0d448608dc73cee90",
-    "cia-design.mjs": "b7525c6adfc4fa189396688d8ac625699f59d07b0146ed5eac4498aa8205dfa5",
+    "cia-design.mjs": "5bcc81688b8e726b927d3e7eded1daa2f5069a3b00453d5bc4f08bec708d480a",
     "cia-design.css": "c54ee44aee63ec7b7236e3b49ee08d8dc6c522178dc57c0ddad0e3e5bed7c3fd",
     "cia-sha256.mjs": "a5c78b5728e1c6843eaeac79ea49e55ee6eb180c93896f185df24a37e1f244cc",
     "cia-sha256-wasm.mjs": "d1e52030b5bcb65b4b660e08b2aedc8039da1defb24cdf5b750ad3797172a3f1",
