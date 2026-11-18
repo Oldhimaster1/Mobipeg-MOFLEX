@@ -55,3 +55,11 @@ node scripts/validate-web-release.mjs
 - The upstream asset license/redistribution permission is unresolved. MobiPEG's opt-in original-source download does not resolve that legal question.
 - The automatic route requires network access to the pinned GitHub revision. Offline CIA building still works with a compatible local template selected by the user.
 - Linux WebKit automation is not physical iPhone Safari testing.
+
+## Published-site verification
+
+Application commit `a385ac6dec31957895729c0bb57a56257b6132ba` was fast-forwarded to `master`. GitHub Pages reported that exact commit built at `2026-11-18T23:14:08Z`. All 54 public manifest assets, the manifest, service worker and both WASM MIME types matched the local release.
+
+The public CIA page then exercised the automatic-player control with the two test movies. It downloaded a 2,574,592-byte CIA with title ID `000400000C432100`; independent native verification checked its content, extraction matched both source movie digests, and the RomFS/ExeFS SMDH copies matched. The broader persistent-profile live check also passed scalar and SIMD conversion with full native decoding, player startup, local-template CIA generation, service-worker cache `20261118v`, and a real offline conversion after restarting behind an unreachable proxy. All 106 engine requests used the `20261118v` tag. The managed test network required a browser-only TLS-inspection bypass; direct Node HTTPS asset validation succeeded without modifying site code.
+
+Machine-readable release facts are in `VIDINJECTOR_AUTO_PLAYER_20261118_VALIDATION.json`.

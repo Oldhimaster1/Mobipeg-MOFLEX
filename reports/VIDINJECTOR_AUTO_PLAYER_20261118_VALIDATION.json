@@ -1,0 +1,50 @@
+{
+  "date": "2026-11-18",
+  "release": "20261118v",
+  "application_commit": "a385ac6dec31957895729c0bb57a56257b6132ba",
+  "pages": {
+    "status": "built",
+    "built_at": "2026-11-18T23:14:08Z",
+    "manifest_assets_checked": 54,
+    "asset_hashes_match": true,
+    "service_worker_matches": true,
+    "wasm_mime_types_match": true
+  },
+  "automated_tests": {
+    "node": { "passed": 371, "skipped_optional": 1, "failed": 0 },
+    "chromium_release": { "passed": 30, "skipped_fixture_dependent": 20, "failed": 0 },
+    "chromium_local_template_collections": { "passed": 6, "episode_counts": [1, 2, 5, 10, 20, 27], "failed": 0 },
+    "chromium_automatic_player": { "passed": 1, "failed": 0 },
+    "webkit_focused": { "passed": 6, "failed": 0 }
+  },
+  "automatic_player_cia": {
+    "bytes": 2574592,
+    "title_id": "000400000C432100",
+    "contents_checked": 1,
+    "movie_payloads_match": true,
+    "romfs_exefs_icons_match": true,
+    "azahar_install": true,
+    "azahar_episode_menu": true,
+    "azahar_episode_one_video_audio": true,
+    "azahar_episode_two_video_audio": true,
+    "azahar_menu_return": true,
+    "azahar_relaunch": true,
+    "physical_3ds": "unverified"
+  },
+  "live_site": {
+    "scalar_conversion_and_full_decode": true,
+    "simd_conversion_and_full_decode": true,
+    "player_startup": true,
+    "local_template_cia_verified": true,
+    "automatic_player_cia_verified": true,
+    "offline_cache": "mobipeg-offline-/Mobipeg-MOFLEX/-20261118v",
+    "offline_conversion": true,
+    "engine_requests_with_release_tag": 106
+  },
+  "limitations": [
+    "No physical Nintendo 3DS test",
+    "No physical iPhone Safari test",
+    "Upstream VidInjector asset licensing remains unresolved",
+    "Managed browser TLS inspection required a test-only certificate bypass"
+  ]
+}
