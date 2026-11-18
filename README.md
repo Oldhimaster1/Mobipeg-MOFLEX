@@ -468,3 +468,16 @@ full movie. Run it without other benchmarks for interpretable timings.
 ### Azahar-tested CIA milestone
 
 Browser-built 400×240 ADPCM collections passed actual Azahar 2126.2 menu and playback checks at 2, 5, 10, 20 and 27 episodes, including first/middle/last selections. Two-episode seeking, normal exit/relaunch and stereo eye presentation were checked. Physical 3DS compatibility remains unverified. See [the runtime validation report](reports/AZAHAR_VALIDATION.md) for evidence, exact scope and remaining limitations. New interleaved stereo encodes use layout 1 for left-first frames, matching the tested player. Previously generated layout-0 stereo files may need re-encoding for correct eye order in this player.
+
+### Reopening CIA projects and using saved conversions
+
+In the CIA builder, select a saved project JSON and its original movies and artwork,
+then choose **Open project**. Episode order, titles, artwork and splitting settings
+are restored after the media passes inspection. Keep the JSON with the original
+files; it contains settings and filenames, not videos. Select your local player
+template separately when building.
+
+**Add conversions saved in this browser** opens batch outputs already stored by
+MobiPEG on the same browser and website. This avoids downloading and reselecting
+those movies. Browser storage can be cleared or evicted, so retain your own copies.
+If saving a finished CIA fails, MobiPEG still offers the completed CIA for download.

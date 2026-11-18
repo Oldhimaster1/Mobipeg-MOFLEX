@@ -6,6 +6,10 @@ export async function ciaOutputDirectory(create = false) {
   );
 }
 export async function stageCia(blob) {
+  const estimate = await navigator.storage.estimate?.();
+  if(Number.isFinite(estimate?.quota)&&Number.isFinite(estimate?.usage)&&
+     estimate.quota-estimate.usage<blob.size)
+    throw Error("Not enough browser storage for this CIA. Download it directly or free space.");
   const directory = await ciaOutputDirectory(true);
   const name = "movie-" + crypto.randomUUID() + ".cia";
   const handle = await directory.getFileHandle(name, { create: true });
@@ -21,4 +25,11 @@ export async function stageCia(blob) {
     await directory.removeEntry(name).catch(() => {});
     throw error;
   }
+}
+
+// A storage failure must never discard a successfully verified CIA.
+export async function prepareCiaDownload(blob,save){
+  if(!save)return {file:blob};
+  try{return {file:await stageCia(blob)};}
+  catch(error){return {file:blob,warning:'Browser copy was not saved: '+(error.message||String(error))};}
 }

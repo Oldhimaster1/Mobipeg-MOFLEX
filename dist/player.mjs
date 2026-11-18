@@ -27,7 +27,7 @@ function resetDecoder(){
   serial++;decoder?.terminate();decoder=null;inFlight=false;buffer=[];lastFrame=-1;failed=false;
   if(!metadata)return;
   const incarnation=serial;
-  decoder=new Worker('player-worker.js?v=20261118f');
+  decoder=new Worker('player-worker.js?v=20261118g');
   decoder.onerror=error=>{if(incarnation!==serial)return;inFlight=false;exporting=false;failed=true;pause();$('exportVideo').disabled=false;status('Decoder failed: '+(error.message||'unknown error'));};
   decoder.onmessage=({data:d})=>{
     if(incarnation!==serial||d.request!==incarnation)return;

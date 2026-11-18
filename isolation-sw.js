@@ -1,4 +1,4 @@
-const VERSION = '20261118f';
+const VERSION = '20261118g';
 const scope = new URL(self.registration.scope);
 const PREFIX = 'mobipeg-offline-'+scope.pathname+'-';
 const CACHE = PREFIX+VERSION;

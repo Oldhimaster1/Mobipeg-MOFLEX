@@ -25,7 +25,8 @@ for(const count of [1,2,5,10,20,27])test("browser builds a collection of "+count
   await page.locator("#ciaTitle").fill("Browser integration");
   await page.locator("#ciaPublisher").fill("Local test");
   await page.locator("#ciaId").fill("C2468");
-  await page.locator("#ciaStage").check();
+  const stored=await page.locator("#ciaStage").isEnabled();
+  if(stored)await page.locator("#ciaStage").check();
   const download = page.waitForEvent("download");
   await page.locator("#ciaBuild").click();
   const file = await download,
@@ -59,6 +60,7 @@ for(const count of [1,2,5,10,20,27])test("browser builds a collection of "+count
   await expect(page.locator("#ciaStatus")).toContainText(
     "content hash verified",
   );
+  if(!stored)return; // This WebKit build has no OPFS API; packaging is still verified.
   await page.reload();
   await expect(page.locator("#ciaSaved")).toContainText("Download movie-");
   page.once('dialog',dialog=>dialog.accept());

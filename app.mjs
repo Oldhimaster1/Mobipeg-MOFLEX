@@ -4,7 +4,7 @@ import{validate,rate,PRESETS,ADVANCED_NUMBERS,ADVANCED_ENUMS,encodeArgs,encodeCl
 import{allocateMovieBudget,createMovieJob,appendMovieSegment,assembleMovie,cleanupMovieJob,getCodedRate,nextMovieClip,planMovieClips,loadMovieSegment}from'./movie.mjs?v=20261118f';
 import{openCheckpoint,setCheckpointMedia,restoreCheckpoints,persistRange,closeCheckpoint}from'./checkpoints.mjs?v=20261118f';
 import{estimateConversion,totalEstimate,formatBytes,FAT32_LIMIT,FAT32_MESSAGE,fitsFat32,fat32Estimate}from'./queue.mjs?v=20261117v';
-import{runParallelMovie,planBalancedMovieClips}from'./parallel.mjs?v=20261118f';
+import{runParallelMovie,planBalancedMovieClips}from'./parallel.mjs?v=20261118g';
 import{batchStorage,saveBatchFile}from'./batch-output.mjs?v=20261117s';
 import{loadQueue,saveQueue,clearSavedQueue,relinkQueue,sourceIdentity}from'./queue-state.mjs?v=20261117y';
 import{listSavedMovieJobs,removeSavedMovieJob}from'./checkpoint-manager.mjs?v=20261117x';
@@ -453,7 +453,7 @@ const publishCandidate=(verified,reason='')=>{
 };
 const startWorker=(type,payload)=>{
   if(token!==runToken)return;
-  currentWorkerType=type;lastActivity=performance.now();idleWarningShown=false;const w=new Worker('worker.js?v=20261118f');worker=w;
+  currentWorkerType=type;lastActivity=performance.now();idleWarningShown=false;const w=new Worker('worker.js?v=20261118g');worker=w;
   w.onerror=e=>{
     if(token!==runToken||worker!==w)return;
     const message=`Encoder worker failed: ${e.message||'unknown error'}`;
@@ -590,7 +590,7 @@ window.addEventListener('beforeunload',e=>{if(busy||queueRunning){e.preventDefau
 $('inspectAudio').onclick=()=>{
   if(!file||busy)return;
   let s;try{s=settings();}catch(e){log(e.message);return;}
-  const selected=file,w=new Worker('worker.js?v=20261118f');audioInspector=w;
+  const selected=file,w=new Worker('worker.js?v=20261118g');audioInspector=w;
   $('inspectAudio').disabled=true;
   const end=()=>{w.terminate();if(audioInspector===w)audioInspector=null;$('inspectAudio').disabled=busy;};
   w.onerror=e=>{log('Audio inspection failed: '+e.message);end();};
@@ -667,7 +667,7 @@ $('makeSample').onclick=()=>{
   catch(e){$('sampleStatus').textContent=e.message;return;}
   const motion=$('sampleMotion').checked;
   invalidateSample();lock(true);const token=++sampleToken;let w;
-  try{w=new Worker('worker.js?v=20261118f');sampleWorker=w;}catch(e){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();return;}
+  try{w=new Worker('worker.js?v=20261118g');sampleWorker=w;}catch(e){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();return;}
   $('cancelSample').hidden=false;$('sampleStatus').textContent='Loading preview encoder…';
   w.onerror=e=>{if(token===sampleToken){$('sampleStatus').textContent='Preview failed: '+e.message;endSample();}};
   w.onmessage=async({data:d})=>{

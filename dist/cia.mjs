@@ -1,8 +1,10 @@
-import {stageCia,ciaOutputDirectory} from './cia-output.mjs?v=20261118e';
-import {buildCia} from './cia-packager.mjs?v=20261118f';
-import {createCiaProject,ciaSizeEstimate,MAX_CIA_MOVIES,planCiaParts} from './cia-project.mjs?v=20261118f';
+import {batchStorage} from './batch-output.mjs?v=20261118g';
+import {parseCiaProject,resolveCiaProjectFiles} from './cia-project-import.mjs?v=20261118g';
+import {prepareCiaDownload,ciaOutputDirectory} from './cia-output.mjs?v=20261118g';
+import {buildCia} from './cia-packager.mjs?v=20261118g';
+import {createCiaProject,ciaSizeEstimate,MAX_CIA_MOVIES,planCiaParts} from './cia-project.mjs?v=20261118g';
 import {readSuperMoflex} from './super-moflex.mjs?v=20261117r';
-import {inspectPlayableMoflex} from './player-core.mjs?v=20261118f';
+import {inspectPlayableMoflex} from './player-core.mjs?v=20261118g';
 
 const $=id=>document.getElementById(id);
 const episodes=[];
@@ -31,7 +33,9 @@ function render(){
     const banner=document.createElement('input');banner.type='file';banner.accept='.png,.bmp,.jpg,.jpeg,.bimg';
     banner.setAttribute('aria-label','Episode '+(index+1)+' banner');
     banner.onchange=()=>{entry.banner=banner.files[0]?.name??null;entry.bannerFile=banner.files[0]??null;};
-    bannerLabel.append(banner);controls.append(bannerLabel);
+    bannerLabel.append(banner);
+    if(entry.banner){const selected=document.createElement('small');selected.textContent='Selected: '+entry.banner;bannerLabel.append(selected);}
+    controls.append(bannerLabel);
     const btn=(name,action,disabled=false)=>{
       const b=document.createElement('button');b.type='button';b.className='text-button';
       b.textContent=name;b.disabled=disabled;b.onclick=action;controls.append(b);
@@ -49,8 +53,7 @@ function render(){
     }else $('ciaFilesStatus').textContent='Choose 1–27 MOFLEX files, then arrange their order.';
   }catch(e){$('ciaFilesStatus').textContent=e.message;}
 }
-$('ciaFiles').addEventListener('change',async e=>{
-  const selected=[...e.target.files];e.target.value='';
+async function addEpisodes(selected){
   for(const file of selected){
     if(episodes.length>=MAX_CIA_MOVIES){setStatus('Maximum 27 movies per project.',true);break;}
     if(episodes.some(x=>x.file.name.toLowerCase()===file.name.toLowerCase())){
@@ -64,11 +67,55 @@ $('ciaFiles').addEventListener('change',async e=>{
       const title=trailer.metadata?.title?.trim()||file.name.replace(/\.moflex$/i,'');
       episodes.push({file,info,mediaBytes:trailer.media.size,hasExtras:trailer.media.size!==file.size,title:title.slice(0,127)});
       if(!$('ciaTitle').value)$('ciaTitle').value=title.slice(0,63);
-      setStatus('Video inspected. Arrange the list, then export the project.');
+      setStatus('Video ready. Arrange your episodes, then build a CIA or save the project.');
     }catch(error){setStatus('Could not inspect '+file.name+': '+(error.message||String(error)),true);}
     render();
   }
+}
+$('ciaFiles').addEventListener('change',async e=>{
+  const files=[...e.target.files];e.target.value='';await addEpisodes(files);
 });
+$('ciaAddSaved').onclick=async()=>{
+  const button=$('ciaAddSaved');button.disabled=true;
+  try{
+    const directory=await batchStorage(),files=[];
+    for await(const [name,handle] of directory.entries())if(handle.kind==='file'&&/\.moflex$/i.test(name))files.push(await handle.getFile());
+    files.sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
+    if(!files.length)throw Error('No saved conversions found. Save batch outputs in this browser first.');
+    await addEpisodes(files);
+  }catch(error){setStatus(error.name==='NotFoundError'?'No saved conversions found. Save batch outputs in this browser first.':error.message,true);}
+  finally{button.disabled=!navigator.storage?.getDirectory;}
+};
+$('ciaAddSaved').disabled=!navigator.storage?.getDirectory;
+function setLocalFile(id,file){
+  const transfer=new DataTransfer();if(file)transfer.items.add(file);
+  $(id).files=transfer.files;
+}
+$('ciaOpen').onclick=async()=>{
+  const button=$('ciaOpen');button.disabled=true;
+  try{
+    const json=$('ciaProject').files[0];
+    if(!json)throw Error('Choose a saved project JSON.');
+    if(json.size>1024*1024)throw Error('Project JSON exceeds 1 MiB.');
+    const project=parseCiaProject(await json.text());
+    const resolved=resolveCiaProjectFiles(project,[...$('ciaProjectFiles').files]);
+    const restored=[];
+    for(const [i,entry] of resolved.movies.entries()){
+      const trailer=await readSuperMoflex(entry.file);
+      const info=await inspectPlayableMoflex(trailer.media);
+      const movie=project.movies[i];
+      restored.push({...entry,info,mediaBytes:trailer.media.size,hasExtras:trailer.media.size!==entry.file.size,
+        title:movie.title||movie.file.replace(/\.moflex$/i,''),banner:entry.bannerFile?.name});
+    }
+    // Replace the editor only after every file has passed inspection.
+    episodes.splice(0,episodes.length,...restored);
+    for(const [id,value] of Object.entries({ciaTitle:project.title,ciaLongTitle:project.long_title||'',ciaPublisher:project.publisher,ciaId:project.id}))$(id).value=value;
+    setLocalFile('ciaIcon',resolved.icon);setLocalFile('ciaBanner',resolved.banner);setLocalFile('ciaBannerAudio',resolved.bannerAudio);
+    $('ciaSplit').checked=project.browser?.split===true;
+    render();setStatus('Project reopened. Select your local player template when ready to build.');
+  }catch(error){setStatus(error.message||String(error),true);}
+  finally{button.disabled=false;}
+};
 $('ciaForm').addEventListener('submit',event=>{
   event.preventDefault();
   try{
@@ -76,12 +123,12 @@ $('ciaForm').addEventListener('submit',event=>{
       publisher:$('ciaPublisher').value,id:$('ciaId').value,
       movies:episodes.map(item=>({file:item.file.name,title:item.title,...(item.banner?{banner:item.banner}:{})})),
       icon:$('ciaIcon').files[0]?.name,banner:$('ciaBanner').files[0]?.name});
-    ciaSizeEstimate(episodes.map(item=>({size:item.mediaBytes})));
+    data.browser={split:$('ciaSplit').checked,...($('ciaBannerAudio').files[0]?{bannerAudio:$('ciaBannerAudio').files[0].name}:{})};
     const content=new Blob([JSON.stringify(data,null,2)+'\n'],{type:'application/json'});
     const url=URL.createObjectURL(content);
     const link=document.createElement('a');link.href=url;link.download='project.json';link.click();
     setTimeout(()=>URL.revokeObjectURL(url),60000);
-    setStatus('CIA project saved. Copy this JSON, the MOFLEX files and selected artwork into one folder to build a CIA.');
+    setStatus('Project saved. Keep the JSON with your original movies and artwork to reopen it later.');
   }catch(error){setStatus(error.message||String(error),true);}
 });
 render();
@@ -101,14 +148,20 @@ $('ciaBuild').onclick=async()=>{
     const movies=[];for(const episode of episodes)movies.push((await readSuperMoflex(episode.file)).media);
     const groups=planCiaParts(movies.map(movie=>movie.size),template.size,project.id,$('ciaSplit').checked);
     const firstId=parseInt(project.id,16);
+    const warnings=[];
     for(const [part,indices] of groups.entries()){
       const partProject={...project,id:(firstId+part).toString(16).toUpperCase(),movies:indices.map(i=>project.movies[i])};
       let result=await buildCia({template,project:partProject,movies:indices.map(i=>movies[i]),icon,banner,bannerAudio:$('ciaBannerAudio').files[0],episodeBanners:indices.map(i=>episodes[i].bannerFile),onProgress:message=>setStatus('Part '+(part+1)+' of '+groups.length+' · '+message)});
-      if($('ciaStage').checked){setStatus('Saving CIA in private browser storage');result=await stageCia(result);await showSavedCias();}
+      if($('ciaStage').checked){
+        setStatus('Saving CIA in private browser storage');
+        const saved=await prepareCiaDownload(result,true);result=saved.file;
+        if(saved.warning)warnings.push('Part '+(part+1)+': '+saved.warning);
+        else await showSavedCias();
+      }
       const url=URL.createObjectURL(result),link=document.createElement('a');link.href=url;link.download=groups.length>1?'collection-'+(part+1)+'.cia':'movie.cia';link.click();
       setTimeout(()=>URL.revokeObjectURL(url),60000);
     }
-    setStatus('CIA built and content hash verified. Installation and playback require console testing.');
+    setStatus('CIA built and content hash verified.'+(warnings.length?' '+warnings.join(' ')+' The finished CIA was offered for download.':''));
   }catch(error){setStatus(error.message||String(error),true);}
   finally{button.disabled=false;}
 };

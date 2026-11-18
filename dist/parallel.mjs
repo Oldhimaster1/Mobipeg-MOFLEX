@@ -26,7 +26,7 @@ export function planBalancedMovieClips(seconds, settings, wanted=1) {
   return clips;
 }
 export async function runParallelMovie({file, settings, media, job, workers, onUpdate=()=>{},
-  signal, createWorker=()=>new Worker('worker.js?v=20261118f'), save=appendMovieSegment}) {
+  signal, createWorker=()=>new Worker('worker.js?v=20261118g'), save=appendMovieSegment}) {
   const clips=planBalancedMovieClips(media.duration,settings,workers);
   const budgets=settings.maxMB==null?null:allocateMovieBudget(clips,Math.floor(settings.maxMB*1e6));
   const count=Math.min(Math.max(1,Math.floor(workers)),clips.length);

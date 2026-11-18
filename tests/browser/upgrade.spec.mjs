@@ -96,6 +96,7 @@ test('offline cache runs a real conversion and opens the player',async({page,con
 
 test('queue saves and continues automatically, with downloads still available after reload',async({page})=>{
   await page.goto('/');
+  test.skip(!await page.evaluate(()=>!!navigator.storage?.getDirectory),'This browser build has no OPFS API.');
   await page.locator('#workers').fill('1');
   await page.locator('#resolution').selectOption('256x144');
   await page.locator('#speed').selectOption('fast');
@@ -154,6 +155,7 @@ test('browser preserves a damaged or future-version queue until explicit discard
 
 test('browser can list and safely delete an abandoned OPFS checkpoint',async({page})=>{
   await page.goto('/');
+  test.skip(!await page.evaluate(()=>!!navigator.storage?.getDirectory),'This browser build has no OPFS API.');
   await page.evaluate(async()=>{
     const root=await (await navigator.storage.getDirectory()).getDirectoryHandle('mobipeg-long-movies',{create:true});
     const folder=await root.getDirectoryHandle('resume-'+'a'.repeat(64),{create:true});
@@ -208,4 +210,75 @@ test('browser HDR controls expose auto detection, manual PQ/HLG and tone-mapping
   await page.locator('#hdrTransfer').selectOption('hlg');
   await expect(page.locator('#hdrMode')).toHaveValue('hable');
   await expect(page.locator('#hdrTransfer')).toHaveValue('hlg');
+});
+
+test('CIA project reopens ordered episodes and artwork without changing the editor on missing inputs',async({page})=>{
+  await page.goto('/cia.html');
+  const project={version:1,title:'Reopened season',long_title:'Season long title',publisher:'Local studio',id:'C4321',
+    movies:[{file:'second.moflex',title:'Finale',banner:'cover.png'},{file:'first.moflex',title:'Pilot'}],
+    icon:'cover.png',browser:{split:true,bannerAudio:'sound.wav'}};
+  const json={name:'project.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(project))};
+  await page.locator('#ciaProject').setInputFiles(json);
+  await page.locator('#ciaOpen').click();
+  await expect(page.locator('#ciaStatus')).toContainText('missing project files');
+  await expect(page.locator('#ciaEpisodes > li')).toHaveCount(0);
+  await page.locator('#ciaProjectFiles').setInputFiles([
+    {name:'first.moflex',mimeType:'application/octet-stream',buffer:readFileSync(movie)},
+    {name:'second.moflex',mimeType:'application/octet-stream',buffer:readFileSync(movie)},
+    {name:'cover.png',mimeType:'image/png',buffer:Buffer.from('local artwork')},
+    {name:'sound.wav',mimeType:'audio/wav',buffer:Buffer.from('local audio')},
+  ]);
+  await page.locator('#ciaOpen').click();
+  await expect(page.locator('#ciaStatus')).toContainText('Project reopened');
+  await expect(page.getByRole('textbox',{name:'Episode 1 title',exact:true})).toHaveValue('Finale');
+  await expect(page.getByRole('textbox',{name:'Episode 2 title',exact:true})).toHaveValue('Pilot');
+  await expect(page.locator('#ciaLongTitle')).toHaveValue('Season long title');
+  await expect(page.locator('#ciaSplit')).toBeChecked();
+  expect(await page.locator('#ciaIcon').evaluate(el=>el.files[0].name)).toBe('cover.png');
+  const downloadPromise=page.waitForEvent('download');
+  await page.locator('#ciaExport').click();
+  const download=await downloadPromise;
+  const saved=JSON.parse(readFileSync(await download.path(),'utf8'));
+  expect(saved).toEqual(project);
+  // Failed reopening must preserve all previously restored edits and media.
+  await page.locator('#ciaProjectFiles').setInputFiles([]);
+  await page.locator('#ciaOpen').click();
+  await expect(page.locator('#ciaStatus')).toContainText('missing project files');
+  await expect(page.getByRole('textbox',{name:'Episode 1 title',exact:true})).toHaveValue('Finale');
+});
+
+for(const engine of ['scalar','simd'])test('real short conversion and playback with '+engine,async({page},testInfo)=>{
+  await page.goto('/');
+  await page.locator('#file').setInputFiles(source);
+  await page.locator('#workers').fill('1');
+  await page.locator('#resolution').selectOption('256x144');
+  await page.locator('#speed').selectOption('fast');
+  await page.locator('details').filter({has:page.locator('#engine')}).locator('summary').click();
+  await page.locator('#engine').selectOption(engine);
+  await page.locator('#convert').click();
+  await expect(page.locator('#stage')).toHaveText('Your MOFLEX is ready.',{timeout:90000});
+  const download=page.waitForEvent('download');
+  await page.locator('#download').click();
+  const output=testInfo.outputPath(engine+'.moflex');await (await download).saveAs(output);
+  execFileSync('ffmpeg',['-v','error','-xerror','-i',output,'-f','null','-'],{timeout:30000});
+  await page.goto('/player.html');await page.locator('#movieFile').setInputFiles(output);
+  await page.locator('#play').click();
+  await expect(page.locator('#playerStatus')).toContainText('Playing locally',{timeout:30000});
+});
+
+test('CIA editor uses saved batch conversions directly from OPFS',async({page})=>{
+  await page.goto('/cia.html');
+  test.skip(!await page.evaluate(()=>!!navigator.storage?.getDirectory),'This browser build has no OPFS API.');
+  await page.evaluate(async bytes=>{
+    const {batchStorage,saveBatchFile}=await import('/batch-output.mjs');
+    await saveBatchFile(await batchStorage(true),'Episode 2',new Blob([new Uint8Array(bytes)]));
+    await saveBatchFile(await batchStorage(true),'Episode 10',new Blob([new Uint8Array(bytes)]));
+  },[...readFileSync(movie)]);
+  await page.locator('#ciaAddSaved').click();
+  await expect(page.locator('#ciaEpisodes > li')).toHaveCount(2);
+  await expect(page.getByRole('textbox',{name:'Episode 1 title',exact:true})).toHaveValue('Episode 2');
+  await expect(page.getByRole('textbox',{name:'Episode 2 title',exact:true})).toHaveValue('Episode 10');
+  await page.locator('#ciaAddSaved').click();
+  await expect(page.locator('#ciaEpisodes > li')).toHaveCount(2);
+  await expect(page.locator('#ciaStatus')).toContainText('Duplicate filename');
 });

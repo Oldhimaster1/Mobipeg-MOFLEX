@@ -1,9 +1,10 @@
 /* Bounded decoded chunks: the source is mounted as a Blob, never copied in full. */
-let compiled=null,boot=null,engineDir='engine';
+let compiled=null,boot=null,engineDir='engine',runtimeOptions;
 async function initialize(){
   if(boot)return boot;
   boot=(async()=>{
     if(!self.crossOriginIsolated)throw Error('The MOFLEX decoder needs the included COOP/COEP isolation headers.');
+    ({wasmRuntimeOptions:runtimeOptions}=await import('./wasm-runtime.mjs?v=20261118g'));
     const simd=WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,0,0,1,4,1,96,0,0,3,2,1,0,10,9,1,7,0,65,0,253,15,26,11]));
     engineDir=simd?'engine-simd':'engine';
     importScripts(engineDir+'/mobipeg.js');
@@ -16,7 +17,7 @@ async function initialize(){
 async function run(args,file,outputs,allowFailure=false,extra=[],extraThreads=0){
   let m,logs=[];
   try{
-    m=await createMobiPEG({noInitialRun:true,mainScriptUrlOrBlob:new URL(engineDir+'/mobipeg.js',self.location.href).href,
+    m=await createMobiPEG({...runtimeOptions(undefined,extraThreads>4?256:128),noInitialRun:true,mainScriptUrlOrBlob:new URL(engineDir+'/mobipeg.js',self.location.href).href,
       print:v=>logs.push(v),printErr:v=>logs.push(v),
       instantiateWasm:(imports,done)=>{WebAssembly.instantiate(compiled,imports).then(i=>done(i,compiled));return {};}});
     // Multi-output FFmpeg commands need more scheduler threads than an
