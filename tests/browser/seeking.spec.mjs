@@ -8,7 +8,7 @@ for(const engine of ['scalar','simd'])for(const minutes of [30,60,90,120])test(`
  await page.locator('#longFixture').setInputFiles(join(folder,`movie-${minutes}min.moflex`));
  await page.locator('#shortFixture').setInputFiles(join(folder,'movie-5min.moflex'));
  const result=await page.evaluate(async({engine,minutes})=>{
-  const worker=new Worker('player-worker.js?v=20261118i');let request=0;
+  const worker=new Worker('player-worker.js?v=20261118r');let request=0;
   const call=data=>new Promise((resolve,reject)=>{worker.onmessage=({data})=>data.type==='error'?reject(Error(data.message)):resolve(data);worker.onerror=e=>reject(Error(e.message));worker.postMessage({...data,request:++request});});
   const started=performance.now();await call({type:'warm',engine});const warmSeconds=(performance.now()-started)/1000;
   const hash=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(v=>v.toString(16).padStart(2,'0')).join('');
@@ -54,7 +54,7 @@ for(const engine of ['scalar','simd'])test('two-hour stereo seek keeps exact eye
  const result=await page.evaluate(async engine=>{
   const {inspectPlayableMoflex}=await import('/player-core.mjs'),file=document.getElementById('stereoLong').files[0],original=document.getElementById('stereoRef').files[0];
   const info=await inspectPlayableMoflex(file),refInfo=await inspectPlayableMoflex(original);
-  const worker=new Worker('/player-worker.js?v=20261118i');
+  const worker=new Worker('/player-worker.js?v=20261118r');
   const call=data=>new Promise((resolve,reject)=>{worker.onmessage=({data})=>data.type==='error'?reject(Error(data.message)):resolve(data);worker.onerror=e=>reject(Error(e.message));worker.postMessage(data);});
   const hash=async b=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',b))).join(',');
   const decode=async(file,start)=>{const t=performance.now();const d=await call({type:'decode',file,start,startFrame:Math.round(start*info.codedFPS),frames:12,seconds:12/info.codedFPS,width:info.width,height:info.height,audio:true});return {seconds:(performance.now()-t)/1000,frames:d.frames,video:await hash(d.video),audio:await hash(d.pcm)};};

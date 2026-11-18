@@ -5,7 +5,7 @@ async function initialize(preferred='auto'){
   if(boot)return boot;
   boot=(async()=>{
     if(!self.crossOriginIsolated)throw Error('The MOFLEX decoder needs the included COOP/COEP isolation headers.');
-    ({wasmRuntimeOptions:runtimeOptions}=await import('./wasm-runtime.mjs?v=20261118i'));
+    ({wasmRuntimeOptions:runtimeOptions}=await import('./wasm-runtime.mjs?v=20261118r'));
     const simd=WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,0,0,1,4,1,96,0,0,3,2,1,0,10,9,1,7,0,65,0,253,15,26,11]));
     if(preferred==='simd'&&!simd)throw Error('WASM SIMD is unavailable');
     engineDir=simd&&preferred!=='scalar'?'engine-simd':'engine';
