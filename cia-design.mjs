@@ -95,6 +95,14 @@ export function setupCiaDesign({getEpisodes, notify, setFile}) {
     if (!src) img.removeAttribute('src');
   }
   function refresh() {
+    // Release previews of artwork removed or replaced by the user.
+    const kept = new Set([
+      $('ciaIcon').files[0], $('ciaBanner').files[0],
+      ...getEpisodes().map(entry => entry.bannerFile)
+    ].filter(Boolean));
+    for (const [file, src] of urls) {
+      if (!kept.has(file)) { URL.revokeObjectURL(src); urls.delete(file); }
+    }
     const title = $('ciaTitle').value.trim() || 'Your movie';
     $('ciaLiveTitle').textContent = title;
     $('ciaLivePublisher').textContent = $('ciaPublisher').value.trim() || 'MobiPEG';
