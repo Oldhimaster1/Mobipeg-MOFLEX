@@ -80,6 +80,7 @@ export function setupCiaDesign({getEpisodes, notify, setFile}) {
   const fit = $('ciaArtworkFit'), aspect = $('ciaArtworkAspect'), zoom = $('ciaArtworkZoom'),
     panX = $('ciaArtworkX'), panY = $('ciaArtworkY');
   let active = false;
+  let automaticallyGeneratedId = null;
 
   function url(file) {
     if (!imageFile(file)) return null;
@@ -99,6 +100,10 @@ export function setupCiaDesign({getEpisodes, notify, setFile}) {
     $('ciaLivePublisher').textContent = $('ciaPublisher').value.trim() || 'MobiPEG';
     const id = $('ciaId').value.toUpperCase();
     $('ciaLiveId').textContent = /^[CDE][0-9A-F]{4}$/.test(id) ? id : '—';
+    const reused = id !== automaticallyGeneratedId && readHistory().includes(id);
+    $('ciaIdCollision').textContent = reused ?
+      'This ID was generated in this browser before. It may already be installed on your 3DS.' :
+      'MobiPEG cannot check title IDs already installed on your 3DS.';
     setImage($('ciaLiveIcon'), $('ciaIconFallback'), $('ciaIcon').files[0]);
     setImage($('ciaLiveBanner'), $('ciaBannerFallback'), $('ciaBanner').files[0]);
     const list = $('ciaLiveEpisodes');
@@ -134,6 +139,7 @@ export function setupCiaDesign({getEpisodes, notify, setFile}) {
     if (currentId) used.push(currentId);
     const id = randomCiaId(used);
     $('ciaId').value = id;
+    automaticallyGeneratedId = id;
     remember(id);
     refresh();
     return id;
