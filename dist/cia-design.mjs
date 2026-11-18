@@ -46,7 +46,14 @@ export function drawCover(ctx, bitmap, width, height, settings = {}) {
   ctx.fillStyle = '#111d18';
   ctx.fillRect(0, 0, width, height);
   const {dx, dy, dw, dh} = coverGeometry(bitmap.width, bitmap.height, width, height, settings);
+  const aspect = ({native:width / height, square:1, wide:16/9, cinema:21/9, portrait:3/4})[settings.aspect || 'native'];
+  const bw = Math.min(width, height * aspect), bh = Math.min(height, width / aspect);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect((width - bw)/2, (height - bh)/2, bw, bh);
+  ctx.clip();
   ctx.drawImage(bitmap, dx, dy, dw, dh);
+  ctx.restore();
 }
 
 const imageFile = file => !!file && /\.(png|bmp|jpe?g)$/i.test(file.name);
