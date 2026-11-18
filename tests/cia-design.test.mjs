@@ -34,6 +34,18 @@ test('fit mode preserves whole image and adds predictable borders',()=>{
   const output=coverGeometry(200,120,200,120);
   assert.deepEqual(output,{dx:0,dy:0,dw:200,dh:120});
 });
+test('aspect ratio options frame content without stretching the exported CIA image',()=>{
+  assert.deepEqual(coverGeometry(400,400,200,120,{aspect:'square'}),{
+    dx:40,dy:0,dw:120,dh:120
+  });
+  const portrait=coverGeometry(400,400,200,120,{aspect:'portrait'});
+  assert.equal(portrait.dw,portrait.dh);
+  assert.equal(portrait.dx,55);
+  assert.equal(portrait.dy,0);
+  const wide=coverGeometry(400,200,200,120,{aspect:'wide'});
+  assert.equal(wide.dw/wide.dh,2);
+  assert.throws(()=>coverGeometry(400,200,200,120,{aspect:'invalid'}),/aspect ratio/);
+});
 test('zoom and pan stay bounded and invalid geometry is rejected',()=>{
   assert.deepEqual(coverGeometry(200,120,200,120,{zoom:1000,x:1000,y:-1000}),{
     dx:0,dy:-240,dw:600,dh:360
