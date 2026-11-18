@@ -24,6 +24,11 @@ function render(){
     input.setAttribute('aria-label','Episode '+(index+1)+' title');
     input.addEventListener('input',()=>entry.title=input.value);
     label.append(input);controls.append(label);
+    const bannerLabel=document.createElement('label');bannerLabel.textContent='Episode banner ';
+    const banner=document.createElement('input');banner.type='file';banner.accept='.png,.bmp,.bnr';
+    banner.setAttribute('aria-label','Episode '+(index+1)+' banner');
+    banner.onchange=()=>{entry.banner=banner.files[0]?.name??null;};
+    bannerLabel.append(banner);controls.append(bannerLabel);
     const btn=(name,action,disabled=false)=>{
       const b=document.createElement('button');b.type='button';b.className='text-button';
       b.textContent=name;b.disabled=disabled;b.onclick=action;controls.append(b);
@@ -66,7 +71,7 @@ $('ciaForm').addEventListener('submit',event=>{
   try{
     const data=createCiaProject({title:$('ciaTitle').value,longTitle:$('ciaLongTitle').value,
       publisher:$('ciaPublisher').value,id:$('ciaId').value,
-      movies:episodes.map(item=>({file:item.file.name,title:item.title})),
+      movies:episodes.map(item=>({file:item.file.name,title:item.title,...(item.banner?{banner:item.banner}:{})})),
       icon:$('ciaIcon').files[0]?.name,banner:$('ciaBanner').files[0]?.name});
     ciaSizeEstimate(episodes.map(item=>({size:item.mediaBytes})));
     const content=new Blob([JSON.stringify(data,null,2)+'\n'],{type:'application/json'});
