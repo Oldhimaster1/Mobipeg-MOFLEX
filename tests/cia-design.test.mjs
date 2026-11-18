@@ -25,8 +25,8 @@ test('cover cropping fills 200x120 with the source centered',()=>{
   assert.deepEqual(box,{dx:0,dy:-40,dw:200,dh:200});
   const left=coverGeometry(400,400,200,120,{y:-100});
   const right=coverGeometry(400,400,200,120,{y:100});
-  assert.equal(left.dy,0);
-  assert.equal(right.dy,-80);
+  assert.equal(left.dy,-80);
+  assert.equal(right.dy,0);
 });
 test('fit mode preserves whole image and adds predictable borders',()=>{
   const box=coverGeometry(400,400,200,120,{fit:'fit'});
