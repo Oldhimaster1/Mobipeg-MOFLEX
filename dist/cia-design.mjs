@@ -250,6 +250,10 @@ export function setupCiaDesign({getEpisodes, notify, setFile}) {
     for (const src of urls.values()) URL.revokeObjectURL(src);
     urls.clear();
   });
+  // Safari may restore the page from its back/forward cache after pagehide.
+  window.addEventListener('pageshow', event => {
+    if (event.persisted) refresh();
+  });
   refresh();
   return {
     refresh,
