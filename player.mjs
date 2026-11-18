@@ -1,6 +1,6 @@
-import {classifyStereoPixels,displayedCodedFrame,inspectPlayableMoflex} from './player-core.mjs?v=20261118u';
+import {classifyStereoPixels,displayedCodedFrame,inspectPlayableMoflex} from './player-core.mjs?v=20261118v';
 import {readSuperMoflex,subtitleCues,subtitlesAt} from './super-moflex.mjs?v=20261117r';
-import {openTrailerEditor} from './trailer-editor.mjs?v=20261118u';
+import {openTrailerEditor} from './trailer-editor.mjs?v=20261118v';
 
 const $=id=>document.getElementById(id);
 const canvas=$('screen'),context=canvas.getContext('2d',{alpha:false});
@@ -27,7 +27,7 @@ function resetDecoder(){
   serial++;decoder?.terminate();decoder=null;inFlight=false;buffer=[];lastFrame=-1;failed=false;
   if(!metadata)return;
   const incarnation=serial;
-  decoder=new Worker('player-worker.js?v=20261118u');
+  decoder=new Worker('player-worker.js?v=20261118v');
   decoder.onerror=error=>{if(incarnation!==serial)return;inFlight=false;exporting=false;failed=true;pause();$('exportVideo').disabled=false;status('Decoder failed: '+(error.message||'unknown error'));};
   decoder.onmessage=({data:d})=>{
     if(incarnation!==serial||d.request!==incarnation)return;

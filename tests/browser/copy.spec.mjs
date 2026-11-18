@@ -6,7 +6,7 @@ test('current Studio copy and new controls translate in all eight locales',async
  await page.setViewportSize({width:390,height:844});
  await page.goto('/');
  await page.locator('#budgetMode').evaluate(el=>el.closest('details').open=true);
- await expect(page.locator('#studioRelease')).toHaveText('2026.11.18u');
+ await expect(page.locator('#studioRelease')).toHaveText('2026.11.18v');
  await page.locator('input[name=mode][value=half-sbs]').check();
  for(const [index,locale]of locales.entries()){
   await page.locator('#interfaceLanguage').selectOption(locale);
@@ -19,7 +19,7 @@ test('current Studio copy and new controls translate in all eight locales',async
   expect(await page.locator('#preset').inputValue()).toBe('quality');
   expect(await page.locator('#budgetMode').inputValue()).toBe('scene');
   expect(await page.locator('#audioCodec').inputValue()).toBe('adpcm');
-  expect(await page.locator('#studioRelease').textContent()).toBe('2026.11.18u');
+  expect(await page.locator('#studioRelease').textContent()).toBe('2026.11.18v');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
  }
  await page.reload();await expect(page.locator('html')).toHaveAttribute('lang','zh-Hans');
