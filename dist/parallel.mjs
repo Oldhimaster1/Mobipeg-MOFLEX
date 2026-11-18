@@ -1,6 +1,6 @@
-import {audioBudgetRate} from './complexity.mjs?v=20261118v';
-import {remainingMovieBudgets,allocateMovieBudget, appendMovieSegment, getCodedRate} from './movie.mjs?v=20261118v';
-import {persistRange} from './checkpoints.mjs?v=20261118v';
+import {audioBudgetRate} from './complexity.mjs?v=20261118w';
+import {remainingMovieBudgets,allocateMovieBudget, appendMovieSegment, getCodedRate} from './movie.mjs?v=20261118w';
+import {persistRange} from './checkpoints.mjs?v=20261118w';
 
 // Balanced, frame-aligned timeline parts require no source chapters.
 // A bounded worker pool reuses compiled WASM and recycles memory every four parts.
@@ -27,7 +27,7 @@ export function planBalancedMovieClips(seconds, settings, wanted=1) {
   return clips;
 }
 export async function runParallelMovie({file, settings, media, job, workers, onUpdate=()=>{},
-  signal, createWorker=()=>new Worker('worker.js?v=20261118v'), save=appendMovieSegment}) {
+  signal, createWorker=()=>new Worker('worker.js?v=20261118w'), save=appendMovieSegment}) {
   const clips=planBalancedMovieClips(media.duration,settings,workers);
   const reservations={};
   const limited=settings.maxMB!=null;

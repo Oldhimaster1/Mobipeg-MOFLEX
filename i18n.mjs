@@ -1,6 +1,6 @@
 import rows from './translations.mjs?v=20261117e';
 import queueRows from './queue-translations.mjs?v=20261117f';
-import studioRows from './studio-translations.mjs?v=20261118v';
+import studioRows from './studio-translations.mjs?v=20261118w';
 export const LANGUAGES=['en','es','fr','de','pt','ja','ko','zh-Hans'];
 const entries=new Map([...rows,...queueRows,...studioRows].map(row=>[row[0],row]));
 const KEY='mobipeg-interface-language';
