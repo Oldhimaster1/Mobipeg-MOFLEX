@@ -225,20 +225,26 @@ retained. Movies are replaced in order, episode names and HOME Menu information
 are updated, and RomFS integrity levels, NCCH section hashes, content hashes,
 TMD and ticket title IDs are rebuilt. No template or executable is distributed.
 
-The selected template must currently contain exactly the same number of movie
-slots as your project. Single-movie and two-movie native templates have integration
-coverage. The interface permits up to 27 episodes, with matching-template builds
-above two episodes still unverified. The browser preserves the template's layout
-and selection logic. It cannot switch a single-movie executable into a collection.
+A compatible collection template can now be reused for 1–27 episodes. The browser
+rebuilds directory/file metadata and hash buckets, episode-count settings, ordered
+titles and thumbnail lists. A single-movie template still supports one movie,
+because it carries a different player/menu configuration. Use a collection-player
+template to build seasons. Tests reuse a two-episode native template for 1, 2, 5,
+10, 20 and 27 episodes and verify payloads, title rows, settings, executable and
+menu resource preservation through independent extraction.
 
 Custom icons currently require a prepared SMDH. Custom banners require a prepared
 CBMD `.bnr` or `.bin`, which can include banner audio. PNG/BMP artwork remains
-available for native project export. Per-episode banner editing is not yet wired
-into browser packaging. Existing episode artwork is retained from the template.
+available for native project export. Each episode can use a prepared `.bimg` thumbnail matching the selected template's
+format. Otherwise its thumbnail is copied from the template's first episode.
+PNG/BMP conversion for episode thumbnails remains pending.
 
 SHA-256 content hashing reads 1 MiB chunks. RomFS integrity hashing uses 4 KiB
 blocks, and movie data remains in Blob slices. Executable/ExeFS prefix allocation
 is limited to 16 MiB. Output is assembled as a Blob and checked against FAT32.
+Enable splitting to partition an oversized collection in order, using consecutive
+title IDs. The splitter conservatively reserves the template size plus 64 MiB per
+part for packaging overhead. Every finished CIA receives a final FAT32 check.
 Actual multi-gigabyte builds, mobile peak memory and Safari are unverified.
 The browser validates source and final content hashes, NCCH section hashes and
 matching IDs. Independent native verification and extraction passed for generated

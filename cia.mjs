@@ -1,5 +1,5 @@
-import {buildCia} from './cia-packager.mjs?v=20261118b';
-import {createCiaProject,ciaSizeEstimate,MAX_CIA_MOVIES} from './cia-project.mjs?v=20261117z';
+import {buildCia} from './cia-packager.mjs?v=20261118c';
+import {createCiaProject,ciaSizeEstimate,MAX_CIA_MOVIES,planCiaParts} from './cia-project.mjs?v=20261118c';
 import {readSuperMoflex} from './super-moflex.mjs?v=20261117r';
 import {inspectPlayableMoflex} from './player-core.mjs?v=20261117s';
 
@@ -26,9 +26,9 @@ function render(){
     input.addEventListener('input',()=>entry.title=input.value);
     label.append(input);controls.append(label);
     const bannerLabel=document.createElement('label');bannerLabel.textContent='Episode banner ';
-    const banner=document.createElement('input');banner.type='file';banner.accept='.png,.bmp,.bnr';
+    const banner=document.createElement('input');banner.type='file';banner.accept='.png,.bmp,.bnr,.bimg';
     banner.setAttribute('aria-label','Episode '+(index+1)+' banner');
-    banner.onchange=()=>{entry.banner=banner.files[0]?.name??null;};
+    banner.onchange=()=>{entry.banner=banner.files[0]?.name??null;entry.bannerFile=banner.files[0]??null;};
     bannerLabel.append(banner);controls.append(bannerLabel);
     const btn=(name,action,disabled=false)=>{
       const b=document.createElement('button');b.type='button';b.className='text-button';
@@ -92,14 +92,19 @@ $('ciaBuild').onclick=async()=>{
     const icon=$('ciaIcon').files[0],banner=$('ciaBanner').files[0];
     if(icon&&!/\.smdh$/i.test(icon.name))throw Error('CIA building currently requires a prepared .smdh icon.');
     if(banner&&!/\.(bin|bnr)$/i.test(banner.name))throw Error('CIA building requires a prepared .bnr or .bin banner.');
-    if(episodes.some(e=>e.banner))throw Error('Per-episode artwork currently comes from the selected template.');
+    if(episodes.some(e=>e.bannerFile&&!/\.bimg$/i.test(e.bannerFile.name)))throw Error('Browser episode thumbnails require a template-compatible .bimg file.');
     const project=createCiaProject({title:$('ciaTitle').value,longTitle:$('ciaLongTitle').value,
       publisher:$('ciaPublisher').value,id:$('ciaId').value,
       movies:episodes.map(e=>({file:e.file.name,title:e.title}))});
     const movies=[];for(const episode of episodes)movies.push((await readSuperMoflex(episode.file)).media);
-    const result=await buildCia({template,project,movies,icon,banner,onProgress:message=>setStatus(message)});
-    const url=URL.createObjectURL(result),link=document.createElement('a');link.href=url;link.download='movie.cia';link.click();
-    setTimeout(()=>URL.revokeObjectURL(url),60000);
+    const groups=planCiaParts(movies.map(movie=>movie.size),template.size,project.id,$('ciaSplit').checked);
+    const firstId=parseInt(project.id,16);
+    for(const [part,indices] of groups.entries()){
+      const partProject={...project,id:(firstId+part).toString(16).toUpperCase(),movies:indices.map(i=>project.movies[i])};
+      const result=await buildCia({template,project:partProject,movies:indices.map(i=>movies[i]),icon,banner,episodeBanners:indices.map(i=>episodes[i].bannerFile),onProgress:message=>setStatus('Part '+(part+1)+' of '+groups.length+' · '+message)});
+      const url=URL.createObjectURL(result),link=document.createElement('a');link.href=url;link.download=groups.length>1?'collection-'+(part+1)+'.cia':'movie.cia';link.click();
+      setTimeout(()=>URL.revokeObjectURL(url),60000);
+    }
     setStatus('CIA built and content hash verified. Installation and playback require console testing.');
   }catch(error){setStatus(error.message||String(error),true);}
   finally{button.disabled=false;}

@@ -60,3 +60,21 @@ export function ciaSizeEstimate(files){
   if(bytes>=FAT32_CIA)throw Error('MOFLEX payloads alone exceed the FAT32 limit. Split into multiple CIAs.');
   return {bytes,headroom:FAT32_CIA-bytes,needsPackingOverhead:true};
 }
+
+export function planCiaParts(sizes,templateBytes,firstId,allowSplit=false){
+  const budget=FAT32_CIA-templateBytes-64*1024*1024;
+  ciaTitleID(firstId);
+  if(!Number.isSafeInteger(templateBytes)||templateBytes<0||budget<=0)throw Error('Invalid template size');
+  const groups=[];let group=[],bytes=0;
+  for(const [index,size] of sizes.entries()){
+    if(!Number.isSafeInteger(size)||size<0||size>budget)throw Error('One movie exceeds the safe CIA payload budget. Split that video before packaging.');
+    if(bytes+size>budget){
+      if(!allowSplit)throw Error('Collection exceeds the safe FAT32 payload budget. Enable splitting.');
+      groups.push(group);group=[];bytes=0;
+    }
+    group.push(index);bytes+=size;
+  }
+  if(group.length)groups.push(group);
+  if(parseInt(firstId,16)+groups.length-1>0xeffff)throw Error('Split collection title IDs exceed EFFFF. Choose a lower starting ID.');
+  return groups;
+}

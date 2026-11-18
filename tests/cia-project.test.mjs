@@ -25,3 +25,12 @@ test('CIA estimates reject invalid individual sizes before summing',()=>{
   for(const files of [null,[{}],[{size:'100'}],[{size:-1},{size:101}],[{size:0.5},{size:0.5}]])
     assert.throws(()=>ciaSizeEstimate(files),/Invalid video sizes/);
 });
+
+test('collection splitting preserves order and protects title ID range',async()=>{
+  const {planCiaParts,FAT32_CIA}=await import('../cia-project.mjs');
+  const budget=FAT32_CIA-64*1024*1024-100;
+  assert.deepEqual(planCiaParts([budget-1,2,3],100,'C1234',true),[[0],[1,2]]);
+  assert.throws(()=>planCiaParts([budget,1],100,'C1234'),/Enable splitting/);
+  assert.throws(()=>planCiaParts([budget+1],100,'C1234',true),/One movie/);
+  assert.throws(()=>planCiaParts([budget,1],100,'EFFFF',true),/title IDs/);
+});

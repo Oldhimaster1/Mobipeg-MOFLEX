@@ -1,3 +1,4 @@
+import { rebuildRomfsMetadata } from "./cia-romfs.mjs";
 import { sha256Blob } from "./cia-sha256.mjs";
 // Template-preserving CIA rebuild. No executable or template is distributed.
 import { ciaTitleID } from "./cia-project.mjs";
@@ -107,7 +108,7 @@ async function romfsFiles(content, ncch) {
   if (u32(h, 0) !== 40) throw Error("Invalid RomFS metadata");
   const dataOffset = u32(h, 36);
   if (dataOffset > 16 * 1024 * 1024)
-    throw Error('RomFS metadata exceeds the 16 MiB bound');
+    throw Error("RomFS metadata exceeds the 16 MiB bound");
   const metadata = await read(romfs, base, dataOffset);
   const dm = u32(h, 12),
     fm = u32(h, 28),
@@ -143,14 +144,24 @@ async function romfsFiles(content, ncch) {
   return { metadata, dataOffset, files };
 }
 async function hashBlocks(blob) {
-  const hashes = [];
-  for (let o = 0; o < blob.size; o += 4096) {
-    const b = await read(blob, o, Math.min(4096, blob.size - o));
-    const block = new Uint8Array(4096);
-    block.set(b);
-    hashes.push(await hash(block));
+  const hashes = new Uint8Array(Math.ceil(blob.size / 4096) * 32);
+  for (let offset = 0; offset < blob.size; offset += 1048576) {
+    const bytes = await read(
+      blob,
+      offset,
+      Math.min(1048576, blob.size - offset),
+    );
+    for (let p = 0; p < bytes.length; p += 4096) {
+      let block = bytes.subarray(p, p + 4096);
+      if (block.length < 4096) {
+        const padded = new Uint8Array(4096);
+        padded.set(block);
+        block = padded;
+      }
+      hashes.set(await hash(block), ((offset + p) / 4096) * 32);
+    }
   }
-  return new Blob(hashes);
+  return new Blob([hashes]);
 }
 async function buildRomfs(state) {
   const parts = [state.metadata];
@@ -195,25 +206,90 @@ export async function buildCia({
   movies,
   icon = null,
   banner = null,
+  episodeBanners = [],
   onProgress = () => {},
 }) {
   onProgress("Checking local player template");
-  const t = await inspectCia(template),
-    state = await romfsFiles(t.content, t.ncch);
+  const t = await inspectCia(template);
+  let state = await romfsFiles(t.content, t.ncch);
   const slots = state.files
     .filter((f) => /\/movie(?:_\d+)?\.moflex$/i.test(f.path))
     .sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true }));
-  if (slots.length !== movies.length)
-    throw Error(
-      "Choose a compatible player template with exactly " +
-        movies.length +
-        " movie slots",
+  if (
+    !Array.isArray(movies) ||
+    movies.length < 1 ||
+    movies.length > 27 ||
+    project.movies.length !== movies.length
+  )
+    throw Error("Choose 1–27 matching movie entries");
+  const settings = state.files.find(
+    (f) => f.path === "/settings/settingsTL.csv",
+  );
+  const banners = state.files.find(
+    (f) => f.path === "/settings/movie_bnrname.csv",
+  );
+  const decode = async (file) =>
+    new TextDecoder("utf-16le").decode(await file.blob.arrayBuffer());
+  const encode = (text) => new Blob([new Uint8Array([255, 254]), utf16(text)]);
+  const settingsText = settings ? await decode(settings) : "";
+  const collection =
+    slots.some((f) => /movie_0\.moflex$/.test(f.path)) &&
+    banners &&
+    /# 動画の数\r?\n\d+/.test(settingsText);
+  if (!collection && movies.length !== 1)
+    throw Error("Multiple episodes require a collection-player template");
+  if (!slots.length) throw Error("Template has no movie slots");
+  const art = state.files.find((f) => /\/movie_0\.bimg$/.test(f.path));
+  if (collection && !art)
+    throw Error("Collection template has no episode thumbnail resource");
+  state.files = state.files.filter(
+    (f) => !slots.includes(f) && !/\/movie_\d+\.bimg$/.test(f.path),
+  );
+  for (let i = 0; i < movies.length; i++) {
+    state.files.push({
+      path: collection
+        ? "/movie/movie_" + i + ".moflex"
+        : "/movie/movie.moflex",
+      blob: movies[i],
+    });
+    if (collection) {
+      const thumbnail = episodeBanners[i] || art.blob;
+      if (
+        episodeBanners[i] &&
+        (thumbnail.size !== art.blob.size ||
+          !equal(await read(thumbnail, 0, 32), await read(art.blob, 0, 32)))
+      )
+        throw Error("Episode thumbnail must match the template BIMG format");
+      state.files.push({
+        path: "/movie/movie_" + i + ".bimg",
+        blob: thumbnail,
+      });
+    }
+  }
+  if (collection) {
+    settings.blob = encode(
+      settingsText.replace(
+        /(# 動画の数\r?\n)\d+/,
+        (_, prefix) => prefix + movies.length,
+      ),
     );
-  if (!state.files.some((f) => /\/movie_title\.csv$/.test(f.path)))
-    throw Error("Unrecognized player movie layout");
-  if (movies.reduce((n, b) => n + b.size, 0) > 0xffffffff - 16 * 1024 * 1024)
-    throw Error("Movie payloads leave insufficient FAT32 packaging headroom");
-  for (let i = 0; i < slots.length; i++) slots[i].blob = movies[i];
+    banners.blob = encode(
+      movies.length +
+        "\r\n" +
+        movies.map((_, i) => "movie_" + i + ".bimg").join("\r\n") +
+        "\r\n",
+    );
+  }
+  if (settings) {
+    const value = await decode(settings);
+    settings.blob = encode(
+      value.replace(
+        /(# 拡張セーブデータのID（16進数）\r?\n)[^\r\n]+/,
+        (_, prefix) => prefix + project.id,
+      ),
+    );
+  }
+  state = rebuildRomfsMetadata(state.files);
   const csv = state.files.find((f) => /\/movie_title\.csv$/.test(f.path));
   const escape = (s) => s.replace(/^#/, "\\x23").replaceAll(",", "\\x2C");
   csv.blob = new Blob([

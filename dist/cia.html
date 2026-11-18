@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#f5f6f2"><title>MobiPEG — CIA project builder</title>
 <link rel="stylesheet" href="style.css?v=20261117s"><link rel="manifest" href="manifest.webmanifest">
-<script src="isolation.js?v=20261117s" defer></script><script type="module" src="cia.mjs?v=20261118b"></script>
+<script src="isolation.js?v=20261117s" defer></script><script type="module" src="cia.mjs?v=20261118c"></script>
 <style>
 .cia-main{max-width:940px;margin:auto;padding:clamp(1rem,4vw,3rem)}.cia-main .card{margin:1rem 0;padding:clamp(1rem,3vw,2rem)}
 .cia-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1rem}
@@ -27,7 +27,7 @@
 <label>HOME Menu icon (optional)<input id="ciaIcon" type="file" accept=".png,.bmp,.smdh"></label>
 <label>Banner (optional)<input id="ciaBanner" type="file" accept=".png,.bmp,.bnr,.bin"></label>
 </div><p class="hint">Choose a title ID that is not already installed. You must supply artwork files alongside the exported project when packaging.</p></section>
-<section class="card"><h2>3. Build a CIA</h2><label>Local player template CIA<input id="ciaTemplate" type="file" accept=".cia"></label><p class="hint">Select a legally obtained, decrypted VidInjector-compatible CIA containing the same number of movies. The player and menu layout are preserved. Movie data is read in bounded chunks. The finished file must fit FAT32. Custom icons use SMDH and banners use prepared CBMD banner binaries, including their audio.</p><button id="ciaBuild" type="button" class="primary">Build CIA</button><h3>Save project settings</h3><p class="cia-help">Save the episode order and settings as a native-compatible JSON project.
+<section class="card"><h2>3. Build a CIA</h2><label>Local player template CIA<input id="ciaTemplate" type="file" accept=".cia"></label><p class="hint">Select a legally obtained, decrypted VidInjector collection-player CIA for 1–27 episodes. A single-movie player template supports one movie. The player and menu layout are preserved. Movie data is read in bounded chunks. The finished file must fit FAT32. Custom icons use SMDH and banners use prepared CBMD banner binaries, including their audio.</p><label><input id="ciaSplit" type="checkbox"> Split oversized collections into separate CIAs</label><p class="hint">Splitting preserves episode order and reserves the template size plus 64 MiB per part for packaging overhead. Parts use consecutive title IDs starting with your chosen ID. Each completed CIA is checked against FAT32. Allow multiple downloads when prompted.</p><button id="ciaBuild" type="button" class="primary">Build CIA</button><h3>Save project settings</h3><p class="cia-help">Save the episode order and settings as a native-compatible JSON project.
 The Build CIA button uses your selected local template. You can also use the JSON project with the native builder.
 No account, server, or paid API is required.</p>
 <button id="ciaExport" type="submit" class="primary">Download CIA project JSON ↘</button>
