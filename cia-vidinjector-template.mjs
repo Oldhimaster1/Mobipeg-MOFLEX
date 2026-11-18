@@ -88,14 +88,15 @@ async function exeFiles(exe){
   return files;
 }
 async function makeExefs(entries){
-  const header=new Uint8Array(512),parts=[new Blob([header])];let off=0;
+  const header=new Uint8Array(512),parts=[];let off=0;
   for(let i=0;i<entries.length;i++){
     const {name,blob}=entries[i];
     header.set(encoder.encode(name),i*16);w32(header,i*16+8,off);w32(header,i*16+12,blob.size);
     header.set(await hash(blob),512-(i+1)*32);
     const part=pad(blob,512);parts.push(part);off+=part.size;
   }
-  return new Blob(parts);
+  // Blob copies Uint8Array bytes immediately; create the header Blob only AFTER filling it.
+  return new Blob([header,...parts]);
 }
 export async function assembleVidInjectorStarter(base,zip,bimg,{onProgress=()=>{}}={}){
   if(base.size>limit||bimg.size!==32)throw Error('Invalid player starter assets');
