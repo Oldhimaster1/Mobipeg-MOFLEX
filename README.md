@@ -229,8 +229,10 @@ The latter fetches three upstream resources from a pinned VidInjector GitHub rev
 and assembles a starter locally. MobiPEG does not include those third-party binary
 files in this repository. This is **experimental**: VidInjector's player binary
 redistribution rights have not been established, and the automatically generated
-CIA has **not** passed a physical 3DS installation/playback test. Do not use or
-redistribute files without the necessary permissions.
+CIA has **not** passed a physical 3DS installation/playback test. The pinned
+automatic-player path has passed installation, menu, two-episode video/audio
+playback, menu return and relaunch checks in Azahar 2126.2. Do not use or
+redistribute the upstream files without the necessary permissions.
 
 After selecting an allowed player source, **Build CIA** rebuilds the movies,
 metadata and menu, and recalculates RomFS, NCCH, TMD, ticket and content hashes.

@@ -43,7 +43,7 @@ test('bounds ZIP memory and rejects arbitrary upstream file requests',async()=>{
  await assert.rejects(()=>fetchVidInjectorFile('../token',{request:async()=>{throw Error('must not request');}}),/(Unknown|Unsupported)/);
 });
 test('fetches only the pinned official VidInjector upstream resource',async()=>{
- const calls=[],resource=new Blob([Buffer.alloc(32,1)]);
+ const calls=[],resource=new Blob([Buffer.from('AAAAAAAAAQAAAAAAAwAAAAABgAABAgAAEAAAAAAAAAA=','base64')]);
  const mock=async(url,options)=>{
   calls.push({url,options});return {ok:true,type:'basic',headers:new Headers(),blob:async()=>resource};
  };

@@ -7,6 +7,11 @@ import {sha256Blob} from './cia-sha256.mjs';
 export const VIDINJECTOR_REVISION='7eb44d5fb712cdd8a8a34981c2bfaefba8f29b64';
 const root='https://raw.githubusercontent.com/FoofooTheGuy/VidInjector9000/'+VIDINJECTOR_REVISION+'/VidInjector9002-CLI/assets/';
 const encoder=new TextEncoder(),decoder=new TextDecoder(),limit=8*1024*1024;
+const upstreamFiles=new Map([
+  ['files/base.cia',{bytes:197056,sha256:'f1edb172343232673f5a7b2fc7b22e2a1f802e07be513d4fce19e19dd5c1691f'}],
+  ['files/vector/multi.zip',{bytes:776359,sha256:'2522405ce6da3e2e76fa0e493790c41de56dcfca278b2af61319eda445546f08'}],
+  ['arrays/bimgheader.bin',{bytes:32,sha256:'4fec9fc6183adfecd8fdbd8c9db9f5bd97f915e402f69f261862d800dd65fdb5'}]
+]);
 const align=(n,b=64)=>Math.ceil(n/b)*b;
 const dv=a=>new DataView(a.buffer,a.byteOffset,a.byteLength);
 const r16=(a,p)=>dv(a).getUint16(p,true),r32=(a,p)=>dv(a).getUint32(p,true);
@@ -23,11 +28,13 @@ const csv=s=>new Blob([new Uint8Array([255,254]),utf16(s)]);
 const signature=a=>{const n=dv(a).getUint32(0,false)-0x10000,v=[0x240,0x140,0x80,0x240,0x140,0x80][n];if(!v)throw Error('Unsupported CIA signature');return v;};
 const range=async(b,o,n)=>{if(o<0||n<0||o+n>b.size||!Number.isSafeInteger(o+n))throw Error('Truncated player file');return buf(b.slice(o,o+n));};
 export async function fetchVidInjectorFile(path,{request=fetch}={}){
-  if(!['files/base.cia','files/vector/multi.zip','arrays/bimgheader.bin'].includes(path))throw Error('Unknown VidInjector resource');
+  const expected=upstreamFiles.get(path);if(!expected)throw Error('Unknown VidInjector resource');
   const response=await request(root+path,{mode:'cors',credentials:'omit',redirect:'error'});
   if(!response.ok||response.type==='opaque')throw Error('Cannot retrieve VidInjector resource: '+path);
   if(Number(response.headers.get('content-length'))>limit)throw Error('Unexpected player download size');
-  const blob=await response.blob();if(!blob.size||blob.size>limit)throw Error('Invalid player resource size');
+  const blob=await response.blob();if(blob.size!==expected.bytes||blob.size>limit)throw Error('Invalid player resource size');
+  const digest=Array.from(await hash(blob),value=>value.toString(16).padStart(2,'0')).join('');
+  if(digest!==expected.sha256)throw Error('VidInjector resource integrity check failed');
   return blob;
 }
 // ZIP central-directory reader. Rejects encrypted, oversized and unsafe members.
@@ -135,7 +142,12 @@ export async function assembleVidInjectorStarter(base,zip,bimg,{onProgress=()=>{
   const romFiles=[];
   for(const [path,blob] of files)if(path.startsWith('romfs/'))romFiles.push({path:'/'+path.slice(6),blob});
   if(romFiles.length<10)throw Error('Missing player resources');
+  const playerIcon=oldEntries.find(file=>file.name==='icon')?.blob;
+  if(!playerIcon||text(await range(playerIcon,0,4))!=='SMDH')throw Error('Base CIA has no valid player icon');
   romFiles.push(
+    // The collection player reads this copy while creating its extra data. It
+    // exits with a fatal error when the resource is missing.
+    {path:'/icon.icn',blob:playerIcon},
     {path:'/movie/movie_0.moflex',blob:new Blob([new Uint8Array([0x4c,0x32,0xaa,0xab])])},
     {path:'/movie/movie_title.csv',blob:csv('#JP,#EN,#FR,#GE,#IT,#SP,#CH,#KO,#DU,#PO,#RU,#TW\r\n'+Array(12).fill('Movie').join(',')+'\r\n')},
     {path:'/movie/movie_0.bimg',blob:new Blob([bimg,new Uint8Array(65536)])},

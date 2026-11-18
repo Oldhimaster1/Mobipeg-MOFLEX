@@ -70,17 +70,38 @@ export async function inspectCia(blob) {
     throw Error("Template has no executable player or movie filesystem");
   // A matching section hash alone does not prove the ExeFS contains a player.
   // Check its directory before accepting the CIA as a usable template/output.
+  const exefsOffset = u32(ncch, 0x1a0) * 512;
   const exefsSize = u32(ncch, 0x1a4) * 512;
-  const exefsHeader = await read(content, u32(ncch, 0x1a0) * 512, 512);
+  const exefsHeader = await read(content, exefsOffset, 512);
   let playerExecutable = false;
+  const exefsNames = new Set();
   for (let index = 0; index < 10; index++) {
     const entry = index * 16;
     const length = u32(exefsHeader, entry + 12);
     if (!length) continue;
+    const name = text(exefsHeader, entry, 8);
+    if (!name || exefsNames.has(name)) throw Error("Invalid ExeFS directory");
+    exefsNames.add(name);
     const offset = u32(exefsHeader, entry + 8);
     if (512 + offset + length > exefsSize)
       throw Error("ExeFS file lies outside the executable section");
-    if (text(exefsHeader, entry, 8) === ".code") playerExecutable = true;
+    const file = content.slice(
+      exefsOffset + 512 + offset,
+      exefsOffset + 512 + offset + length,
+    );
+    if (
+      !equal(
+        await hash(file),
+        exefsHeader.subarray(512 - (index + 1) * 32, 512 - index * 32),
+      )
+    )
+      throw Error("ExeFS file hash mismatch");
+    if (name === ".code") {
+      const sample = await read(file, 0, Math.min(length, 4096));
+      if (length < 4096 || !sample.some((value) => value !== 0))
+        throw Error("CIA player executable is empty");
+      playerExecutable = true;
+    }
   }
   if (!playerExecutable) throw Error("CIA has no player executable in ExeFS");
   const title = view(tmd).getBigUint64(s + 0x4c, false);
@@ -114,7 +135,7 @@ export async function inspectCia(blob) {
     cert: blob.slice(align(0x2020), align(0x2020) + certSize),
   };
 }
-async function romfsFiles(content, ncch) {
+export async function romfsFiles(content, ncch) {
   const romfs = content.slice(
     u32(ncch, 0x1b0) * 512,
     (u32(ncch, 0x1b0) + u32(ncch, 0x1b4)) * 512,
@@ -180,6 +201,29 @@ async function hashBlocks(blob) {
     }
   }
   return new Blob([hashes]);
+}
+async function prepareCiaIcon(template, selected, project) {
+  let replacement = selected
+    ? isArtworkImage(selected)
+      ? await makeSmdhArtwork(selected, template)
+      : await read(selected, 0, selected.size)
+    : template.slice();
+  if (replacement.length !== template.length || text(replacement, 0, 4) !== "SMDH")
+    throw Error("Custom icon must be a matching SMDH");
+  for (let lang = 0; lang < 16; lang++)
+    for (const [offset, value, max] of [
+      [0, project.title, 64],
+      [128, project.long_title || project.title, 128],
+      [384, project.publisher, 64],
+    ]) {
+      const dst = replacement.subarray(
+        8 + lang * 512 + offset,
+        8 + lang * 512 + offset + max * 2,
+      );
+      dst.fill(0);
+      dst.set(utf16(value));
+    }
+  return replacement;
 }
 export async function buildRomfs(state) {
   const parts = [state.metadata];
@@ -308,6 +352,12 @@ export async function buildCia({
       ),
     );
   }
+  if (collection) {
+    const romfsIcon = state.files.find((file) => file.path === "/icon.icn");
+    if (!romfsIcon) throw Error("Collection template has no player icon resource");
+    const original = await read(romfsIcon.blob, 0, romfsIcon.blob.size);
+    romfsIcon.blob = new Blob([await prepareCiaIcon(original, icon, project)]);
+  }
   state = rebuildRomfsMetadata(state.files);
   const csv = state.files.find((f) => /\/movie_title\.csv$/.test(f.path));
   const escape = (s) => s.replace(/^#/, "\\x23").replaceAll(",", "\\x2C");
@@ -355,26 +405,10 @@ export async function buildCia({
     if (!size) continue;
     if (name === ".code") executable = true;
     if (name === "icon") {
-      if (icon) {
-        const replacement = isArtworkImage(icon) ? await makeSmdhArtwork(icon,ex.subarray(start,start+size)) : await read(icon, 0, icon.size);
-        if (replacement.length !== size || text(replacement, 0, 4) !== "SMDH")
-          throw Error("Custom icon must be a matching SMDH");
-        ex.set(replacement, start);
-      }
-      if (text(ex, start, 4) !== "SMDH") throw Error("Unsupported player icon");
-      for (let lang = 0; lang < 16; lang++)
-        for (const [offset, value, max] of [
-          [0, project.title, 64],
-          [128, project.long_title || project.title, 128],
-          [384, project.publisher, 64],
-        ]) {
-          const dst = ex.subarray(
-            start + 8 + lang * 512 + offset,
-            start + 8 + lang * 512 + offset + max * 2,
-          );
-          dst.fill(0);
-          dst.set(utf16(value));
-        }
+      ex.set(
+        await prepareCiaIcon(ex.subarray(start, start + size), icon, project),
+        start,
+      );
       ex.set(await hash(ex.subarray(start, start + size)), 512 - (i + 1) * 32);
     }
   }

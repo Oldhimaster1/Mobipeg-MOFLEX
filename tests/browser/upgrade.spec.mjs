@@ -301,7 +301,7 @@ for(const engine of ['scalar','simd'])test('real short conversion and playback w
   await page.locator('#play').click();
   await expect(page.locator('#playerStatus')).toContainText('Playing locally',{timeout:30000});
   expect(engineRequests.some(url=>url.includes('.wasm?'))).toBe(true);
-  for(const url of engineRequests)expect(new URL(url).searchParams.get('v')).toBe('20261118u');
+  for(const url of engineRequests)expect(new URL(url).searchParams.get('v')).toBe('20261118v');
 });
 
 test('CIA editor uses saved batch conversions directly from OPFS',async({page})=>{

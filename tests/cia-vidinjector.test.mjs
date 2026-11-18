@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {deflateRawSync} from 'node:zlib';
 import {assembleVidInjectorStarter,readVidInjectorZip,fetchVidInjectorFile} from '../cia-vidinjector-template.mjs';
-import {inspectCia} from '../cia-packager.mjs';
+import {buildCia,inspectCia,romfsFiles} from '../cia-packager.mjs';
 
 // Synthetic fixtures only. No third-party player files are stored in this repository.
 const sha=bytes=>createHash('sha256').update(bytes).digest();
@@ -72,6 +72,16 @@ test('on-demand VidInjector starter contains a real populated ExeFS directory',a
   assert.equal(ncch.getBigUint64(0x118,true),0x000400000C100000n);
   const rom=ncch.getUint32(0x1b0,true)*512,magic=await parsed.content.slice(rom,rom+4).text();
   assert.equal(magic,'IVFC');
+  const starterFiles=await romfsFiles(parsed.content,parsed.ncch);
+  const starterIcon=starterFiles.files.find(file=>file.path==='/icon.icn');
+  assert.equal(starterIcon?.blob.size,14016);
+  assert.equal(await starterIcon.blob.slice(0,4).text(),'SMDH');
+
+  const project={title:'Runtime title',long_title:'Runtime long title',publisher:'Runtime publisher',id:'C4321',movies:[{file:'movie.moflex',title:'Episode one'}]};
+  const finished=await buildCia({template:output,project,movies:[new Blob([Buffer.from('L2AA movie')])]});
+  const finalParsed=await inspectCia(finished),finalFiles=await romfsFiles(finalParsed.content,finalParsed.ncch);
+  const finalIcon=finalFiles.files.find(file=>file.path==='/icon.icn');
+  assert.equal(new TextDecoder('utf-16le').decode(await finalIcon.blob.slice(8,8+64*2).arrayBuffer()).replace(/\0.*$/s,''),'Runtime title');
 });
 test('ZIP input validation rejects unsafe paths, duplicate files and incomplete archives',async()=>{
   for(const input of [
@@ -97,10 +107,11 @@ test('mismatched ZIP size metadata cannot trigger unlimited inflation',async()=>
 test('only pinned upstream files are requested and browser credentials are omitted',async()=>{
   const seen=[];
   const response=await fetchVidInjectorFile('arrays/bimgheader.bin',{request:async(url,opts)=>{
-    seen.push([url,opts]);return {ok:true,type:'basic',headers:new Headers(),blob:async()=>new Blob([Buffer.alloc(32)])};
+    seen.push([url,opts]);return {ok:true,type:'basic',headers:new Headers(),blob:async()=>new Blob([Buffer.from('AAAAAAAAAQAAAAAAAwAAAAABgAABAgAAEAAAAAAAAAA=','base64')])};
   }});
   assert.equal(response.size,32);
   assert.match(seen[0][0],/\/FoofooTheGuy\/VidInjector9000\/[0-9a-f]{40}\//);
   assert.equal(seen[0][1].credentials,'omit');
   await assert.rejects(()=>fetchVidInjectorFile('../other',{request:async()=>{throw Error('not called');}}));
+  await assert.rejects(()=>fetchVidInjectorFile('arrays/bimgheader.bin',{request:async()=>({ok:true,type:'basic',headers:new Headers(),blob:async()=>new Blob([Buffer.alloc(32)])})}),/integrity/);
 });
