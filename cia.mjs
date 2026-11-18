@@ -178,7 +178,7 @@ $('ciaBuild').onclick=async()=>{
       const url=URL.createObjectURL(result),link=document.createElement('a');link.href=url;link.download=groups.length>1?'collection-'+(part+1)+'.cia':'movie.cia';link.click();
       setTimeout(()=>URL.revokeObjectURL(url),60000);
     }
-    for(const indices of groups)for(const part of [groups.indexOf(indices)])design.remember((firstId+part).toString(16).toUpperCase());
+    for(let part=0;part<groups.length;part++)design.remember((firstId+part).toString(16).toUpperCase());
     setStatus('CIA built and content hash verified. Physical 3DS playback has not been tested.'+(warnings.length?' '+warnings.join(' ')+' The finished CIA was offered for download.':''));
   }catch(error){setStatus(error.message||String(error),true);}
   finally{button.disabled=false;}
