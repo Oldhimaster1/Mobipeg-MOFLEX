@@ -215,6 +215,8 @@ export function setupCiaDesign({getEpisodes, notify, setFile}) {
     current.apply = apply;
     current.filename = filename;
     fit.value = 'fill'; aspect.value = 'native'; zoom.value = '100'; panX.value = '0'; panY.value = '0';
+    // Enlarge the small 48px icon canvas for touch and pointer editing.
+    canvas.style.width = kind === 'icon' ? 'min(100%, 260px)' : 'min(100%, 440px)';
     $('ciaArtworkHeading').textContent = kind === 'icon' ? 'Edit HOME Menu icon' :
       kind === 'banner' ? 'Edit HOME Menu banner' : 'Edit episode artwork';
     paint();
