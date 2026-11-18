@@ -35,7 +35,7 @@ function render(){
     const bannerLabel=document.createElement('label');bannerLabel.textContent='Episode banner ';
     const banner=document.createElement('input');banner.type='file';banner.accept='.png,.bmp,.jpg,.jpeg,.bimg';
     banner.setAttribute('aria-label','Episode '+(index+1)+' banner');
-    banner.onchange=()=>{entry.banner=banner.files[0]?.name??null;entry.bannerFile=banner.files[0]??null;design?.refresh();};
+    banner.onchange=()=>{entry.banner=banner.files[0]?.name??null;entry.bannerFile=banner.files[0]??null;render();};
     bannerLabel.append(banner);
     if(entry.banner){const selected=document.createElement('small');selected.textContent='Selected: '+entry.banner;bannerLabel.append(selected);}
     controls.append(bannerLabel);
