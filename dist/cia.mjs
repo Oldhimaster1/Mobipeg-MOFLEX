@@ -1,7 +1,8 @@
 import {batchStorage} from './batch-output.mjs?v=20261118g';
 import {parseCiaProject,resolveCiaProjectFiles} from './cia-project-import.mjs?v=20261118g';
 import {prepareCiaDownload,ciaOutputDirectory} from './cia-output.mjs?v=20261118g';
-import {buildCia} from './cia-packager.mjs?v=20261118h';
+import {buildCia} from './cia-packager.mjs?v=20261118v';
+import {loadVidInjectorStarter} from './cia-vidinjector-template.mjs?v=20261118v';
 import {createCiaProject,ciaSizeEstimate,MAX_CIA_MOVIES,planCiaParts} from './cia-project.mjs?v=20261118g';
 import {readSuperMoflex} from './super-moflex.mjs?v=20261117r';
 import {inspectPlayableMoflex} from './player-core.mjs?v=20261118g';
@@ -49,8 +50,8 @@ function render(){
     if(episodes.length){
       const estimate=ciaSizeEstimate(episodes.map(x=>({size:x.mediaBytes})));
       $('ciaFilesStatus').textContent=episodes.length+' of '+MAX_CIA_MOVIES+
-        ' movies · '+bytes(estimate.bytes)+' primary video payload. Packaging adds overhead.';
-    }else $('ciaFilesStatus').textContent='Choose 1–27 MOFLEX files, then arrange their order.';
+        ' selected · '+bytes(estimate.bytes)+' of video. The CIA will be a little larger.';
+    }else $('ciaFilesStatus').textContent='Choose up to 27 MOFLEX files. You can change their order below.';
   }catch(e){$('ciaFilesStatus').textContent=e.message;}
 }
 async function addEpisodes(selected){
@@ -112,7 +113,7 @@ $('ciaOpen').onclick=async()=>{
     for(const [id,value] of Object.entries({ciaTitle:project.title,ciaLongTitle:project.long_title||'',ciaPublisher:project.publisher,ciaId:project.id}))$(id).value=value;
     setLocalFile('ciaIcon',resolved.icon);setLocalFile('ciaBanner',resolved.banner);setLocalFile('ciaBannerAudio',resolved.bannerAudio);
     $('ciaSplit').checked=project.browser?.split===true;
-    render();setStatus('Project reopened. Select your local player template when ready to build.');
+    render();setStatus('Project reopened. You can build your CIA now.');
   }catch(error){setStatus(error.message||String(error),true);}
   finally{button.disabled=false;}
 };
@@ -136,8 +137,12 @@ render();
 $('ciaBuild').onclick=async()=>{
   const button=$('ciaBuild');button.disabled=true;
   try{
-    const template=$('ciaTemplate').files[0];
-    if(!template)throw Error('Select a local compatible player CIA template.');
+    // An explicit local selection always takes priority over the optional VidInjector route.
+    let template=$('ciaTemplate').files[0];
+    if(!template){
+      if(!$('ciaUseVidInjector').checked)throw Error('Choose a player CIA or turn on the VidInjector option.');
+      template=await loadVidInjectorStarter({onProgress:message=>setStatus(message)});
+    }
     const icon=$('ciaIcon').files[0],banner=$('ciaBanner').files[0];
     if(icon&&!/\.(smdh|png|bmp|jpe?g)$/i.test(icon.name))throw Error('Choose a PNG, BMP, JPG or SMDH icon.');
     if(banner&&!/\.(bin|bnr|png|bmp|jpe?g)$/i.test(banner.name))throw Error('Choose a PNG, BMP, JPG or prepared banner.');
@@ -161,7 +166,7 @@ $('ciaBuild').onclick=async()=>{
       const url=URL.createObjectURL(result),link=document.createElement('a');link.href=url;link.download=groups.length>1?'collection-'+(part+1)+'.cia':'movie.cia';link.click();
       setTimeout(()=>URL.revokeObjectURL(url),60000);
     }
-    setStatus('CIA built and content hash verified.'+(warnings.length?' '+warnings.join(' ')+' The finished CIA was offered for download.':''));
+    setStatus('CIA built and content hash verified. Physical 3DS playback has not been tested.'+(warnings.length?' '+warnings.join(' ')+' The finished CIA was offered for download.':''));
   }catch(error){setStatus(error.message||String(error),true);}
   finally{button.disabled=false;}
 };
