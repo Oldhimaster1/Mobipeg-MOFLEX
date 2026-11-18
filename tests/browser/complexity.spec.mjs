@@ -15,7 +15,7 @@ for(const engine of ['scalar','simd'])test('real source motion/texture analysis 
  await page.evaluate(()=>{const input=document.createElement('input');input.type='file';input.id='source';document.body.append(input);});
  await page.locator('#source').setInputFiles(source);
  const result=await page.evaluate(async engine=>{
-  const worker=new Worker('/worker.js?v=20261118t'),statuses=[];
+  const worker=new Worker('/worker.js?v=20261118u'),statuses=[];
   const call=(cachedComplexity,budgetMode='scene')=>new Promise((resolve,reject)=>{
    worker.onerror=e=>reject(Error(e.message));worker.onmessage=({data})=>{
     if(data.type==='status')statuses.push(data.stage);

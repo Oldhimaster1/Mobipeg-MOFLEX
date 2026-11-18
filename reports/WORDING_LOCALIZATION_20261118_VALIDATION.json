@@ -1,0 +1,40 @@
+{
+  "release": "20261118u",
+  "baseline": "d8d172b7f0e820a76b62ed35d1c04f83e018c8a9",
+  "tests": {
+    "nodePassed": 363,
+    "nodeSkipped": 0,
+    "chromiumPassed": 50,
+    "finalStyleChromiumPassed": 9,
+    "finalWebKitPassed": 6
+  },
+  "newTranslationRows": 56,
+  "languages": [
+    "en",
+    "es",
+    "fr",
+    "de",
+    "pt",
+    "ja",
+    "ko",
+    "zh-Hans"
+  ],
+  "offlineAssets": 53,
+  "engines": {
+    "engine/mobipeg.wasm": "acdd2772930d5b2a71d29755b606f9b9a5f3087222adde11ac049ce411ef940a",
+    "engine-simd/mobipeg.wasm": "d906386847c601d3bee98e4c6abd1aba4be68bc4f685f9a0ed75bddc56723a98"
+  },
+  "beforeLive": {
+    "phase": "before",
+    "checkedAt": "2026-11-18T20:23:27.332Z",
+    "url": "https://oldhimaster1.github.io/Mobipeg-MOFLEX/",
+    "testProxyTLSBypass": true,
+    "caches": [
+      "mobipeg-offline-/Mobipeg-MOFLEX/-20261118t"
+    ],
+    "manifest": "20261118t",
+    "checks": [],
+    "passed": true
+  },
+  "initialWebKitIssue": "New mobile locale test exposed selected-option text painting outside constrained controls. Native-select appearance/overflow fix resolved it; final clean six-case WebKit rerun passed."
+}

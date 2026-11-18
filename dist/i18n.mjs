@@ -1,7 +1,8 @@
 import rows from './translations.mjs?v=20261117e';
 import queueRows from './queue-translations.mjs?v=20261117f';
+import studioRows from './studio-translations.mjs?v=20261118u';
 export const LANGUAGES=['en','es','fr','de','pt','ja','ko','zh-Hans'];
-const entries=new Map([...rows,...queueRows].map(row=>[row[0],row]));
+const entries=new Map([...rows,...queueRows,...studioRows].map(row=>[row[0],row]));
 const KEY='mobipeg-interface-language';
 let language='en';
 export function normalizeLanguage(value){
@@ -18,12 +19,13 @@ export function translateText(text,locale=language){
   if(/^(\d+x\d+|\d+(?:\.\d+)? fps) · experimental$/.test(value))result=value.replace('experimental',lookup('experimental'));
   else if(/^\d+:\d+ elapsed$/.test(value))result=value.replace('elapsed',lookup('elapsed'));
   else if(/^~\d+:\d+ left in stage$/.test(value))result=value.replace('left in stage',lookup('left in stage'));
-  else if(value.startsWith('True 3D · layout 0 · '))result=value.replace('True 3D · layout 0',lookup('True 3D · layout 0')).replace('coded eye frames/sec',lookup('coded eye frames/sec'));
+  else if(/^True 3D · layout [01] · /.test(value))result=value.replace(/True 3D · layout [01]/,key=>lookup(key)).replace('coded eye frames/sec',lookup('coded eye frames/sec'));
   else if(/^\d+ × \d+ per eye · /.test(value))result=value.replace('per eye',lookup('per eye')).replace('real MobiClip frame. Not a complete-file or hardware verification.',lookup('real MobiClip frame. Not a complete-file or hardware verification.'));
+  else if(/^\d+ \/ \d+ logical cores$/.test(value))result=value.replace('logical cores',lookup('logical cores'));
   else if(/^Encoding(?: · .*| · Q\d+)$/.test(value))result=value.replace(/^Encoding/,lookup('Encoding'));
   else if(/^LONG MOVIE · CHAPTER \d+$/.test(value))result=value.replace('LONG MOVIE · CHAPTER',lookup('LONG MOVIE · CHAPTER'));
   else if(/^Assembling movie · chapter \d+\/\d+$/.test(value))result=value.replace('Assembling movie · chapter',lookup('Assembling movie · chapter'));
-  else if(/^\d.* MB · .* coded frames · Q/.test(value)){result=value;for(const key of ['coded frames','ADPCM audio','No audio','3DS >71 min seek behavior unverified','UNVERIFIED'])result=result.replace(key,lookup(key));}
+  else if(/^\d.* MB · .* coded frames · Q/.test(value)){result=value;for(const key of ['coded frames','FastAudio audio','ADPCM audio','No audio','3DS >71 min seek behavior unverified','UNVERIFIED'])result=result.replace(key,lookup(key));}
   else if(value.startsWith('Preview failed:'))result=value.replace('Preview failed:',lookup('Preview failed:'));
  }
  return raw.slice(0,raw.indexOf(value))+result+raw.slice(raw.indexOf(value)+value.length);

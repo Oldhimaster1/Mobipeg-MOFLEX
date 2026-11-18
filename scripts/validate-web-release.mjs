@@ -23,6 +23,7 @@ for(const [path,expected] of Object.entries(JSON.parse(read('dist/engine/provena
 assert.deepEqual(read('engine/provenance.json'),read('dist/engine/provenance.json'));
 for(const name of ['worker.js','player-worker.js'])assert.equal(/const ENGINE_RELEASE = '([^']+)'/.exec(read(name).toString())[1],version,name+' release');
 for(const name of ['app.mjs','parallel.mjs','player.mjs','trailer-editor.mjs'])for(const match of read(name).toString().matchAll(/(?:player-)?worker\.js\?v=([A-Za-z0-9]+)/g))assert.equal(match[1],version,name+' worker URL');
+assert.equal(/id="studioRelease">([^<]+)/.exec(read('index.html').toString())[1],version.replace(/^(\d{4})(\d{2})(\d{2})(.*)$/,'$1.$2.$3$4'));
 assert.equal(read('.nojekyll').length,0);
 console.log(`Web release ${version}: source/deployment parity, offline hashes, real scalar/SIMD modules and provenance passed.`);
 if(process.argv[2]){

@@ -293,12 +293,15 @@ for(const engine of ['scalar','simd'])test('real short conversion and playback w
   const download=page.waitForEvent('download');
   await page.locator('#download').click();
   const output=testInfo.outputPath(engine+'.moflex');await (await download).saveAs(output);
+  const reportDownload=page.waitForEvent('download');await page.locator('#report').click();
+  const reportPath=testInfo.outputPath(engine+'-report.json');await (await reportDownload).saveAs(reportPath);
+  const report=JSON.parse(readFileSync(reportPath));expect(report.encoder).toBe('MobiPEG V15 WASM');expect(report.layout).toBe(6);
   execFileSync('ffmpeg',['-v','error','-xerror','-i',output,'-f','null','-'],{timeout:30000});
   await page.goto('/player.html');await page.locator('#movieFile').setInputFiles(output);
   await page.locator('#play').click();
   await expect(page.locator('#playerStatus')).toContainText('Playing locally',{timeout:30000});
   expect(engineRequests.some(url=>url.includes('.wasm?'))).toBe(true);
-  for(const url of engineRequests)expect(new URL(url).searchParams.get('v')).toBe('20261118t');
+  for(const url of engineRequests)expect(new URL(url).searchParams.get('v')).toBe('20261118u');
 });
 
 test('CIA editor uses saved batch conversions directly from OPFS',async({page})=>{

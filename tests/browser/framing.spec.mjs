@@ -1,5 +1,5 @@
 import {test,expect} from '@playwright/test';
-import {mkdtempSync,rmSync} from 'node:fs';
+import {readFileSync,mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {execFileSync} from 'node:child_process';
@@ -62,6 +62,9 @@ for(const engine of ['scalar','simd'])test(`${engine}: actual stereo preview, pe
  await expect(page.locator('#resultmeta')).toContainText('60 coded frames');
  const wait=page.waitForEvent('download');await page.locator('#download').click();const download=await wait;
  const output=testInfo.outputPath('cropped.moflex');await download.saveAs(output);
+ const reportDownload=page.waitForEvent('download');await page.locator('#report').click();
+ const reportPath=testInfo.outputPath('stereo-report.json');await (await reportDownload).saveAs(reportPath);
+ const report=JSON.parse(readFileSync(reportPath));expect(report.encoder).toBe('MobiPEG V15 WASM');expect(report.layout).toBe(1);
  execFileSync(resolve('native/local/bin/ffmpeg'),['-v','error','-xerror','-i',output,'-f','null','-']);
  await page.locator('#crop-left').fill('32');await expect(page.locator('#sampleResult')).toBeHidden();
  await page.locator('#resetCrop').click();await expect(page.locator('#crop-left')).toHaveValue('0');await expect(page.locator('#fit')).toHaveValue('fit');

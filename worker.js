@@ -1,11 +1,11 @@
-const ENGINE_RELEASE = '20261118t';
+const ENGINE_RELEASE = '20261118u';
 /* New WASM instance per command: clears FFmpeg and x264's cached globals. */
 // The real core is selected after capability detection, before any media is read.
 let compiled,loadedEngine=null,loadingEngine=null,activeStage='Preparing encoder',runtimeOptions;
 async function ensureEngine(engineDir){
   if(loadedEngine&&loadedEngine!==engineDir)throw Error('Worker cannot switch WASM engine');
   if(!loadingEngine)loadingEngine=(async()=>{
-    ({wasmRuntimeOptions:runtimeOptions}=await import('./wasm-runtime.mjs?v=20261118t'));
+    ({wasmRuntimeOptions:runtimeOptions}=await import('./wasm-runtime.mjs?v=20261118u'));
     importScripts(engineDir+'/mobipeg.js?v='+ENGINE_RELEASE);
     const result=await fetch(engineDir+'/mobipeg.wasm?v='+ENGINE_RELEASE);
     if(!result.ok)throw Error('WASM engine unavailable');
@@ -14,13 +14,13 @@ async function ensureEngine(engineDir){
   })();
   try{await loadingEngine;}catch(error){loadingEngine=null;throw error;}
 }
-self.onmessage=async({data})=>{try{const {convert,verifyCandidate,progressLine,parseProbe,audioTracks,analyzeAudioPeak,previewFrame,previewMotion}=await import('./core.mjs?v=20261118t');if(!['convert','verify','inspect','segment','preview'].includes(data.type))return;if(!self.crossOriginIsolated)throw Error('This host must send COOP: same-origin and COEP: require-corp headers to enable the native encoder threads. Use the included local server.');const supportsSIMD=WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,0,0,1,4,1,96,0,0,3,2,1,0,10,9,1,7,0,65,0,253,15,26,11]));if(data.settings.engine==='simd'&&!supportsSIMD)throw Error('This browser does not support WASM SIMD. Choose Automatic or Compatibility.');const engineDir=data.settings.engine==='scalar'||!supportsSIMD?'engine':'engine-simd';await ensureEngine(engineDir);postMessage({type:'log',line:`Native V15 engine: ${engineDir==='engine-simd'?'SIMD optimized':'compatibility'}; C environment configured before runtime startup.`});let stageDuration=1;const notify=v=>{if(v.duration)stageDuration=v.duration;if(v.stage)activeStage=v.stage;postMessage({type:'status',...v});};
+self.onmessage=async({data})=>{try{const {convert,verifyCandidate,progressLine,parseProbe,audioTracks,analyzeAudioPeak,previewFrame,previewMotion}=await import('./core.mjs?v=20261118u');if(!['convert','verify','inspect','segment','preview'].includes(data.type))return;if(!self.crossOriginIsolated)throw Error('This host must send COOP: same-origin and COEP: require-corp headers to enable the native encoder threads. Use the included local server.');const supportsSIMD=WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,0,0,1,4,1,96,0,0,3,2,1,0,10,9,1,7,0,65,0,253,15,26,11]));if(data.settings.engine==='simd'&&!supportsSIMD)throw Error('This browser does not support WASM SIMD. Choose Automatic or Compatibility.');const engineDir=data.settings.engine==='scalar'||!supportsSIMD?'engine':'engine-simd';await ensureEngine(engineDir);postMessage({type:'log',line:`Native V15 engine: ${engineDir==='engine-simd'?'SIMD optimized':'compatibility'}; C environment configured before runtime startup.`});let stageDuration=1;const notify=v=>{if(v.duration)stageDuration=v.duration;if(v.stage)activeStage=v.stage;postMessage({type:'status',...v});};
 const run=async(args,files={},output=null,env={},allowFailure=false)=>{let logs=[],frames=0,outTime=0;const line=v=>{logs.push(v);if(logs.length>2500)logs.shift();const p=progressLine(v);if(p?.key==='frame')frames=Number(p.value);if(p?.key==='out_time_us'){const current=Number(p.value);if(!Number.isFinite(current)||current<0)return;outTime=current/1e6;postMessage({type:'progress',seconds:outTime,frames,fraction:Math.min(.995,outTime/stageDuration)});}if(/error|failed|invalid/i.test(v))postMessage({type:'log',line:v});};let m=await createMobiPEG({...runtimeOptions(),noInitialRun:true,preRun:[mod=>Object.assign(mod.ENV,env)],mainScriptUrlOrBlob:new URL(`${engineDir}/mobipeg.js?v=${ENGINE_RELEASE}`,self.location.href).href,print:line,printErr:line,instantiateWasm:(imports,done)=>{WebAssembly.instantiate(compiled,imports).then(i=>done(i,compiled));return {};}});try{Object.assign(m.ENV,env);m.FS.mkdir('/input');m.FS.mount(m.FS.filesystems.WORKERFS,{blobs:Object.entries(files).map(([name,data])=>({name,data}))},'/input');let code=0;try{code=m.callMain(args)??0;}catch(e){if(typeof e.status==='number')code=e.status;else throw e;}if(code&&!allowFailure)throw Error(`Encoder exited ${code}: ${logs.slice(-18).join('\n')}`);const blob=output?new Blob([m.FS.readFile(output)],{type:'application/octet-stream'}):null;const heap=m.HEAPU8?.byteLength??0;postMessage({type:'memory',bytes:heap,stage:activeStage});return {blob,frames,seconds:outTime,log:logs.join('\n'),code};}finally{try{m.FS.unmount('/input');}catch{}m.PThread?.terminateAllThreads();m=null;}};
 if(data.type==='preview'){const generate=data.motion?previewMotion:previewFrame;const result=await generate({settings:data.settings,source:data.file,start:data.start,run,notify});postMessage({type:'preview',...result});}else if(data.type==='inspect'){notify({stage:'Inspecting movie duration',fraction:null});const result=await run(['-hide_banner','-i','/input/source'],{source:data.file},null,{},true);const media=parseProbe(result.log);
 if(data.settings.movieAudio&&data.settings.maxMB!=null&&data.settings.budgetMode!=='uniform'){
- const {planMovieClips}=await import('./movie.mjs?v=20261118t');
- const {planBalancedMovieClips}=await import('./parallel.mjs?v=20261118t');
- const {analyzeComplexity,validComplexity}=await import('./complexity.mjs?v=20261118t');
+ const {planMovieClips}=await import('./movie.mjs?v=20261118u');
+ const {planBalancedMovieClips}=await import('./parallel.mjs?v=20261118u');
+ const {analyzeComplexity,validComplexity}=await import('./complexity.mjs?v=20261118u');
  const clips=data.settings.workers>1?planBalancedMovieClips(media.duration,data.settings,data.settings.workers):planMovieClips(media.duration,data.settings);
  if(clips.length>1)media.complexity=validComplexity(data.cachedComplexity,clips)?data.cachedComplexity:await analyzeComplexity(data.file,clips,run,notify);
 }
