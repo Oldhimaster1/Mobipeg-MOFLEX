@@ -464,3 +464,7 @@ The report records three repetitions, frame/decode checks and source-reference
 PSNR for each mode and engine. It excludes source generation, WASM module loading,
 audio and final verification, and measures a short generated chart rather than a
 full movie. Run it without other benchmarks for interpretable timings.
+
+### Azahar-tested CIA milestone
+
+Browser-built 400×240 ADPCM collections passed actual Azahar 2126.2 menu and playback checks at 2, 5, 10, 20 and 27 episodes, including first/middle/last selections. Two-episode seeking, normal exit/relaunch and stereo eye presentation were checked. Physical 3DS compatibility remains unverified. See [the runtime validation report](reports/AZAHAR_VALIDATION.md) for evidence, exact scope and remaining limitations. New interleaved stereo encodes use layout 1 for left-first frames, matching the tested player. Previously generated layout-0 stereo files may need re-encoding for correct eye order in this player.

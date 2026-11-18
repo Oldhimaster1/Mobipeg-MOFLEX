@@ -19,13 +19,13 @@ def main():
         source = target / f'episode-{index}.mkv'
         output = target / f'episode-{index}.moflex'
         subprocess.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i',
-            f"color=c={color}:s=320x240:r=24:d=6,drawbox=x=0:y=0:w=iw:h=ih:color=white:t=fill:enable='lt(mod(t,1),0.08)'",
+            f"color=c={color}:s=400x240:r=24:d=6,drawbox=x=0:y=0:w=iw:h=ih:color=white:t=fill:enable='lt(mod(t,1),0.08)'",
             '-f', 'lavfi', '-i',
             f'aevalsrc=0.25*sin(2*PI*{frequency}*t)*lt(mod(t\\,1)\\,0.08):s=48000:d=6',
             '-c:v', 'ffv1', '-c:a', 'pcm_s16le', str(source)], check=True)
         subprocess.run([sys.executable, str(ROOT / 'native/MobiPEG_Studio_V15.py'),
             '-i', str(source), '-o', str(output), '--preset', 'small',
-            '--resolution', '320x240'], check=True)
+            '--resolution', '400x240'], check=True)
         movies.append({'file': output.name, 'title': f'{index}: {color} / {frequency} Hz pulses'})
         source.unlink()
     project = {'version': 1, 'title': 'MobiPEG Device Test', 'publisher': 'MobiPEG',

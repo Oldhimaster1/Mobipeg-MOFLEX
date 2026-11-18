@@ -4,7 +4,7 @@ import {isArtworkImage,makeSmdhArtwork,makeEpisodeArtwork} from './cia-artwork.m
 import { rebuildRomfsMetadata } from "./cia-romfs.mjs";
 import { sha256Blob } from "./cia-sha256.mjs";
 // Template-preserving CIA rebuild. No executable or template is distributed.
-import { ciaTitleID } from "./cia-project.mjs";
+import { ciaTitleID, updateCiaLocaleSettings } from "./cia-project.mjs?v=20261118f";
 const align = (n, b = 64) => Math.ceil(n / b) * b;
 const view = (b) => new DataView(b.buffer, b.byteOffset, b.byteLength);
 const u32 = (b, o) => view(b).getUint32(o, true);
@@ -285,7 +285,7 @@ export async function buildCia({
     );
   }
   if (settings) {
-    const value = await decode(settings);
+    const value = updateCiaLocaleSettings(await decode(settings),project);
     settings.blob = encode(
       value.replace(
         /(# 拡張セーブデータのID（16進数）\r?\n)[^\r\n]+/,

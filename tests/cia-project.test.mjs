@@ -34,3 +34,11 @@ test('collection splitting preserves order and protects title ID range',async()=
   assert.throws(()=>planCiaParts([budget+1],100,'C1234',true),/One movie/);
   assert.throws(()=>planCiaParts([budget,1],100,'EFFFF',true),/title IDs/);
 });
+
+test('player-facing localized title and publisher follow edited project metadata',async()=>{
+  const {updateCiaLocaleSettings}=await import('../cia-project.mjs');
+  const source='# アプリ名（ロングネーム）\r\n# JP:\r\nOld title\r\n\r\n# EN:\r\nOld title\r\n# 動画の数\r\n2\r\n# 動画パブリッシャー名\r\n# EN:\r\nOld publisher\r\n# WEBブラウザ用のURL\r\n# EN:\r\nnone\r\n';
+  const updated=updateCiaLocaleSettings(source,{title:'New, title',publisher:'New publisher'});
+  assert.equal(updated.includes('Old title'),false);assert.equal(updated.includes('Old publisher'),false);
+  assert.match(updated,/# EN:\r\nNew\\x2C title/);assert.match(updated,/# EN:\r\nNew publisher/);assert.match(updated,/# 動画の数\r\n2/);assert.match(updated,/# EN:\r\nnone/);
+});

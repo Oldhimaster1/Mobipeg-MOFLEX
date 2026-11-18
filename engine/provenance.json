@@ -1,11 +1,11 @@
 {
-  "encoder": "MobiPEG V15 layout-0 fixed",
+  "encoder": "MobiPEG V15 stereo eye-order corrected",
   "toolchain": "Emscripten 4.0.10",
   "threading": "pthreads (FFmpeg scheduler), codec thread count 1",
   "hashes": {
-    "native/MobiPEG_Studio_V15.py": "6397f226ee6ae784995fdd686793570c478104b5ac353d1308e4002b3f0b45e7",
-    "dist/core.mjs": "2de575567eb53de8727fd5460a252b5b5759799893039dc7e5a8ba176d70731b",
-    "dist/worker.js": "6350358d770a7d3be56123d462c7b9a92ca498587251172e79c0a72720a3fece",
+    "native/MobiPEG_Studio_V15.py": "9bd6bc9b3a52ae9c7860eec99ef4747e9840c0a9832b75f3740d089e58b3c18e",
+    "dist/core.mjs": "ff7989d07ea2f3174b6996864c8f2e27955561ae680ad146bc895451ae6b0f2d",
+    "dist/worker.js": "9c78d487e11f5c687ba2809da3bfc7d087c2651abbe48cc338def0672650d99d",
     "native/source/x264/encoder/macroblock.c": "ec8d3fa826cd4a662e1fa236b30a1af2a4402382e3d96a82aa0479fddd92aba5",
     "native/source/x264/encoder/encoder.c": "fa0269214e468bcde007bcaf351ca92f4bc56ec2f2480153130d8202280b9389",
     "native/source/ffmpeg/libavcodec/libx264.c": "2c48a488ecf602aaac55bbac91d86568a3909581dfed5a0836342392fc7385cf",

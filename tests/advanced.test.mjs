@@ -27,7 +27,7 @@ test('advanced overrides retain stereo mapping, movie alignment and output codec
  const s={...defaults,mode:'half-sbs',fps:'24000/1001',movieAudio:true,advanced};
  const args=encodeClipArgs(s,30,60.06,30.03),audio=audioClipArgs(s,60.06,30.03);
  assert.equal(args[args.indexOf('-frames:v')+1],'1440');
- assert.equal(args[args.indexOf('-mo_layout')+1],'0');
+ assert.equal(args[args.indexOf('-mo_layout')+1],'1');
  assert.equal(args[args.indexOf('-c:v')+1],'mobiclip');
  assert.equal(args[args.indexOf('-r')+1],'48000/1001');
  assert.equal(audio[audio.indexOf('-ar')+1],'48000');

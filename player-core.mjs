@@ -1,4 +1,4 @@
-import {inspectMovieSegment} from './movie.mjs';
+import {inspectMovieSegment} from './movie.mjs?v=20261118f';
 
 export function parseMoflexVideoDescriptor(descriptors) {
   let p=0;
@@ -26,7 +26,7 @@ export function parseMoflexVideoDescriptor(descriptors) {
       const eyes=layout===6?1:2,packing=layout<2?'interleaved':layout<4?'top-bottom':layout<6?'side-by-side':'2d';
       const eyeWidth=packing==='side-by-side'?width/2:width,eyeHeight=packing==='top-bottom'?height/2:height;
       if(!Number.isInteger(eyeWidth)||!Number.isInteger(eyeHeight))throw Error('Invalid packed stereo dimensions');
-      return {width,height,eyeWidth,eyeHeight,layout,packing,leftFirst:layout%2===0,displayFPS,codedFPS:displayFPS*(layout<2?2:1),eyes};
+      return {width,height,eyeWidth,eyeHeight,layout,packing,leftFirst:layout<2?layout===1:layout%2===0,displayFPS,codedFPS:displayFPS*(layout<2?2:1),eyes};
     }
     p+=length;
   }

@@ -118,7 +118,7 @@ def video_filters(mode: str, width: int, height: int, fps: str,
     # left and right or let the filter see the inter-eye seam.
     sar=2 if mode=='half-sbs' else 1
     eye=scale_filter(width,height,sar=sar,clean=clean)
-    # A layout-0 MOFLEX is not packed SBS. For each displayed stereo frame,
+    # A layout-1 MOFLEX is not packed SBS. For each displayed stereo frame,
     # emit one full-width LEFT eye followed by one full-width RIGHT eye.
     # Give the two branches distinct PTS in a 2x display-rate time base;
     # FFmpeg's temporal interleave merges them in L,R,L,R order. No frame
@@ -130,7 +130,7 @@ def video_filters(mode: str, width: int, height: int, fps: str,
           f'[right]crop=iw/2:ih:iw/2:0,{eye},'
           f'settb=expr={eye_tb},setpts=2*N+1[r];'
           '[l][r]interleave=nb_inputs=2,format=yuv420p[vid]')
-    return ['-filter_complex',spec,'-map','[vid]'],'0'
+    return ['-filter_complex',spec,'-map','[vid]'],'1'
 
 
 def pick_encoder(explicit: str | None=None) -> Path:

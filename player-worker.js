@@ -72,7 +72,7 @@ self.onmessage=async({data})=>{
         if(layout<2){if(!(displayFPS>0))throw Error('Invalid stereo frame rate');first=`select='not(mod(n,2))',setpts=N/(${displayFPS}*TB)`;second=`select='mod(n,2)',setpts=N/(${displayFPS}*TB)`;}
         else if(layout<4){first='crop=iw:ih/2:0:0';second='crop=iw:ih/2:0:ih/2';}
         else {first='crop=iw/2:ih:0:0';second='crop=iw/2:ih:iw/2:0';}
-        [left,right]=layout%2===0?[first,second]:[second,first];
+        [left,right]=(layout<2?layout===1:layout%2===0)?[first,second]:[second,first];
         vf=selected==='right'?right:selected==='left'||selected==='2d'?left:`split=2[l0][r0];[l0]${left}[l];[r0]${right}[r];[l][r]hstack=inputs=2`;
       }
       if(!Number.isFinite(duration)||duration<=0||!['primary','alternate','all','none'].includes(audioChoice)||

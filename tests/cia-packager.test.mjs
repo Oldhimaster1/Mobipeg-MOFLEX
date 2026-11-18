@@ -127,6 +127,8 @@ test(
         const settings = readFileSync(
           join(extracted, "romfs/settings/settingsTL.csv"),
         ).toString("utf16le");
+        assert.match(settings,/# EN:\r\nBrowser title/);
+        assert.match(settings,/# EN:\r\nBrowser publisher/);
         assert.match(
           settings,
           new RegExp("# 動画の数\\r?\\n" + count + "\\r?\\n"),

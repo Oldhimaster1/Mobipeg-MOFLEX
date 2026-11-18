@@ -25,11 +25,11 @@ test('player reads actual layout-6 dimensions and fractional frame rate',()=>{
 });
 
 test('player exposes real left/right alternating coded frames',()=>{
-  const meta=parseMoflexVideoDescriptor(descriptor(0,30,1));
+  const meta=parseMoflexVideoDescriptor(descriptor(1,30,1));
   assert.equal(meta.eyes,2);assert.equal(meta.codedFPS,60);assert.equal(meta.leftFirst,true);
   assert.equal(displayedCodedFrame(10,2,0),20);
   assert.equal(displayedCodedFrame(10,2,1),21);
-  const reversed=parseMoflexVideoDescriptor(descriptor(1,30,1));
+  const reversed=parseMoflexVideoDescriptor(descriptor(0,30,1));
   assert.equal(reversed.leftFirst,false);
   assert.equal(displayedCodedFrame(10,2,0,reversed.packing,reversed.leftFirst),21);
   assert.equal(displayedCodedFrame(10,2,1,reversed.packing,reversed.leftFirst),20);

@@ -32,7 +32,7 @@ test('FastAudio stereo MOFLEX keeps its two-second timeline and exports both eye
     '--resolution','400x224','--fps','24','--audio-codec','fastaudio','--overwrite']);
 
   const info=JSON.parse(run('python3',[converter,movie,'--inspect']));
-  assert.equal(info.layout,0);assert.equal(info.family,'interleaved');
+  assert.equal(info.layout,1);assert.equal(info.family,'interleaved');
   assert.equal(info.stereo,'genuine-3d');assert.equal(info.eyes,2);
   assert.ok(Math.abs(info.duration-2)<0.03,`unexpected duration ${info.duration}`);
   assert.equal(info.streams.find(s=>s.codec_type==='audio').codec_name,'fastaudio');
@@ -52,4 +52,8 @@ test('FastAudio stereo MOFLEX keeps its two-second timeline and exports both eye
   const pcm=run(ffmpeg,['-v','error','-i',movie,'-map','0:a:0','-f','s16le','pipe:1'],{encoding:null});
   assert.equal(pcm.length,2*48000*2*2,'two channels of 16-bit PCM for exactly two seconds');
   assert.ok(readFileSync(sbs).length>4096);
+  for(const [x,channel] of [[0,0],[400,2]]){
+    const pixel=run(ffmpeg,['-v','error','-i',sbs,'-frames:v','1','-vf',`crop=400:224:${x}:0,scale=1:1`,'-pix_fmt','rgb24','-f','rawvideo','pipe:1'],{encoding:null});
+    assert.ok(pixel[channel]>200&&pixel[2-channel]<30,'Exported stereo eye order changed');
+  }
 });

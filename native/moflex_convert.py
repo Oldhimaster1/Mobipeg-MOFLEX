@@ -64,7 +64,8 @@ def _eye_filter(info,mode):
         first='crop=iw:ih/2:0:0';second='crop=iw:ih/2:0:ih/2'
     else:
         first='crop=iw/2:ih:0:0';second='crop=iw/2:ih:iw/2:0'
-    left,right=(first,second) if layout%2==0 else (second,first)
+    left_first=(layout==1) if layout<2 else (layout%2==0)
+    left,right=(first,second) if left_first else (second,first)
     if mode=='left' or mode=='2d':return left
     if mode=='right':return right
     return f'split=2[l0][r0];[l0]{left}[l];[r0]{right}[r];[l][r]hstack=inputs=2'

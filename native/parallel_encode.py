@@ -55,6 +55,8 @@ def parallel_workspace(args, inp, out, encoder, media, notify):
     config={'version':1,'source':inp.name,'bytes':inp.stat().st_size,'source_sha256':file_hash(inp),
             'encoder_sha256':file_hash(encoder),'media':media,
             'settings':{key:getattr(args,key) for key in fields}}
+    if args.mode!='2d':
+        config['stereo_layout']=1
     root=out.parent/'.mobipeg-checkpoints'
     root.mkdir(exist_ok=True)
     key=hashlib.sha256(json.dumps([out.name,config],sort_keys=True).encode()).hexdigest()

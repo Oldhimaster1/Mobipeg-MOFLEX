@@ -1,0 +1,96 @@
+{
+  "emulator": {
+    "name": "Azahar",
+    "version": "2126.2",
+    "official_appimage_sha256": "af037f8b775198f636b14bcfe63fb401b02246ebfefe1025bb905ce042556960"
+  },
+  "renderer": "Mesa llvmpipe OpenGL",
+  "audio": "HLE DSP captured through PulseAudio monitor",
+  "fixtures": {
+    "seconds": 6,
+    "width": 400,
+    "height": 240,
+    "fps": 24,
+    "audio_codec": "ADPCM"
+  },
+  "runtime_collections": [
+    {
+      "episodes": 2,
+      "played_zero_based": [
+        0,
+        1
+      ],
+      "installation": "pass",
+      "video_and_audio": "pass",
+      "menu_return": "pass"
+    },
+    {
+      "episodes": 5,
+      "played_zero_based": [
+        0,
+        2,
+        4
+      ],
+      "installation": "pass",
+      "video_and_audio": "pass",
+      "menu_return": "pass"
+    },
+    {
+      "episodes": 10,
+      "played_zero_based": [
+        0,
+        4,
+        9
+      ],
+      "installation": "pass",
+      "video_and_audio": "pass",
+      "menu_return": "pass"
+    },
+    {
+      "episodes": 20,
+      "played_zero_based": [
+        0,
+        9,
+        19
+      ],
+      "installation": "pass",
+      "video_and_audio": "pass",
+      "menu_return": "pass"
+    },
+    {
+      "episodes": 27,
+      "played_zero_based": [
+        0,
+        13,
+        26
+      ],
+      "installation": "pass",
+      "video_and_audio": "pass",
+      "menu_return": "pass"
+    }
+  ],
+  "normal_exit_and_relaunch": "pass",
+  "short_clip_seeking": "pass",
+  "stereo": {
+    "layout": 1,
+    "presentation": "SideBySide",
+    "factor": 100,
+    "swap_eyes": false,
+    "left": "red",
+    "right": "blue",
+    "result": "pass"
+  },
+  "regressions": {
+    "node_passed": 348,
+    "native_passed": 13,
+    "additional_simd_passed": 1,
+    "chromium_passed": 29
+  },
+  "unverified": [
+    "Physical Nintendo 3DS",
+    "Safari/iPhone",
+    "Multi-gigabyte stress tests",
+    "Long-movie runtime in Azahar"
+  ],
+  "evidence_archive_sha256": "9830d1415f1ddd55c21fac073623f10ef6600f31ec28ddd452556dc7ecf90cf7"
+}

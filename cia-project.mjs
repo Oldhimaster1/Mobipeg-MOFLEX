@@ -78,3 +78,17 @@ export function planCiaParts(sizes,templateBytes,firstId,allowSplit=false){
   if(parseInt(firstId,16)+groups.length-1>0xeffff)throw Error('Split collection title IDs exceed EFFFF. Choose a lower starting ID.');
   return groups;
 }
+
+// Player-facing locale labels live in settingsTL as well as in the SMDH.
+export function updateCiaLocaleSettings(text,project){
+  const lines=text.split(/\r?\n/);let field=null;
+  const escape=value=>value.replace(/^#/,'\\x23').replaceAll(',','\\x2C');
+  for(let i=0;i<lines.length;i++){
+    if(lines[i]==='# アプリ名（ロングネーム）'){field=project.long_title||project.title;continue;}
+    if(lines[i]==='# 動画パブリッシャー名'){field=project.publisher;continue;}
+    if(/^# [A-Z]{2}:$/.test(lines[i])){
+      if(field!==null&&i+1<lines.length)lines[++i]=escape(field);
+    }else if(lines[i].startsWith('# '))field=null;
+  }
+  return lines.join('\r\n');
+}

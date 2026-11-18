@@ -16,7 +16,7 @@ python3 native/cia_builder.py verify movie.cia
 sha256sum movie.cia
 ```
 
-Both fixtures contain six seconds at 24 fps, 320×240, 2D video with ADPCM audio. White flashes and a short tone occur together every second. Episode one has a red background and 440 Hz pulses. Episode two has a blue background and 880 Hz pulses. These files are generated from filters and contain no private media.
+Both fixtures contain six seconds at 24 fps, 400×240, 2D video with ADPCM audio. White flashes and a short tone occur together every second. Episode one has a red background and 440 Hz pulses. Episode two has a blue background and 880 Hz pulses. These files are generated from filters and contain no private media.
 
 ## Console run
 

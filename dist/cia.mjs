@@ -1,8 +1,8 @@
 import {stageCia,ciaOutputDirectory} from './cia-output.mjs?v=20261118e';
-import {buildCia} from './cia-packager.mjs?v=20261118e';
-import {createCiaProject,ciaSizeEstimate,MAX_CIA_MOVIES,planCiaParts} from './cia-project.mjs?v=20261118e';
+import {buildCia} from './cia-packager.mjs?v=20261118f';
+import {createCiaProject,ciaSizeEstimate,MAX_CIA_MOVIES,planCiaParts} from './cia-project.mjs?v=20261118f';
 import {readSuperMoflex} from './super-moflex.mjs?v=20261117r';
-import {inspectPlayableMoflex} from './player-core.mjs?v=20261117s';
+import {inspectPlayableMoflex} from './player-core.mjs?v=20261118f';
 
 const $=id=>document.getElementById(id);
 const episodes=[];
@@ -19,6 +19,7 @@ function render(){
     const details=document.createElement('p');details.className='hint';
     details.textContent=entry.info?entry.info.eyeWidth+' × '+entry.info.eyeHeight+
       ' per eye · '+entry.info.duration.toFixed(1)+' seconds · '+bytes(entry.mediaBytes)
+      +(entry.info.eyeWidth!==400||entry.info.eyeHeight!==240?' · Use 400 × 240 per eye for the tested CIA playback path':'')
       +(entry.hasExtras?' · SUPER MOFLEX extras stripped for CIA':''):'Inspecting…';
     const controls=document.createElement('div');controls.className='cia-episode-row';
     const label=document.createElement('label');label.textContent='Menu title ';
