@@ -78,7 +78,7 @@
           <label>Publisher<input id="ciaPublisher" name="publisher" maxlength="63" required value="MobiPEG"></label>
           <div class="cia-id-block"><label for="ciaId">Unique title ID (C0000–EFFFF)</label>
             <div class="cia-id-row"><input id="ciaId" name="id" required minlength="5" maxlength="5" pattern="[c-eC-E][0-9a-fA-F]{4}" placeholder="C1234" autocomplete="off"><button id="ciaNewId" type="button" class="text-button">Generate new ID</button></div>
-            <p class="hint">An ID is generated automatically. MobiPEG avoids IDs generated earlier in this browser, but cannot check which titles are installed on your 3DS. You can enter your own ID.</p>
+            <p class="hint">An ID is generated automatically. You can change it manually.</p><p class="hint" id="ciaIdCollision" role="status"></p>
           </div>
           <label>Banner audio (optional, PCM16 WAV, up to 10 seconds)<input id="ciaBannerAudio" type="file" accept=".wav"></label>
           <label>Compatible player CIA (optional)<input id="ciaTemplate" type="file" accept=".cia"></label>
