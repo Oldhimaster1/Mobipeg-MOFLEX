@@ -147,3 +147,25 @@ When changing the web application, update the dependency version queries and the
 - Run `node --test tests/hdr-lut.test.mjs tests/cia-project.test.mjs` and `node --test tests/hdr-wasm.test.mjs`.
 - Then `node --test tests/*.test.mjs` (including pre-existing tests), the full Playwright suite and physical console tests.
 - On any web file change, synchronize source and `dist/` and regenerate `node scripts/offline-assets.mjs`; verify offline hashes before publishing.
+
+## Review of master 288da36c
+
+Work continues on `development/browser-cia-completion`. This review is incomplete and must not be treated as the requested final project validation.
+
+- Fixed CIA size estimation to validate every individual byte count before summing. Negative sizes, fractional counts and string coercions previously bypassed validation. Root and deployment copies match.
+- Updated framing regression fixtures to explicitly disable HDR when testing the three-operation SDR preview path. The added HDR metadata probe had made two old mocks fail before they reached their intended assertions. Actual HDR remains enabled by default in the application.
+- Refreshed offline manifests and advanced the service-worker cache version to `20261118a`.
+- Full Node run passed 341 tests with zero failures or skips, including genuine PQ/HLG WASM encoding and decoding. The separate SIMD FastAudio decode/MP4 export test passed. Ten Chromium framing tests passed, including scalar/SIMD stereo and motion previews, real conversion and serial queues.
+- Five native SUPER tests passed with the real external VidInjector backend, including single/two-movie CIA generation, hashes, exports and HDR. Two native recovery/audio tests and six MOFLEX preflight tests passed.
+
+### Browser CIA work still required
+
+No browser packaging backend has been implemented by this review. `cia.mjs` still exports JSON. Native packaging uses `VidInjector9002-CLI/sources/archive.cpp`, which writes the embedded `base_cia_data` to a temporary `base.cia`. Shipping that tool unchanged as WASM would also ship the embedded application/template. Its root redistribution permission is unresolved. This is a blocker to redistributing that particular backend, rather than evidence that browser CIA creation is technically impossible.
+
+The practical implementation route remains a distributable RomFS/NCCH/CIA writer with a user-selected, locally obtained compatible player template. It must rebuild RomFS file tables and hashes for the selected movie layout, preserve the executable/ExeFS, update extended-header and NCCH IDs/hashes and TMD content records, and produce matching ticket metadata and content bitmap. Simply appending MOFLEX bytes to a CIA or changing its manifest cannot satisfy these requirements. Validate against real single- and multi-movie native outputs and inspect executable contents before offering a build button. Do not substitute synthetic structure-only packages for installable applications.
+
+Browser CIA implementation, exhaustive repository review, Firefox/WebKit runs, physical 3DS installation/playback, measured mobile memory, reference color accuracy and final UI polish remain unfinished. This review has no new hardware evidence or controlled performance comparison. Build/test commands in the preceding sections still apply. Keep this work on its development branch until the requested browser backend and relevant integration tests are ready.
+
+The first Chromium upgrade run passed seven tests and exposed a real damaged-queue recovery bug. `renderQueue()` hid the entire panel when the queue had no valid entries and cleared the recovery explanation. Both root and deployment copies now keep the panel and explanation visible while `queueRestoreError` is set. Existing discard confirmation and storage preservation logic are retained.
+
+After the fix, all eight Chromium upgrade tests passed in 28.4 seconds, including real offline conversion, SUPER playback/MKV export, batch saving/reload and damaged queue discard. Focused Node queue/schema/framing tests passed 17/17 after the application fix. Ten framing browser tests took 1.1 minutes under concurrent test load. These are test elapsed times, not encoder speed measurements. Only Chromium is installed in this workspace; Firefox/WebKit and actual iPhones remain untested.

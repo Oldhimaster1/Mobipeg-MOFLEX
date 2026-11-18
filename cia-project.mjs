@@ -51,7 +51,11 @@ export function createCiaProject({title:projectTitle,longTitle='',publisher='Mob
   return data;
 }
 export function ciaSizeEstimate(files){
-  const bytes=files.reduce((n,item)=>n+Number(item?.size??0),0);
+  if(!Array.isArray(files))throw Error('Invalid video sizes.');
+  const bytes=files.reduce((n,item)=>{
+    if(!Number.isSafeInteger(item?.size)||item.size<0)throw Error('Invalid video sizes.');
+    return n+item.size;
+  },0);
   if(!Number.isSafeInteger(bytes)||bytes<0)throw Error('Invalid video sizes.');
   if(bytes>=FAT32_CIA)throw Error('MOFLEX payloads alone exceed the FAT32 limit. Split into multiple CIAs.');
   return {bytes,headroom:FAT32_CIA-bytes,needsPackingOverhead:true};

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {RATES,RESOLUTIONS,validate,filters,codedRate,encodeClipArgs,previewFrame,previewSourceArgs} from '../dist/core.mjs';
 import {getCodedRate,nextMovieClip} from '../dist/movie.mjs';
-const base={mode:'2d',preset:'quality',filter:'detail',fps:'24',resolution:'400x224',motion:'auto',q:null,maxMB:null};
+const base={mode:'2d',preset:'quality',filter:'detail',fps:'24',resolution:'400x224',motion:'auto',q:null,maxMB:null,hdrMode:'off'};
 test('all new resolutions and rates validate and preserve whole stereo pairs',()=>{
  for(const resolution of RESOLUTIONS)for(const fps of RATES)for(const mode of ['2d','full-sbs','half-sbs']){
   const s={...base,resolution,fps,mode};assert.equal(validate(s),s);

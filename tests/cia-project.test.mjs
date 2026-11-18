@@ -21,3 +21,7 @@ test('FAT32 estimate checks raw payload size and leaves packager headroom',()=>{
   assert.equal(ciaSizeEstimate([{size:100},{size:200}]).headroom,0xffffffff-300);
   assert.throws(()=>ciaSizeEstimate([{size:0xffffffff}]),/FAT32/);
 });
+test('CIA estimates reject invalid individual sizes before summing',()=>{
+  for(const files of [null,[{}],[{size:'100'}],[{size:-1},{size:101}],[{size:0.5},{size:0.5}]])
+    assert.throws(()=>ciaSizeEstimate(files),/Invalid video sizes/);
+});
