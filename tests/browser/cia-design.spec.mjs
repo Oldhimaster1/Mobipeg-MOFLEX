@@ -50,7 +50,7 @@ test('cover editor exports exact CIA icon and thumbnail dimensions',async({page}
   await expect(page.locator('#ciaLiveBanner')).toBeVisible();
   await page.locator('#ciaEditIcon').click();
   await expect(page.locator('#ciaArtworkDialog')).toBeVisible();
-  await page.locator('#ciaArtworkZoom').fill('150');
+  await page.locator('#ciaArtworkZoom').evaluate(el=>{el.value='150';el.dispatchEvent(new Event('input',{bubbles:true}));});
   await page.locator('#ciaArtworkX').fill('45');
   await page.locator('#ciaArtworkApply').click();
   await expect(page.locator('#ciaArtworkDialog')).not.toBeVisible();
