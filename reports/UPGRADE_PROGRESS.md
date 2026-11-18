@@ -124,3 +124,26 @@ When changing the web application, update the dependency version queries and the
 - Follow-up: restored entries now retain correct input-byte estimates. Added a Chromium UI regression for restoring a two-file queue, reselecting both sources, and checking per-file presets. This Playwright test has not yet run in this session.
 
 - Browser checkpoint management lists recoverable OPFS jobs and stored-byte estimates, and offers confirmed deletion under the per-job Web Lock. It never loads video payload bytes for display. Four focused Node tests passed locally; browser UI verification is added but not run in this session.
+
+## Browser HDR + CIA project integration (November 17, 2026)
+
+### HDR-to-SDR encoding — implemented on feature branch
+
+- Web Studio now exposes HDR transfer auto-detection and manual PQ/HLG selection, plus Off/Mobius/Hable/Reinhard.
+- The browser worker generates a 33×33×33 3D LUT locally (BT.2020 PQ/HLG -> display-referred BT.709 SDR), mounts it into FFmpeg WASM via WORKERFS, and applies `lut3d` before picture framing and MobiClip encoding. The filter is also used by still/motion previews and multiple-worker movie segments. Existing SDR filter arguments are unchanged and older stored settings still validate.
+- The LUT approach avoids the earlier browser `tonemap` floating-filter stall. It approximates a 100-nit SDR / 1000-nit HDR reference and must not be described as certified professional color grading.
+- Actual scalar WASM filter tests produced and decoded 320×240 MobiClip MOFLEX from generated 10-bit PQ and HLG FFV1 inputs (both 24 frames). The committed `tests/hdr-wasm.test.mjs` repeats the real encode-and-decode path using the checked-in engine. Six LUT operation combinations were separately checked for finite/neutral output in JavaScript.
+- **Pending:** run the complete Node suite in a fresh checkout, the committed HDR WASM regression in CI/desktop, browser Playwright, mobile Safari and real 3DS tests. Do not call the full workflow hardware-verified.
+
+### Browser CIA project editor — implemented, CIA packaging still native only
+
+- `cia.html` and `cia.mjs` let users choose/reorder up to 27 locally inspected MOFLEX movies, set per-episode titles and banner paths, set global banner/icon, title ID and publisher, then export a `project.json` that matches `native/cia_builder.py`.
+- `cia-project.mjs` validates title length and C0000–EFFFF unique ID, rejects unsafe/duplicate file names, checks file-size budgets before native packaging, and does not copy media into the JSON. A native builder with a separately obtained VidInjector9002-CLI produces and verifies the CIA.
+- **Not implemented:** direct in-browser CIA packaging into a playable `.cia`. Upstream backend and base assets cannot currently be bundled without determining redistribution rights. Streaming RomFS/NCCH packaging and compatible source assets remain future work. No user videos or third-party templates have been committed.
+- Source and `dist/` are synchronized. The offline manifest now includes the CIA builder, project schema and HDR LUT and uses version `20261117z`.
+
+### QA / handoff
+
+- Run `node --test tests/hdr-lut.test.mjs tests/cia-project.test.mjs` and `node --test tests/hdr-wasm.test.mjs`.
+- Then `node --test tests/*.test.mjs` (including pre-existing tests), the full Playwright suite and physical console tests.
+- On any web file change, synchronize source and `dist/` and regenerate `node scripts/offline-assets.mjs`; verify offline hashes before publishing.
