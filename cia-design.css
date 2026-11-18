@@ -1,0 +1,74 @@
+/* CIA Builder: mobile-first layout, with a visual approximation of 3DS menus. */
+.cia-main{max-width:1040px;margin:0 auto;padding:clamp(1rem,4vw,3rem);min-width:0}
+.cia-main .card{margin:1rem 0;padding:clamp(1rem,3vw,2rem);min-width:0}
+.cia-main label{display:block;font-weight:650;margin:.8rem 0 .3rem}
+.cia-main input[type=text],.cia-main input:not([type]),.cia-main input[type=file],.cia-main select{max-width:100%;min-width:0}
+.cia-main button{cursor:pointer}
+.cia-main button:focus-visible,.cia-main input:focus-visible,.cia-main summary:focus-visible,
+.cia-dialog-content input:focus-visible,.cia-dialog-content select:focus-visible{outline:3px solid #618d67;outline-offset:3px}
+.cia-custom-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,1fr);align-items:start;gap:clamp(1rem,3vw,2rem)}
+.cia-artwork-fields{min-width:0}
+.cia-artwork-fields>input{display:block;width:100%;min-height:2.75rem}
+.cia-artwork-entry{margin-top:1.1rem;border-top:1px solid #e1e7df;padding-top:.4rem}
+.cia-artwork-entry input{display:block;width:100%;margin-bottom:.5rem}
+.cia-artwork-entry button{margin:.25rem 0}
+.cia-live-panel{min-width:0;border-radius:1rem;background:#eaf0e8;padding:1rem}
+.cia-live-panel h3{margin:.2rem 0 .25rem}
+.cia-live-panel .hint{margin:.3rem 0 1rem}
+.cia-device{border:6px solid #25322b;border-radius:16px;background:#25322b;max-width:470px;margin:auto;box-shadow:0 10px 22px #12231827;min-width:0}
+.cia-top-screen,.cia-bottom-screen{background:#e7ece6;color:#1b2923;min-width:0;overflow:hidden}
+.cia-top-screen{border:4px solid #101b16;border-radius:8px 8px 3px 3px;min-height:177px;padding:.6rem}
+.cia-live-app{display:flex;gap:.6rem;align-items:center;min-width:0}
+.cia-live-icon{width:48px;height:48px;border-radius:8px;flex:0 0 48px;background:#d9dfd6;border:2px solid #a3b5a8;display:grid;place-items:center;text-align:center;color:#52655c;font-size:.59rem;overflow:hidden}
+.cia-live-icon img{width:100%;height:100%;object-fit:contain}
+.cia-live-app-text{display:flex;flex-direction:column;gap:.12rem;min-width:0}
+.cia-live-app-text strong{font-size:1rem;overflow-wrap:anywhere;line-height:1.15}
+.cia-live-app-text small{color:#50635a;font-size:.76rem;overflow-wrap:anywhere}
+.cia-live-banner{height:115px;margin:.6rem auto 0;max-width:240px;display:grid;place-items:center;background:linear-gradient(145deg,#c8d6ca,#b7c8bb);border:2px solid #a2b7aa;border-radius:6px;overflow:hidden;color:#50645b;font-size:.85rem}
+.cia-live-banner img{width:100%;height:100%;object-fit:contain}
+.cia-device-hinge{height:12px;border-top:1px solid #35493c;border-bottom:1px solid #101b16;background:#28362d}
+.cia-bottom-screen{border:4px solid #101b16;border-radius:3px 3px 8px 8px;min-height:170px;display:flex;flex-direction:column}
+.cia-list-heading{font-size:.8rem;letter-spacing:.02em;padding:.55rem .7rem;background:#d2ddd2;font-weight:700}
+#ciaLiveEpisodes{list-style:none;padding:.3rem .55rem;margin:0;max-height:205px;overflow-y:auto;flex:1}
+#ciaLiveEpisodes li{display:flex;align-items:center;gap:.5rem;padding:.3rem .25rem;border-bottom:1px solid #d9e1d9;font-size:.85rem;overflow-wrap:anywhere;min-width:0}
+.cia-preview-thumb{width:56px;height:34px;flex:0 0 56px;border-radius:4px;border:1px solid #b0c0b2;background:#d9e6d9;display:grid;place-items:center;font-size:.7rem;overflow:hidden}
+.cia-preview-thumb img{width:100%;height:100%;object-fit:cover}
+#ciaLiveEpisodes li span:last-child{min-width:0}
+#ciaLiveEpisodes .cia-preview-empty{color:#526c5c;border:0;font-style:italic}
+.cia-device-footer{text-align:right;color:#597063;font-size:.65rem;padding:.35rem .65rem}
+.cia-episodes{list-style:none;padding:0;margin:.5rem 0}
+.cia-episodes li{border:1px solid #d1d8cd;border-radius:.65rem;padding:.75rem;margin:.6rem 0;min-width:0}
+.cia-episodes li>strong{overflow-wrap:anywhere}
+.cia-episode-row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:end}
+.cia-episode-row label{min-width:165px;flex:1;margin:0}
+.cia-episode-row input{min-width:0;width:100%;margin-top:.3rem}
+.cia-episode-row button{min-height:2.5rem}
+.cia-choice{display:flex!important;align-items:flex-start;gap:.55rem;line-height:1.4}
+.cia-choice input{flex:0 0 auto;width:1.15rem;height:1.15rem;margin:.15rem 0}
+.cia-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:.5rem 1rem}
+.cia-grid label{display:flex;flex-direction:column;gap:.25rem}
+.cia-grid input{width:100%;min-height:2.6rem}
+.cia-id-block{grid-column:1/-1}
+.cia-id-row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.cia-id-row input{width:120px;flex:0 0 120px}
+#ciaAdvanced{border-top:1px solid #d3dbd0;margin-top:1.5rem;padding-top:1rem}
+#ciaAdvanced summary{cursor:pointer;font-weight:750}
+#ciaAdvanced[open]>summary{margin-bottom:.8rem}
+#ciaBuild{margin:1rem 0 .35rem;min-height:3rem;padding:.7rem 1.3rem}
+#ciaStatus{overflow-wrap:anywhere}
+#ciaSaved p{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+#ciaArtworkDialog{border:1px solid #b6c6b7;border-radius:1rem;max-height:min(94dvh,900px);max-width:min(96vw,650px);width:620px;padding:0;color:#1e3025;background:#f8faf7}
+#ciaArtworkDialog::backdrop{background:#111d18a8}
+.cia-dialog-content{padding:clamp(1rem,3vw,1.5rem);overflow:auto;max-height:90dvh}
+.cia-dialog-content h2{margin:.2rem 0 .4rem}
+.cia-editor-canvas-wrap{background:#15231b;border-radius:.7rem;display:grid;place-items:center;min-height:175px;padding:1rem;margin:1rem 0}
+#ciaArtworkCanvas{display:block;max-width:100%;width:auto;height:auto;max-height:38vh;object-fit:contain;touch-action:none;border:1px solid #586b60}
+.cia-editor-settings{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.cia-editor-settings label{font-size:.9rem;font-weight:650;display:flex;flex-direction:column;gap:.4rem}
+.cia-editor-settings input,.cia-editor-settings select{width:100%;min-width:0}
+.cia-dialog-actions{display:flex;justify-content:flex-end;gap:.7rem;flex-wrap:wrap;margin-top:1.5rem}
+.cia-dialog-actions button{min-height:2.7rem}
+[hidden]{display:none!important}
+@media(max-width:720px){.cia-custom-layout{grid-template-columns:1fr}.cia-live-panel{margin-top:.8rem}}
+@media(max-width:440px){.cia-main{padding:.75rem}.cia-main .card{padding:1rem}.cia-editor-settings{grid-template-columns:1fr}.cia-episode-row label{flex-basis:100%}.cia-device{max-width:100%}}
+@media(prefers-reduced-motion:reduce){.cia-device,.cia-main *{scroll-behavior:auto}}
