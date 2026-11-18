@@ -68,6 +68,21 @@ export async function inspectCia(blob) {
     throw Error("A decrypted executable NCCH is required");
   if (!u32(ncch, 0x180) || !u32(ncch, 0x1a4) || !u32(ncch, 0x1b4))
     throw Error("Template has no executable player or movie filesystem");
+  // A matching section hash alone does not prove the ExeFS contains a player.
+  // Check its directory before accepting the CIA as a usable template/output.
+  const exefsSize = u32(ncch, 0x1a4) * 512;
+  const exefsHeader = await read(content, u32(ncch, 0x1a0) * 512, 512);
+  let playerExecutable = false;
+  for (let index = 0; index < 10; index++) {
+    const entry = index * 16;
+    const length = u32(exefsHeader, entry + 12);
+    if (!length) continue;
+    const offset = u32(exefsHeader, entry + 8);
+    if (512 + offset + length > exefsSize)
+      throw Error("ExeFS file lies outside the executable section");
+    if (text(exefsHeader, entry, 8) === ".code") playerExecutable = true;
+  }
+  if (!playerExecutable) throw Error("CIA has no player executable in ExeFS");
   const title = view(tmd).getBigUint64(s + 0x4c, false);
   if (
     view(ticket).getBigUint64(sig(ticket) + 0x9c, false) !== title ||
