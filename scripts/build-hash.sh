@@ -8,3 +8,5 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
   -Wl,--initial-memory=2097152 -Wl,--max-memory=2097152 \
   "$ROOT/native/hash/sha256.c" -o "$ROOT/cia-sha256-core.wasm"
 cp "$ROOT/cia-sha256-core.wasm" "$ROOT/dist/cia-sha256-core.wasm"
+
+chmod 644 "$ROOT/cia-sha256-core.wasm" "$ROOT/dist/cia-sha256-core.wasm"

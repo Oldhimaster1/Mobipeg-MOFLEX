@@ -488,3 +488,11 @@ are `scripts/stress-cia-hash.mjs`, `scripts/stress-long-movie.py`, and
 `tests/browser/stress.config.mjs`; see the progress report for measured results
 and their scope. Private browsing may provide too little storage to retain a
 large CIA, even when the finished download itself is valid.
+
+The browser reliability milestone independently verified generated 5-, 10-, 30-,
+60-, 90- and 120-minute MOFLEX files, including every decoded audio sample against
+the original clip sequence. Chromium also built, split, downloaded and reopened
+a 4.31 GB collection from browser storage. These are synthetic software tests;
+physical iPhone and 3DS long-movie behavior remains unverified. The safe forward
+decoder can still make long seeks slow. Detailed scope and benchmarks are in
+[the progress report](reports/UPGRADE_PROGRESS.md).

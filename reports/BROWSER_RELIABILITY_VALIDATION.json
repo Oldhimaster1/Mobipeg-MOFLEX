@@ -1,0 +1,160 @@
+{
+  "dateUTC": "2026-11-18",
+  "baseline": "a7ffa9f302535baadf6a14286f5067f0d7a81fed",
+  "tests": {
+    "node": 354,
+    "native": 13,
+    "separateSIMDWasm": 1,
+    "chromiumUpgrade": 19,
+    "chromiumFramingOptionsQueue": 10,
+    "chromiumLongParallelRecovery": 5,
+    "webkitPassed": 16,
+    "webkitOPFSSkipped": 3,
+    "realOversizedCiaSplit": 1
+  },
+  "hashJavaScript": {
+    "bytes": 2147483665,
+    "seconds": 102.383127782,
+    "MiBPerSecond": 20.003296056486786,
+    "reads": 2049,
+    "maxRead": 1048576,
+    "baselineRSS": 82284544,
+    "peakRSS": 134168576,
+    "sha256": "f15ab0ffd9fe1d13c32b0f8c025e68fcfcddd19c4a31b60ffe15a1ebb4bd465e",
+    "verified": true
+  },
+  "hashWasm": {
+    "engine": "wasm",
+    "bytes": 2147483665,
+    "seconds": 29.698405641,
+    "MiBPerSecond": 68.95993141750027,
+    "reads": 2049,
+    "maxRead": 1048576,
+    "baselineRSS": 70602752,
+    "peakRSS": 120233984,
+    "sha256": "f15ab0ffd9fe1d13c32b0f8c025e68fcfcddd19c4a31b60ffe15a1ebb4bd465e",
+    "verified": true
+  },
+  "largeCiaBeforeHashOptimization": {
+    "episodes": 5,
+    "bytes": 3620206336,
+    "buildAndDownloadSeconds": 464.539800442,
+    "peakAggregateBrowserRSS": 371875840,
+    "constructionAndIndependentPayloadVerificationPassed": true,
+    "persistencePassed": false,
+    "reason": "Incognito quota was smaller than the CIA; the direct download remained available."
+  },
+  "oversizedCollection": {
+    "episodes": 6,
+    "inputBytes": 4307828736,
+    "partBytes": [
+      3620206336,
+      725440256
+    ],
+    "buildDownloadAndIndependentVerificationSeconds": 431.514326966,
+    "movieDigestVerification": true,
+    "nativeStructureAndHashVerification": true,
+    "titleAndOrderVerification": true,
+    "persistentOPFSAfterReload": true
+  },
+  "longMovies": [
+    {
+      "minutes": 5,
+      "bytes": 123785216,
+      "frames": 7200,
+      "joinSeconds": 0.3350828160037054,
+      "decodeAndSeekSeconds": 13.38887553200766,
+      "seekSeconds": [
+        297
+      ],
+      "verified": true,
+      "audioSamplesPerChannel": 14400000,
+      "audioRangesByteVerified": 50,
+      "audioAuditSeconds": 0.6967183130036574
+    },
+    {
+      "minutes": 10,
+      "bytes": 239325184,
+      "frames": 14400,
+      "joinSeconds": 1.2327139630069723,
+      "decodeAndSeekSeconds": 30.185539733996848,
+      "seekSeconds": [
+        597
+      ],
+      "verified": true,
+      "audioSamplesPerChannel": 28800000,
+      "audioRangesByteVerified": 100,
+      "audioAuditSeconds": 1.2008492439927068
+    },
+    {
+      "minutes": 30,
+      "bytes": 717971456,
+      "frames": 43200,
+      "joinSeconds": 4.728666629001964,
+      "decodeAndSeekSeconds": 96.52230153798882,
+      "seekSeconds": [
+        1797
+      ],
+      "verified": true,
+      "audioSamplesPerChannel": 86400000,
+      "audioRangesByteVerified": 300,
+      "audioAuditSeconds": 2.7674872829957167
+    },
+    {
+      "minutes": 60,
+      "bytes": 1435942912,
+      "frames": 86400,
+      "joinSeconds": 7.688508045001072,
+      "decodeAndSeekSeconds": 175.0030202630005,
+      "seekSeconds": [
+        3597
+      ],
+      "verified": true,
+      "audioSamplesPerChannel": 172800000,
+      "audioRangesByteVerified": 600,
+      "audioAuditSeconds": 5.307556834988645
+    },
+    {
+      "minutes": 90,
+      "bytes": 2153910272,
+      "frames": 129600,
+      "joinSeconds": 5.865773917001206,
+      "decodeAndSeekSeconds": 521.8363530630013,
+      "seekSeconds": [
+        5397,
+        4294,
+        4296
+      ],
+      "verified": true,
+      "audioSamplesPerChannel": 259200000,
+      "audioRangesByteVerified": 900,
+      "audioAuditSeconds": 18.40162386398879
+    },
+    {
+      "minutes": 120,
+      "bytes": 2871881728,
+      "frames": 172800,
+      "joinSeconds": 24.39429840199591,
+      "decodeAndSeekSeconds": 625.8052674380015,
+      "seekSeconds": [
+        7197,
+        4294,
+        4296
+      ],
+      "verified": true,
+      "audioSamplesPerChannel": 345600000,
+      "audioRangesByteVerified": 1200,
+      "audioAuditSeconds": 23.446962912988965
+    }
+  ],
+  "limitations": [
+    "Synthetic repeated scenes, not a representative full-movie quality comparison.",
+    "Timings collected during concurrent development workloads, not isolated controlled benchmarks.",
+    "Aggregate process RSS counts shared pages more than once.",
+    "Linux WebKit is not physical iPhone or macOS Safari.",
+    "No new Azahar run: player, codec and CIA format semantics are unchanged. Existing Azahar evidence remains the compatibility baseline.",
+    "No physical 3DS or iPhone testing was performed.",
+    "Long seeks use the safe forward decoder and can be slow.",
+    "Whole-movie scene-complexity analysis and broader remaining roadmap are not completed in this milestone."
+  ]
+}
