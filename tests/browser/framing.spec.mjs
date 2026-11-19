@@ -18,6 +18,8 @@ for(const engine of ['scalar','simd'])test(`${engine}: motion preview changes fr
  await page.locator('#file').setInputFiles(motionInput);
  await page.locator('#engine').evaluate(el=>el.closest('details').open=true);
  await page.locator('#engine').selectOption(engine);
+ // Framing/preview is independent of parallel storage support.
+ await page.locator('#workers').fill('1');
  await page.locator('input[name=mode][value=full-sbs]').check();
  await page.locator('#resolution').selectOption('256x144');
  await page.locator('#speed').selectOption('fast');
@@ -46,6 +48,8 @@ for(const engine of ['scalar','simd'])test(`${engine}: actual stereo preview, pe
  await page.goto('/');await page.locator('#file').setInputFiles(input);
  await page.locator('#engine').evaluate(el=>el.closest('details').open=true);
  await page.locator('#engine').selectOption(engine);
+ // Framing/preview is independent of parallel storage support.
+ await page.locator('#workers').fill('1');
  await page.locator('input[name=mode][value=half-sbs]').check();
  await page.locator('#resolution').selectOption('352x240');await page.locator('#fps').selectOption('15');
  await page.locator('.framing > summary').click();await page.locator('#fit').selectOption('fill');await page.locator('#aspect').selectOption('16/9');await page.locator('#speed').selectOption('fast');await page.locator('#crop-left').fill('16');

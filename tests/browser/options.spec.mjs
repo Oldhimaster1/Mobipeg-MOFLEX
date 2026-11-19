@@ -1,7 +1,7 @@
 import {test,expect} from '@playwright/test';
 import rows from '../../dist/translations.mjs';
 const locales=['en','es','fr','de','pt','ja','ko','zh-Hans'];
-test('eight local interface languages preserve controls, privacy preference and filenames',async({page})=>{
+test('eight local interface languages preserve controls, privacy preference and filenames',async({page,baseURL})=>{
  const errors=[],requests=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requests.push(r.url()));
  await page.goto('/');await page.locator('#usageOptOut').check();
  await page.locator('.framing > summary').click();await page.locator('#fit').selectOption('fill');await page.locator('#aspect').selectOption('16/9');await page.locator('#speed').selectOption('fast');
@@ -18,16 +18,17 @@ test('eight local interface languages preserve controls, privacy preference and 
  await page.locator('#interfaceLanguage').selectOption('es');
  await page.evaluate(()=>{const input=document.getElementById('file'),transfer=new DataTransfer(),large=new File(['x'],'large.mp4',{type:'video/mp4'});Object.defineProperty(large,'size',{value:600*1024*1024});transfer.items.add(large);input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));});
  let prompt='';page.once('dialog',async d=>{prompt=d.message();await d.dismiss();});
+ await page.locator('#workers').fill('1');
  await page.locator('#convert').click();expect(prompt).toContain('Es un archivo grande.');
  await page.evaluate(()=>document.getElementById('sampleStatus').textContent='Preview cancelled.');
  await expect(page.locator('#sampleStatus')).toHaveText('Vista previa cancelada.');
  await page.reload();await expect(page.locator('html')).toHaveAttribute('lang','es');await expect(page.locator('#usageOptOut')).toBeChecked();
  await page.locator('#interfaceLanguage').selectOption('en');await expect(page.locator('#convert span')).toHaveText('Convert to MOFLEX');
- expect(errors).toEqual([]);expect(requests.filter(url=>!url.startsWith('http://127.0.0.1:4173/')&&!url.startsWith('blob:'))).toEqual([]);
+ expect(errors).toEqual([]);expect(requests.filter(url=>!url.startsWith(new URL(baseURL).origin+'/')&&!url.startsWith('blob:'))).toEqual([]);
 });
-test('interface automatically follows a supported browser locale',async({browser})=>{
+test('interface automatically follows a supported browser locale',async({browser,baseURL})=>{
  const context=await browser.newContext({locale:'ja-JP'});try{
-  const page=await context.newPage();await page.goto('http://127.0.0.1:4173/');
+  const page=await context.newPage();await page.goto(baseURL);
   await expect(page.locator('html')).toHaveAttribute('lang','ja');await expect(page.locator('#convert span')).toHaveText('MOFLEXに変換');
  }finally{await context.close();}
 });

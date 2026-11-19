@@ -12,6 +12,7 @@ for(const workers of [1,2])test(`whole-movie size target with ${workers} workers
    execFileSync(ff,['-v','error','-f','lavfi','-i','testsrc2=s=320x240:r=24:d=9',
      '-f','lavfi','-i','sine=f=880:r=48000:d=9','-c:v','ffv1','-c:a','pcm_s16le',source]);
    await page.goto('/');
+   test.skip(!await page.evaluate(()=>!!navigator.storage?.getDirectory),'This browser build has no OPFS API.');
    await page.locator('#file').setInputFiles(source);
    await page.locator('#longMovie').check();
    await page.locator('#workers').fill(String(workers));
@@ -45,6 +46,7 @@ for(const workers of [1,2])test(`whole-movie size target with ${workers} workers
 });
 test('OPFS recovery ignores a damaged range and protects a job open in another tab',async({page})=>{
  await page.goto('/');
+ test.skip(!await page.evaluate(()=>!!navigator.storage?.getDirectory),'This browser build has no OPFS API.');
  const result=await page.evaluate(async()=>{
    const {openCheckpoint,setCheckpointMedia,persistRange,restoreCheckpoints,closeCheckpoint}=
      await import('/checkpoints.mjs');
@@ -89,6 +91,7 @@ for(const engine of ['scalar','simd'])test(`${engine}: real segmented OPFS movie
  test.skip(!fixture,'Generate a 65-second red/blue stereo clip with two labeled audio tracks');
  const pageErrors=[];page.on('pageerror',e=>pageErrors.push(e.message));
  await page.goto('/');
+ test.skip(!await page.evaluate(()=>!!navigator.storage?.getDirectory),'This browser build has no OPFS API.');
  const selectSettings=async()=>{
  await page.locator('#file').setInputFiles(fixture);
  await page.locator('#engine').evaluate(el=>el.closest('details').open=true);

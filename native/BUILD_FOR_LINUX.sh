@@ -24,8 +24,10 @@ if (( JOBS < 1 || JOBS > 32 )); then
   echo 'Choose 1-32 build jobs.'
   exit 1
 fi
+# Consume all diagnostic output; grep -q can close the pipe early and make a
+# working encoder fail capability checks under pipefail.
 if [[ -x "$PREFIX/bin/ffmpeg" && -x "$PREFIX/bin/ffprobe" && "${MOBIPEG_REBUILD:-0}" != "1" ]] &&
-   "$PREFIX/bin/ffmpeg" -hide_banner -h muxer=moflex 2>&1 | grep -q -- '-mo_interleave_input_double_rate'; then
+   "$PREFIX/bin/ffmpeg" -hide_banner -h muxer=moflex 2>&1 | grep -- '-mo_interleave_input_double_rate' >/dev/null; then
   echo 'Already built. Set MOBIPEG_REBUILD=1 to rebuild.'
   "$PREFIX/bin/ffmpeg" -hide_banner -encoders | grep mobiclip
   exit 0
@@ -57,10 +59,10 @@ cd "$BUILDDIR/ffmpeg"
 make -j "$JOBS" fftools/ffmpeg.o fftools/ffprobe.o
 make -j "$JOBS" -W fftools/ffmpeg.o -W fftools/ffprobe.o ffmpeg ffprobe
 make install
-"$PREFIX/bin/ffmpeg" -hide_banner -encoders 2>/dev/null | grep -q mobiclip || {
+"$PREFIX/bin/ffmpeg" -hide_banner -encoders 2>/dev/null | grep mobiclip >/dev/null || {
   echo 'ERROR: Missing Mobiclip encoder'; exit 1;
 }
-"$PREFIX/bin/ffmpeg" -hide_banner -h muxer=moflex 2>&1 | grep -q -- '-mo_interleave_input_double_rate' || {
+"$PREFIX/bin/ffmpeg" -hide_banner -h muxer=moflex 2>&1 | grep -- '-mo_interleave_input_double_rate' >/dev/null || {
   echo 'ERROR: Missing incremental MOFLEX muxer'; exit 1;
 }
 echo "SUCCESS: $PREFIX/bin/ffmpeg"

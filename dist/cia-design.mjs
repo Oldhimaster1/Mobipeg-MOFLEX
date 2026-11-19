@@ -80,6 +80,24 @@ export function setupCiaDesign({getEpisodes, notify, setFile}) {
   const fit = $('ciaArtworkFit'), aspect = $('ciaArtworkAspect'), zoom = $('ciaArtworkZoom'),
     panX = $('ciaArtworkX'), panY = $('ciaArtworkY');
   let active = false;
+  let session = 0;
+  let saving = false;
+  const controls = [fit, aspect, zoom, panX, panY, $('ciaArtworkApply')];
+  function editorStatus(message, busy = true) {
+    $('ciaArtworkStatus').textContent = message;
+    dialog.setAttribute('aria-busy', String(busy));
+    for (const control of controls) control.disabled = busy;
+  }
+  function cleanupEditor() {
+    session++;
+    drag = null;
+    active = false;
+    saving = false;
+    current.bitmap?.close();
+    Object.assign(current, {bitmap: null, kind: null, apply: null, filename: ''});
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    editorStatus('');
+  }
   let automaticallyGeneratedId = null;
 
   function url(file) {
@@ -184,12 +202,12 @@ export function setupCiaDesign({getEpisodes, notify, setFile}) {
 
   let drag = null;
   canvas.addEventListener('pointerdown', event => {
-    if (!current.bitmap) return;
+    if (!current.bitmap || saving || !active) return;
     drag = {x: event.clientX, y: event.clientY, panX: +panX.value, panY: +panY.value};
     canvas.setPointerCapture(event.pointerId);
   });
   canvas.addEventListener('pointermove', event => {
-    if (!drag || !current.bitmap) return;
+    if (!drag || !current.bitmap || saving || !active) return;
     const box = canvas.getBoundingClientRect();
     panX.value = String(clamp(Math.round(drag.panX + (event.clientX - drag.x) * 120 / Math.max(box.width, 1)), -100, 100));
     panY.value = String(clamp(Math.round(drag.panY + (event.clientY - drag.y) * 120 / Math.max(box.height, 1)), -100, 100));
@@ -208,17 +226,9 @@ export function setupCiaDesign({getEpisodes, notify, setFile}) {
       return;
     }
     if (file.size > MAX_ART_BYTES) { notify('Artwork must be smaller than 32 MB.', true); return; }
-    let bitmap;
-    try {
-      bitmap = await createImageBitmap(file);
-      if (bitmap.width * bitmap.height > MAX_PIXELS) throw Error('Artwork exceeds 40 megapixels.');
-    } catch (error) {
-      bitmap?.close();
-      notify('Could not open this image: ' + error.message, true);
-      return;
-    }
-    if (current.bitmap) current.bitmap.close();
-    current.bitmap = bitmap;
+    cleanupEditor();
+    const token = session;
+    active = true;
     current.kind = kind;
     current.apply = apply;
     current.filename = filename;
@@ -227,36 +237,64 @@ export function setupCiaDesign({getEpisodes, notify, setFile}) {
     canvas.style.width = kind === 'icon' ? 'min(100%, 260px)' : 'min(100%, 440px)';
     $('ciaArtworkHeading').textContent = kind === 'icon' ? 'Edit HOME Menu icon' :
       kind === 'banner' ? 'Edit HOME Menu banner' : 'Edit episode artwork';
-    paint();
-    dialog.showModal();
-    active = true;
+    editorStatus('Loading image…');
+    if (!dialog.open) dialog.showModal();
+    let bitmap;
+    try {
+      bitmap = await createImageBitmap(file);
+      if (token !== session || !active) { bitmap.close(); return; }
+      if (bitmap.width * bitmap.height > MAX_PIXELS) throw Error('Artwork exceeds 40 megapixels.');
+      current.bitmap = bitmap;
+      paint();
+      editorStatus('Ready to edit.', false);
+    } catch (error) {
+      bitmap?.close();
+      if (token !== session || !active) return;
+      current.bitmap = null;
+      editorStatus('Could not open this image: ' + error.message);
+      notify('Could not open this image: ' + error.message, true);
+    }
   }
 
   $('ciaEditIcon').addEventListener('click', () =>
     openEditor($('ciaIcon').files[0], 'icon', file => setFile('ciaIcon', file), 'mobipeg-icon.png'));
   $('ciaEditBanner').addEventListener('click', () =>
     openEditor($('ciaBanner').files[0], 'banner', file => setFile('ciaBanner', file), 'mobipeg-banner.png'));
-  $('ciaArtworkCancel').addEventListener('click', () => dialog.close());
+  function cancelEditor() {
+    cleanupEditor();
+    if (dialog.open) dialog.close();
+  }
+  $('ciaArtworkCancel').addEventListener('click', cancelEditor);
+  dialog.addEventListener('cancel', event => { event.preventDefault(); cancelEditor(); });
   $('ciaArtworkApply').addEventListener('click', async () => {
-    if (!current.bitmap || !active) return;
-    $('ciaArtworkApply').disabled = true;
+    if (!current.bitmap || !active || saving) return;
+    const token = session;
+    const {apply, filename} = current;
+    saving = true;
+    drag = null;
+    editorStatus('Saving artwork…');
     try {
       paint();
       const blob = await new Promise((resolve, reject) =>
         canvas.toBlob(result => result ? resolve(result) : reject(Error('Could not export edited image.')), 'image/png'));
-      const file = new File([blob], current.filename, {type: 'image/png'});
-      current.apply(file);
+      if (token !== session || !active) return;
+      const file = new File([blob], filename, {type: 'image/png'});
+      apply(file);
       refresh();
-      dialog.close();
-    } catch (error) { notify(error.message, true); }
-    finally { $('ciaArtworkApply').disabled = false; }
+      cancelEditor();
+    } catch (error) {
+      if (token === session && active) {
+        editorStatus('Could not save artwork: ' + error.message, false);
+        notify(error.message, true);
+      }
+    } finally {
+      if (token === session && active) saving = false;
+    }
   });
-  dialog.addEventListener('close', () => {
-    drag = null; active = false;
-    current.bitmap?.close(); current.bitmap = null;
-    current.apply = null;
-  });
+  // A queued close event from an older session must not close a new editor.
+  dialog.addEventListener('close', () => { if (!dialog.open) cleanupEditor(); });
   window.addEventListener('pagehide', () => {
+    cancelEditor();
     for (const src of urls.values()) URL.revokeObjectURL(src);
     urls.clear();
   });

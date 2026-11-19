@@ -66,6 +66,7 @@ test('cover editor exports exact CIA icon and thumbnail dimensions',async({page}
   await page.locator('#ciaArtworkFit').selectOption('fit');
   await page.locator('#ciaArtworkAspect').selectOption('square');
   await page.locator('#ciaArtworkApply').click();
+  await expect(page.locator('#ciaArtworkDialog')).not.toBeVisible();
   const banner=await page.locator('#ciaBanner').evaluate(async el=>{
     const f=el.files[0],im=await createImageBitmap(f);
     const result={name:f.name,width:im.width,height:im.height,type:f.type};
@@ -119,10 +120,161 @@ test('episode titles, ordering and artwork immediately update the live list',asy
   await expect(page.locator('#ciaLiveEpisodes li').first().locator('img')).toBeVisible();
   await page.locator('#ciaEpisodes > li').first().getByRole('button',{name:'Crop artwork'}).click();
   await page.locator('#ciaArtworkApply').click();
+  await expect(page.locator('#ciaArtworkDialog')).not.toBeVisible();
   await expect(page.locator('#ciaLiveEpisodes li').first().locator('img')).toBeVisible();
   const dimensions=await page.locator('#ciaEpisodes > li').first().getByLabel('Episode 1 banner').evaluate(async el=>{
     const bitmap=await createImageBitmap(el.files[0]),out=[bitmap.width,bitmap.height];
     bitmap.close();return out;
   });
   expect(dimensions).toEqual([200,120]);
+});
+
+// Control completion order explicitly: timers alone cannot reliably reproduce races.
+async function delayArtwork(page, operation) {
+  await page.evaluate(operation => {
+    window.artworkJobs = [];
+    window.closedArtworkBitmaps = 0;
+    if (operation === 'decode') {
+      const decode = window.createImageBitmap.bind(window);
+      window.createImageBitmap = (...args) => new Promise((resolve, reject) => {
+        window.artworkJobs.push(async (fail = false) => {
+          if (fail) { reject(Error('Test decode failure')); return; }
+          const bitmap = await decode(...args);
+          const close = bitmap.close.bind(bitmap);
+          bitmap.close = () => { window.closedArtworkBitmaps++; close(); };
+          resolve(bitmap);
+        });
+      });
+    } else {
+      const toBlob = HTMLCanvasElement.prototype.toBlob;
+      HTMLCanvasElement.prototype.toBlob = function(callback, ...args) {
+        toBlob.call(this, blob => {
+          window.artworkJobs.push((fail = false) => callback(fail ? null : blob));
+        }, ...args);
+      };
+    }
+  }, operation);
+}
+async function finishArtwork(page, index, fail = false) {
+  await expect.poll(() => page.evaluate(() => window.artworkJobs.length)).toBeGreaterThan(index);
+  await page.evaluate(async ({index, fail}) => { await window.artworkJobs[index](fail); }, {index, fail});
+}
+async function chooseArtwork(page) {
+  await page.goto('/cia.html');
+  await page.locator('#ciaIcon').setInputFiles({name:'original-icon.png',mimeType:'image/png',buffer:png(80,100)});
+  await page.locator('#ciaBanner').setInputFiles({name:'original-banner.png',mimeType:'image/png',buffer:png(400,200)});
+}
+
+test('artwork editor opens immediately and blocks edits until delayed decoding finishes', async ({page}) => {
+  await chooseArtwork(page);
+  await delayArtwork(page, 'decode');
+  await page.locator('#ciaEditIcon').click();
+  await expect(page.locator('#ciaArtworkDialog')).toBeVisible();
+  await expect(page.locator('#ciaArtworkStatus')).toHaveText('Loading image…');
+  for (const id of ['Apply','Fit','Aspect','Zoom','X','Y'])
+    await expect(page.locator('#ciaArtwork' + id)).toBeDisabled();
+  await expect(page.locator('#ciaArtworkCancel')).toBeEnabled();
+  await finishArtwork(page, 0);
+  await expect(page.locator('#ciaArtworkApply')).toBeEnabled();
+  await expect(page.locator('#ciaArtworkStatus')).toHaveText('Ready to edit.');
+  await page.locator('#ciaArtworkApply').click();
+  await expect(page.locator('#ciaArtworkDialog')).not.toBeVisible();
+  expect(await page.locator('#ciaIcon').evaluate(el => el.files[0].name)).toBe('mobipeg-icon.png');
+  expect(await page.evaluate(() => window.closedArtworkBitmaps)).toBe(1);
+});
+
+test('cancelled and outdated image decoding cannot reopen or replace the current editor', async ({page}) => {
+  await chooseArtwork(page);
+  await delayArtwork(page, 'decode');
+  await page.locator('#ciaEditIcon').click();
+  await page.locator('#ciaArtworkCancel').click();
+  await page.locator('#ciaEditBanner').click();
+  await finishArtwork(page, 1);
+  await expect(page.locator('#ciaArtworkApply')).toBeEnabled();
+  await finishArtwork(page, 0);
+  await expect(page.locator('#ciaArtworkHeading')).toHaveText('Edit HOME Menu banner');
+  expect(await page.locator('#ciaArtworkCanvas').evaluate(el => [el.width,el.height])).toEqual([200,120]);
+  expect(await page.evaluate(() => window.closedArtworkBitmaps)).toBe(1);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#ciaArtworkDialog')).not.toBeVisible();
+  await page.locator('#ciaEditIcon').click();
+  await page.keyboard.press('Escape');
+  await finishArtwork(page, 2);
+  await expect(page.locator('#ciaArtworkDialog')).not.toBeVisible();
+  expect(await page.locator('#ciaIcon').evaluate(el => el.files[0].name)).toBe('original-icon.png');
+  expect(await page.evaluate(() => window.closedArtworkBitmaps)).toBe(3);
+});
+
+test('cancelled PNG export cannot apply artwork or unlock a newer saving session', async ({page}) => {
+  await chooseArtwork(page);
+  await delayArtwork(page, 'export');
+  await page.locator('#ciaEditIcon').click();
+  await page.locator('#ciaArtworkApply').click();
+  await expect(page.locator('#ciaArtworkStatus')).toHaveText('Saving artwork…');
+  await expect(page.locator('#ciaArtworkZoom')).toBeDisabled();
+  await page.locator('#ciaArtworkCancel').click();
+  await page.locator('#ciaEditBanner').click();
+  await page.locator('#ciaArtworkApply').click();
+  await finishArtwork(page, 0);
+  await expect(page.locator('#ciaArtworkApply')).toBeDisabled();
+  await expect(page.locator('#ciaArtworkStatus')).toHaveText('Saving artwork…');
+  expect(await page.locator('#ciaIcon').evaluate(el => el.files[0].name)).toBe('original-icon.png');
+  await finishArtwork(page, 1);
+  await expect(page.locator('#ciaArtworkDialog')).not.toBeVisible();
+  expect(await page.locator('#ciaBanner').evaluate(el => el.files[0].name)).toBe('mobipeg-banner.png');
+});
+
+test('PNG export failure allows retry and stale failure cannot change a newer editor', async ({page}) => {
+  await chooseArtwork(page);
+  await delayArtwork(page, 'export');
+  await page.locator('#ciaEditIcon').click();
+  await page.locator('#ciaArtworkApply').click();
+  await finishArtwork(page, 0, true);
+  await expect(page.locator('#ciaArtworkStatus')).toContainText('Could not save artwork');
+  await expect(page.locator('#ciaArtworkApply')).toBeEnabled();
+  await page.locator('#ciaArtworkApply').click();
+  await page.locator('#ciaArtworkCancel').click();
+  await page.locator('#ciaEditBanner').click();
+  await expect(page.locator('#ciaArtworkStatus')).toHaveText('Ready to edit.');
+  await finishArtwork(page, 1, true);
+  await expect(page.locator('#ciaArtworkStatus')).toHaveText('Ready to edit.');
+  await page.locator('#ciaArtworkApply').click();
+  await finishArtwork(page, 2);
+  await expect(page.locator('#ciaArtworkDialog')).not.toBeVisible();
+});
+
+test('decode failure and pagehide leave no live artwork session', async ({page}) => {
+  await chooseArtwork(page);
+  await delayArtwork(page, 'decode');
+  await page.locator('#ciaEditIcon').click();
+  await finishArtwork(page, 0, true);
+  await expect(page.locator('#ciaArtworkStatus')).toContainText('Could not open this image');
+  await expect(page.locator('#ciaArtworkApply')).toBeDisabled();
+  await page.locator('#ciaArtworkCancel').click();
+  await page.locator('#ciaEditIcon').click();
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide')));
+  await finishArtwork(page, 1);
+  await expect(page.locator('#ciaArtworkDialog')).not.toBeVisible();
+  expect(await page.locator('#ciaIcon').evaluate(el => el.files[0].name)).toBe('original-icon.png');
+  expect(await page.evaluate(() => window.closedArtworkBitmaps)).toBe(1);
+});
+
+test('new editor session supersedes pending decoding without requiring a close event', async ({page}) => {
+  await chooseArtwork(page);
+  await delayArtwork(page, 'decode');
+  await page.locator('#ciaEditIcon').click();
+  // Simulate another application action selecting different artwork while decoding.
+  await page.locator('#ciaEditBanner').evaluate(el => el.click());
+  await finishArtwork(page, 1);
+  await finishArtwork(page, 0);
+  await expect(page.locator('#ciaArtworkHeading')).toHaveText('Edit HOME Menu banner');
+  await expect(page.locator('#ciaArtworkStatus')).toHaveText('Ready to edit.');
+  expect(await page.evaluate(() => window.closedArtworkBitmaps)).toBe(1);
+  await page.locator('#ciaEditIcon').evaluate(el => el.click());
+  await page.locator('#ciaEditBanner').evaluate(el => el.click());
+  await finishArtwork(page, 2, true);
+  await expect(page.locator('#ciaArtworkStatus')).toHaveText('Loading image…');
+  await expect(page.locator('#ciaArtworkApply')).toBeDisabled();
+  await finishArtwork(page, 3);
+  await expect(page.locator('#ciaArtworkApply')).toBeEnabled();
 });
