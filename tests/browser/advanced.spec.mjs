@@ -16,6 +16,8 @@ test('advanced overrides reach the worker, remain optional, and reset on mobile'
  await expect(page.locator('#advancedCommand')).toContainText('volume=-6dB,aresample=48000');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
  await page.locator('#file').setInputFiles({name:'form-fixture.mp4',mimeType:'video/mp4',buffer:Buffer.from('form fixture, no media encoding')});
+ // This form test uses one mocked worker and does not require OPFS.
+ await page.locator('#workers').fill('1');
  await page.locator('#convert').click();
  await expect.poll(()=>page.evaluate(()=>window.commands.length)).toBe(1);
  expect(await page.evaluate(()=>window.commands[0].settings.advanced)).toEqual({subme:2,me:'dia',volume:-6});
@@ -37,4 +39,23 @@ test('advanced overrides reach the worker, remain optional, and reset on mobile'
  await expect(page.locator('#adv-subme')).toHaveValue('');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
  expect(errors).toEqual([]);
+});
+
+test('parallel conversion explains unavailable OPFS before starting a worker', async ({page}) => {
+ await page.addInitScript(() => {
+  Object.defineProperty(navigator, 'storage', {value: {getDirectory: undefined}, configurable: true});
+  window.workerStarted = false;
+  window.Worker = class { constructor() { window.workerStarted = true; } };
+ });
+ await page.goto('/');
+ await page.locator('#file').setInputFiles({name:'form-fixture.mp4',mimeType:'video/mp4',buffer:Buffer.from('form fixture')});
+ await page.locator('#longMovie').check();
+ const dialog = page.waitForEvent('dialog');
+ const click = page.locator('#convert').click();
+ const alert = await dialog;
+ expect(alert.message()).toContain('OPFS');
+ await alert.accept();
+ await click;
+ expect(await page.evaluate(() => window.workerStarted)).toBe(false);
+ await expect(page.locator('#convert')).toBeEnabled();
 });

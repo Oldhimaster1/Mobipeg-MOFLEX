@@ -108,6 +108,7 @@ test('offline cache runs a real conversion and opens the player',async({page},te
     await page.locator('#play').click();
     await expect(page.locator('#playerStatus')).toContainText('Playing locally',{timeout:30000});
     await page.goto(origin+'/cia.html');
+    await page.locator('#ciaAdvanced').evaluate(el=>{el.open=true;});
     await expect(page.locator('#ciaOpen')).toBeVisible();
     expect(await page.evaluate(async()=>{const response=await fetch('/cia-sha256-core.wasm');return response.ok;})).toBe(true);
     const template=process.env.MOBIPEG_TEST_CIA_TEMPLATE;
@@ -215,6 +216,7 @@ test('browser can list and safely delete an abandoned OPFS checkpoint',async({pa
 
 test('browser CIA project editor exports a native-compatible ordered project',async({page},testInfo)=>{
   await page.goto('/cia.html');
+  await page.locator('#ciaAdvanced').evaluate(el=>{el.open=true;});
   await page.locator('#ciaFiles').setInputFiles(movie);
   await expect(page.locator('#ciaEpisodes > li')).toHaveCount(1);
   await page.locator('#ciaTitle').fill('My Movie');
@@ -246,6 +248,7 @@ test('browser HDR controls expose auto detection, manual PQ/HLG and tone-mapping
 
 test('CIA project reopens ordered episodes and artwork without changing the editor on missing inputs',async({page})=>{
   await page.goto('/cia.html');
+  await page.locator('#ciaAdvanced').evaluate(el=>{el.open=true;});
   const project={version:1,title:'Reopened season',long_title:'Season long title',publisher:'Local studio',id:'C4321',
     movies:[{file:'second.moflex',title:'Finale',banner:'cover.png'},{file:'first.moflex',title:'Pilot'}],
     icon:'cover.png',browser:{split:true,bannerAudio:'sound.wav'}};
@@ -301,11 +304,12 @@ for(const engine of ['scalar','simd'])test('real short conversion and playback w
   await page.locator('#play').click();
   await expect(page.locator('#playerStatus')).toContainText('Playing locally',{timeout:30000});
   expect(engineRequests.some(url=>url.includes('.wasm?'))).toBe(true);
-  for(const url of engineRequests)expect(new URL(url).searchParams.get('v')).toBe('20261118v');
+  for(const url of engineRequests)expect(new URL(url).searchParams.get('v')).toBe('20261118w');
 });
 
 test('CIA editor uses saved batch conversions directly from OPFS',async({page})=>{
   await page.goto('/cia.html');
+  await page.locator('#ciaAdvanced').evaluate(el=>{el.open=true;});
   test.skip(!await page.evaluate(()=>!!navigator.storage?.getDirectory),'This browser build has no OPFS API.');
   await page.evaluate(async bytes=>{
     const {batchStorage,saveBatchFile}=await import('/batch-output.mjs');
@@ -334,6 +338,7 @@ test('verified CIA remains downloadable when optional browser storage fails',asy
     })})});
   });
   await page.goto('/cia.html');
+  await page.locator('#ciaAdvanced').evaluate(el=>{el.open=true;});
   await page.locator('#ciaFiles').setInputFiles(movie);
   await expect(page.locator('#ciaEpisodes > li')).toHaveCount(1);
   await page.locator('#ciaTitle').fill('Storage recovery');

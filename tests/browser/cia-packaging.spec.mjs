@@ -15,6 +15,7 @@ for(const count of [1,2,5,10,20,27])test("browser builds a collection of "+count
   );
   test.setTimeout(Number(process.env.MOBIPEG_TEST_CIA_TIMEOUT||180000));
   await page.goto("/cia.html");
+  await page.locator('#ciaAdvanced').evaluate(el=>{el.open=true;});
   await page.locator("#ciaFiles").setInputFiles(movies.slice(0,count));
   await expect(page.locator("#ciaEpisodes > li")).toHaveCount(count);
   for(let i=0;i<count;i++)await page.getByRole('textbox',{name:'Episode '+(i+1)+' title',exact:true}).fill('Episode '+i);

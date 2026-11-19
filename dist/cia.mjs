@@ -3,12 +3,14 @@ import {parseCiaProject,resolveCiaProjectFiles} from './cia-project-import.mjs?v
 import {prepareCiaDownload,ciaOutputDirectory} from './cia-output.mjs?v=20261118g';
 import {buildCia} from './cia-packager.mjs?v=20261118v';
 import {loadVidInjectorStarter} from './cia-vidinjector-template.mjs?v=20261118v';
+import {setupCiaDesign} from './cia-design.mjs?v=20261118w';
 import {createCiaProject,ciaSizeEstimate,MAX_CIA_MOVIES,planCiaParts} from './cia-project.mjs?v=20261118g';
 import {readSuperMoflex} from './super-moflex.mjs?v=20261117r';
 import {inspectPlayableMoflex} from './player-core.mjs?v=20261118g';
 
 const $=id=>document.getElementById(id);
 const episodes=[];
+let design;
 const bytes=n=>n<1e6?(n/1000).toFixed(1)+' KB':(n/1e6).toFixed(2)+' MB';
 const setStatus=(message,error=false)=>{
   $('ciaStatus').textContent=message;
@@ -28,12 +30,14 @@ function render(){
     const label=document.createElement('label');label.textContent='Menu title ';
     const input=document.createElement('input');input.value=entry.title;input.maxLength=127;
     input.setAttribute('aria-label','Episode '+(index+1)+' title');
-    input.addEventListener('input',()=>entry.title=input.value);
+    input.addEventListener('input',()=>{entry.title=input.value;design?.refresh();});
     label.append(input);controls.append(label);
     const bannerLabel=document.createElement('label');bannerLabel.textContent='Episode banner ';
     const banner=document.createElement('input');banner.type='file';banner.accept='.png,.bmp,.jpg,.jpeg,.bimg';
     banner.setAttribute('aria-label','Episode '+(index+1)+' banner');
-    banner.onchange=()=>{entry.banner=banner.files[0]?.name??null;entry.bannerFile=banner.files[0]??null;};
+    // Keep the chosen artwork visible when rows are rerendered after editing.
+    if(entry.bannerFile){const dt=new DataTransfer();dt.items.add(entry.bannerFile);banner.files=dt.files;}
+    banner.onchange=()=>{entry.banner=banner.files[0]?.name??null;entry.bannerFile=banner.files[0]??null;render();};
     bannerLabel.append(banner);
     if(entry.banner){const selected=document.createElement('small');selected.textContent='Selected: '+entry.banner;bannerLabel.append(selected);}
     controls.append(bannerLabel);
@@ -41,6 +45,9 @@ function render(){
       const b=document.createElement('button');b.type='button';b.className='text-button';
       b.textContent=name;b.disabled=disabled;b.onclick=action;controls.append(b);
     };
+    btn('Crop artwork',()=>design.editEpisode(entry.bannerFile,index,file=>{
+      entry.bannerFile=file;entry.banner=file.name;render();
+    }),!entry.bannerFile||!/\.(png|bmp|jpe?g)$/i.test(entry.bannerFile.name));
     btn('↑',()=>{[episodes[index-1],episodes[index]]=[episodes[index],episodes[index-1]];render();},index===0);
     btn('↓',()=>{[episodes[index],episodes[index+1]]=[episodes[index+1],episodes[index]];render();},index===episodes.length-1);
     btn('Remove',()=>{episodes.splice(index,1);render();});
@@ -53,6 +60,7 @@ function render(){
         ' selected · '+bytes(estimate.bytes)+' of video. The CIA will be a little larger.';
     }else $('ciaFilesStatus').textContent='Choose up to 27 MOFLEX files. You can change their order below.';
   }catch(e){$('ciaFilesStatus').textContent=e.message;}
+  design?.refresh();
 }
 async function addEpisodes(selected){
   for(const file of selected){
@@ -91,6 +99,7 @@ $('ciaAddSaved').disabled=!navigator.storage?.getDirectory;
 function setLocalFile(id,file){
   const transfer=new DataTransfer();if(file)transfer.items.add(file);
   $(id).files=transfer.files;
+  design?.refresh();
 }
 $('ciaOpen').onclick=async()=>{
   const button=$('ciaOpen');button.disabled=true;
@@ -132,6 +141,11 @@ $('ciaForm').addEventListener('submit',event=>{
     setStatus('Project saved. Keep the JSON with your original movies and artwork to reopen it later.');
   }catch(error){setStatus(error.message||String(error),true);}
 });
+design=setupCiaDesign({
+  getEpisodes:()=>episodes,
+  notify:setStatus,
+  setFile:setLocalFile
+});
 render();
 
 $('ciaBuild').onclick=async()=>{
@@ -166,6 +180,7 @@ $('ciaBuild').onclick=async()=>{
       const url=URL.createObjectURL(result),link=document.createElement('a');link.href=url;link.download=groups.length>1?'collection-'+(part+1)+'.cia':'movie.cia';link.click();
       setTimeout(()=>URL.revokeObjectURL(url),60000);
     }
+    for(let part=0;part<groups.length;part++)design.remember((firstId+part).toString(16).toUpperCase());
     setStatus('CIA built and content hash verified. Physical 3DS playback has not been tested.'+(warnings.length?' '+warnings.join(' ')+' The finished CIA was offered for download.':''));
   }catch(error){setStatus(error.message||String(error),true);}
   finally{button.disabled=false;}

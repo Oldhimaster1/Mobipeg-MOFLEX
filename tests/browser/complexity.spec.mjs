@@ -35,7 +35,9 @@ for(const engine of ['scalar','simd'])test('real source motion/texture analysis 
 });
 
 test('uniform allocation is selectable and performs a real browser conversion',async({page},testInfo)=>{
- await page.goto('/');await page.locator('#file').setInputFiles(source);
+ await page.goto('/');
+ test.skip(!await page.evaluate(()=>!!navigator.storage?.getDirectory),'This browser build has no OPFS API.');
+ await page.locator('#file').setInputFiles(source);
  await page.locator('#longMovie').check();await page.locator('#workers').fill('2');
  await page.locator('#resolution').selectOption('320x240');await page.locator('#speed').selectOption('fast');
  await page.locator('#maxMB').evaluate(el=>el.closest('details').open=true);

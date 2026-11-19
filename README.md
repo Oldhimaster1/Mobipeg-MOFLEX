@@ -221,6 +221,14 @@ in a second WASM process in local synthetic checks. The committed
 Device-specific Safari behavior, real movies, and physical 3DS playback
 are still unverified.
 
+### CIA Builder artwork and preview (experimental)
+
+The browser CIA Builder now has a simpler layout: select movies, enter a title, optionally add cover art, and build. A live HOME Menu / episode-list preview updates when you change the title, episode order, or selected artwork. This is an **approximation**, not a 3DS emulator or an exact copy of every player layout.
+
+Each icon, HOME Menu banner, and episode thumbnail can be cropped, zoomed, and repositioned using the built-in editor. Aspect presets add padding where necessary so the exported PNG retains the required 48×48 (icon) or 200×120 (banner/episode image) size. Existing SMDH, BIMG and prepared CBMD resources still work without the image editor. The actual CIA packager converts edited PNGs to the player's tiled RGB565 format. Keep your original or edited PNG files if you save the project as JSON.
+
+A random title ID is generated locally using the browser's cryptographic random generator. The builder avoids IDs it previously generated in the same browser and accepts a manual override. **No website can know which title IDs are already installed on a user's 3DS**, so installation collisions remain possible. Existing VidInjector permission warnings and the manual CIA template option are unchanged.
+
 ### CIA building in the browser
 
 Open the CIA builder and select your MOFLEX movies. You can supply a compatible,
